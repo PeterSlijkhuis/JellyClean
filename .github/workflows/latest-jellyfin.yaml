@@ -1,0 +1,27 @@
+name: Latest Jellyfin
+
+# Every Monday, build and test against the newest Jellyfin release on NuGet,
+# so a breaking Jellyfin change shows up before users report it.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: development
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Find the newest Jellyfin release
+        id: jellyfin
+        run: |
+          version=$(curl -fsS https://api.nuget.org/v3-flatcontainer/jellyfin.controller/index.json \
+            | jq -r '[.versions[] | select(test("-") | not)] | last')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Testing against Jellyfin $version" >> "$GITHUB_STEP_SUMMARY"
+      - run: dotnet test JellyClean.slnx -p:JellyfinVersion=${{ steps.jellyfin.outputs.version }}

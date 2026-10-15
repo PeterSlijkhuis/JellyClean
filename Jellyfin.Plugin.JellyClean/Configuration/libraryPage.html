@@ -120,6 +120,18 @@
             #JellyCleanLibraryPage .jc-empty { padding: 1.5em; text-align: center; opacity: 0.7; }
             #JellyCleanLibraryPage .jc-more { display: block; margin: 1em auto 0; }
 
+            /* Leaving soon and saved views */
+            #JellyCleanLibraryPage .jc-leaving { border-color: rgba(240, 180, 41, 0.45); }
+            #JellyCleanLibraryPage .jc-leaving .jc-plan { margin-top: 0.8em; }
+            #JellyCleanLibraryPage .jc-leave-row { display: flex; gap: 0.8em; align-items: center; flex-wrap: wrap; }
+            #JellyCleanLibraryPage .jc-leave-row > div { flex: 1 1 260px; min-width: 0; }
+            #JellyCleanLibraryPage .jc-due { color: #f0b429; font-weight: 600; }
+            #JellyCleanLibraryPage .jc-views { display: flex; gap: 0.5em; flex-wrap: wrap; align-items: center; margin: -0.3em 0 1em; }
+            #JellyCleanLibraryPage .jc-view { display: inline-flex; align-items: stretch; border-radius: 999px; border: 1px solid rgba(170, 92, 195, 0.6); overflow: hidden; }
+            #JellyCleanLibraryPage .jc-view button { border: 0; background: transparent; color: inherit; font: inherit; font-size: 0.92em; cursor: pointer; padding: 0.45em 0.6em 0.45em 0.95em; }
+            #JellyCleanLibraryPage .jc-view button + button { padding: 0.45em 0.8em 0.45em 0.4em; opacity: 0.6; }
+            #JellyCleanLibraryPage .jc-view small { opacity: 0.6; margin-left: 0.4em; }
+
             /* Selection bar */
             #JellyCleanLibraryPage .jc-bar {
                 position: sticky; bottom: 1em; z-index: 4; display: flex; gap: 0.7em; align-items: center; justify-content: flex-end; flex-wrap: wrap;
@@ -176,6 +188,20 @@
                     <div class="jc-stats" id="jcStats" aria-live="polite"></div>
                 </div>
 
+                <section class="jc-card jc-leaving" id="jcLeaving" hidden>
+                    <div class="jc-head" style="margin:0;">
+                        <div>
+                            <h2>Leaving soon</h2>
+                            <p class="jc-hint" id="jcLeavingText" style="margin:0;"></p>
+                        </div>
+                        <div class="jc-actions">
+                            <button type="button" class="jc-btn" id="jcLeavingToggle" aria-expanded="false">Show list</button>
+                            <button type="button" class="jc-btn danger" id="jcReviewDue" hidden>Review due items</button>
+                        </div>
+                    </div>
+                    <div class="jc-plan" id="jcLeavingList" hidden></div>
+                </section>
+
                 <section class="jc-card">
                     <h2>Filter</h2>
                     <p class="jc-hint">Start from a suggestion or set your own filters. The list updates as you go.</p>
@@ -188,6 +214,7 @@
                         <button type="button" class="jc-preset" data-preset="lowres">Old H.264 below 1080p</button>
                         <button type="button" class="jc-preset" data-preset="reset">Clear filters</button>
                     </div>
+                    <div class="jc-views" id="jcViews"></div>
                     <div class="jc-fields">
                         <div class="jc-field">
                             <label for="jcType">Show</label>
@@ -335,10 +362,11 @@
             (function () {
                 var page = document.querySelector('#JellyCleanLibraryPage');
                 var PAGE_SIZE = 100;
-                var DAY = 24 * 60 * 60 * 1000;
                 var users = {};
                 var userCount = 0;
                 var servers = 0;
+                var config = { Views: [], NoticeDays: 14 };
+                var leaving = [];
                 var shown = [];
                 var total = 0;
                 var selected = new Map(); // id -> size
@@ -401,8 +429,6 @@
                     });
                 }
 
-                function daysAgo(days) { return new Date(Date.now() - days * DAY).toISOString(); }
-
                 function filter(offset) {
                     var added = parseInt($('jcAdded').value, 10);
                     var idle = parseInt($('jcIdle').value, 10);
@@ -413,9 +439,9 @@
                         Library: $('jcLibrary').value || null,
                         Genres: Array.from(genres),
                         Watched: $('jcWatched').value || null,
-                        AddedBefore: added > 0 ? daysAgo(added) : null,
-                        AddedAfter: added < 0 ? daysAgo(-added) : null,
-                        NotWatchedSince: idle > 0 ? daysAgo(idle) : null,
+                        AddedMoreThanDays: added > 0 ? added : null,
+                        AddedWithinDays: added < 0 ? -added : null,
+                        NotPlayedForDays: idle > 0 ? idle : null,
                         MinSize: size > 0 ? size * 1e9 : null,
                         Resolutions: $('jcResolution').value ? $('jcResolution').value.split(',') : null,
                         Hdr: $('jcHdr').value || null,
@@ -428,6 +454,84 @@
                         Offset: offset,
                         Limit: PAGE_SIZE
                     };
+                }
+
+                // Saved views
+
+                function renderViews() {
+                    var box = $('jcViews');
+                    box.textContent = '';
+                    (config.Views || []).forEach(function (v) {
+                        var open = el('button', { type: 'button', textContent: v.Name, title: 'Show this view' }, v.CheckDaily ? el('small', { textContent: 'daily' }) : null);
+                        open.dataset.view = v.Name;
+                        var del = el('button', { type: 'button', textContent: '×', title: 'Delete this view', ariaLabel: 'Delete ' + v.Name });
+                        del.dataset.deleteView = v.Name;
+                        box.append(el('span', { className: 'jc-view' }, open, del));
+                    });
+                    var save = el('button', { type: 'button', className: 'jc-preset', id: 'jcSaveView', textContent: '+ Save this view' });
+                    box.append(save);
+                }
+
+                function applyView(name) {
+                    var view = (config.Views || []).filter(function (v) { return v.Name === name; })[0];
+                    if (!view) { return; }
+                    var f = JSON.parse(view.Filter || '{}');
+                    $('jcType').value = (f.Types || ['Movie']).join(',');
+                    $('jcLibrary').value = f.Library || '';
+                    $('jcWatched').value = f.Watched || '';
+                    $('jcAdded').value = f.AddedMoreThanDays ? String(f.AddedMoreThanDays) : f.AddedWithinDays ? String(-f.AddedWithinDays) : '';
+                    $('jcIdle').value = f.NotPlayedForDays ? String(f.NotPlayedForDays) : '';
+                    $('jcSize').value = f.MinSize ? String(Math.round(f.MinSize / 1e9)) : '';
+                    $('jcResolution').value = (f.Resolutions || []).join(',');
+                    $('jcHdr').value = f.Hdr || '';
+                    $('jcCodec').value = f.Codec || '';
+                    $('jcSort').value = (f.Sort || 'added') + '|' + (f.Descending ? '1' : '0');
+                    $('jcSearch').value = f.Search || '';
+                    $('jcCopies').setAttribute('aria-checked', String(!!f.CopiesOnly));
+                    $('jcHideProtected').setAttribute('aria-checked', String(!!f.HideProtected));
+                    genres = new Set(f.Genres || []);
+                    page.querySelectorAll('.jc-genre').forEach(function (b) { b.setAttribute('aria-pressed', String(genres.has(b.dataset.genre))); });
+                    ['jcType', 'jcLibrary', 'jcWatched', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
+                        if ($(id).selectedIndex < 0) { $(id).selectedIndex = 0; }
+                    });
+                    load(false);
+                }
+
+                function loadConfig() {
+                    return ApiClient.getPluginConfiguration('b0be751c-a689-46fd-bb83-4540a41cd649').then(function (c) {
+                        config = c;
+                        servers = (c.Servers || []).filter(function (s) { return s.Url; }).length;
+                        renderViews();
+                    });
+                }
+
+                // Leaving soon
+
+                function loadLeaving() {
+                    return call('GET', 'LeavingSoon').then(function (list) {
+                        leaving = list;
+                        var due = list.filter(function (l) { return l.IsDue && !l.Protected; });
+                        var size = list.reduce(function (sum, l) { return sum + l.Size; }, 0);
+                        $('jcLeaving').hidden = !list.length;
+                        $('jcLeavingText').textContent = plural(list.length, 'item', 'items') + ', ' + bytes(size) + '. ' +
+                            (due.length ? plural(due.length, 'item is', 'items are').replace(/ is$| are$/, '') + (due.length === 1 ? ' is' : ' are') + ' due and waiting for you.' : 'Nothing is due yet.');
+                        $('jcReviewDue').hidden = !due.length;
+                        $('jcReviewDue').textContent = 'Review due items (' + due.length + ')';
+
+                        var box = $('jcLeavingList');
+                        box.textContent = '';
+                        list.forEach(function (l) {
+                            var cancel = el('button', { type: 'button', className: 'jc-btn', textContent: 'Cancel' });
+                            cancel.dataset.cancelLeaving = l.Id;
+                            box.append(el('div', { className: 'jc-leave-row' },
+                                el('div', {},
+                                    el('b', { textContent: l.Title }), ' ', el('span', { textContent: bytes(l.Size) }),
+                                    el('small', { textContent: (l.Source === 'you' ? 'Added by you' : 'From view ' + l.Source) + ' on ' + date(l.Added) }),
+                                    l.Protected ? el('small', { textContent: 'Will stay: ' + l.Protected }) : null),
+                                el('span', { className: l.IsDue ? 'jc-due' : '', textContent: l.IsDue ? 'Due' : 'Due ' + date(l.Due) }),
+                                cancel));
+                        });
+                    });
                 }
 
                 function watchedTag(item) {
@@ -645,7 +749,30 @@
                             showResult(null, err);
                         });
                     });
-                    foot.append(cancel, go);
+                    var later = null;
+                    if (config.NoticeDays > 0 && plan.Remove.some(function (p) { return !leaving.some(function (l) { return l.Id === p.Item.Id; }); })) {
+                        later = el('button', { type: 'button', className: 'jc-btn', textContent: 'Leaving soon, in ' + plural(config.NoticeDays, 'day', 'days'), title: 'Put them on the Leaving soon list instead. Nothing is deleted now.' });
+                        later.addEventListener('click', function () {
+                            later.disabled = true;
+                            call('POST', 'LeavingSoon', { Ids: plan.Remove.map(function (p) { return p.Item.Id; }) }).then(function (result) {
+                                openDialog(plural(result.Remove.length, 'item is', 'items are') + ' leaving soon');
+                                var body = $('jcDialogBody');
+                                body.append(el('p', { className: 'jc-hint', textContent: 'Nothing was deleted. They are listed at the top of this page' +
+                                    (config.UseCollection ? ' and in the ' + config.CollectionName + ' collection' : '') + '. When they are due, review and remove them there.' }));
+                                if (result.Skip.length) { body.append(el('div', { className: 'jc-section', textContent: 'Left off (' + result.Skip.length + ')' }), planList(result.Skip, true)); }
+                                var close = el('button', { type: 'button', className: 'jc-btn primary', textContent: 'Done' });
+                                close.addEventListener('click', closeDialog);
+                                $('jcDialogFoot').append(close);
+                                result.Remove.forEach(function (p) { selected.delete(p.Item.Id); });
+                                updateBar();
+                                load(false);
+                                loadLeaving();
+                            }).catch(function (err) { window.alert('Could not add them: ' + err.message); later.disabled = false; });
+                        });
+                    }
+                    foot.append(cancel);
+                    if (later) { foot.append(later); }
+                    foot.append(go);
                 }
 
                 function showResult(plan, err) {
@@ -665,6 +792,7 @@
                     close.addEventListener('click', closeDialog);
                     $('jcDialogFoot').append(close);
                     updateBar();
+                    loadLeaving();
                     loadOverview(false).then(function () { load(false); });
                 }
 
@@ -719,6 +847,35 @@
                             page.querySelectorAll('.jc-check').forEach(function (c) { c.setAttribute('aria-checked', 'true'); c.closest('.jc-row').classList.add('selected'); });
                             updateBar();
                         }).finally(function () { b.disabled = false; });
+                    } else if (b.dataset.view) {
+                        applyView(b.dataset.view);
+                    } else if (b.dataset.deleteView) {
+                        if (window.confirm('Delete the view "' + b.dataset.deleteView + '"?')) {
+                            call('DELETE', 'Views?name=' + encodeURIComponent(b.dataset.deleteView)).then(loadConfig);
+                        }
+                    } else if (b.id === 'jcSaveView') {
+                        var name = window.prompt('Name for this view, like "Old horror"');
+                        if (name && name.trim()) {
+                            var f = filter(0);
+                            delete f.Offset;
+                            delete f.Limit;
+                            call('POST', 'Views', { Name: name.trim(), Filter: JSON.stringify(f) }).then(loadConfig).catch(function (err) {
+                                window.alert('Could not save the view: ' + err.message);
+                            });
+                        }
+                    } else if (b.id === 'jcLeavingToggle') {
+                        var open = $('jcLeavingList').hidden;
+                        $('jcLeavingList').hidden = !open;
+                        b.setAttribute('aria-expanded', String(open));
+                        b.textContent = open ? 'Hide list' : 'Show list';
+                    } else if (b.dataset.cancelLeaving) {
+                        b.disabled = true;
+                        call('POST', 'LeavingSoon/Cancel', { Ids: [b.dataset.cancelLeaving] }).then(loadLeaving);
+                    } else if (b.id === 'jcReviewDue') {
+                        var due = leaving.filter(function (l) { return l.IsDue && !l.Protected; }).map(function (l) { return l.Id; });
+                        call('POST', 'Preview', { Ids: due }).then(showPlan).catch(function (err) {
+                            window.alert('Could not prepare the removal: ' + err.message);
+                        });
                     } else if (b.id === 'jcExport') {
                         b.disabled = true;
                         fetch(ApiClient.getUrl('JellyClean/Export'), {
@@ -751,9 +908,8 @@
                 });
 
                 page.addEventListener('pageshow', function () {
-                    ApiClient.getPluginConfiguration('b0be751c-a689-46fd-bb83-4540a41cd649').then(function (config) {
-                        servers = (config.Servers || []).filter(function (s) { return s.Url; }).length;
-                    });
+                    loadConfig();
+                    loadLeaving().catch(function () { $('jcLeaving').hidden = true; });
                     loadOverview(false).then(function () { return load(false); }).catch(function (err) {
                         $('jcCount').textContent = 'Could not load the library: ' + err.message;
                     });

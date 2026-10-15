@@ -26,6 +26,7 @@ public class JellyCleanController : ControllerBase
     private readonly Catalog _catalog;
     private readonly Remover _remover;
     private readonly ArrClient _arr;
+    private readonly LeavingSoon _leavingSoon;
     private readonly IUserManager _userManager;
 
     /// <summary>
@@ -34,12 +35,14 @@ public class JellyCleanController : ControllerBase
     /// <param name="catalog">Catalog.</param>
     /// <param name="remover">Remover.</param>
     /// <param name="arr">Radarr and Sonarr client.</param>
+    /// <param name="leavingSoon">Leaving soon list.</param>
     /// <param name="userManager">User manager.</param>
-    public JellyCleanController(Catalog catalog, Remover remover, ArrClient arr, IUserManager userManager)
+    public JellyCleanController(Catalog catalog, Remover remover, ArrClient arr, LeavingSoon leavingSoon, IUserManager userManager)
     {
         _catalog = catalog;
         _remover = remover;
         _arr = arr;
+        _leavingSoon = leavingSoon;
         _userManager = userManager;
     }
 
@@ -79,7 +82,7 @@ public class JellyCleanController : ControllerBase
     [HttpPost("Items")]
     public ActionResult Items([FromBody] Filter filter, [FromQuery] bool allIds = false)
     {
-        var matches = Matches(filter);
+        var matches = _catalog.Find(filter);
         return Ok(new
         {
             Total = matches.Count,
@@ -99,7 +102,7 @@ public class JellyCleanController : ControllerBase
     {
         var users = _userManager.GetUsers().ToDictionary(u => u.Id, u => u.Username);
         var csv = new StringBuilder("Title,Type,Library,Year,Genres,Added,Watched by,Last played,Size (GB),Resolution,Codec,HDR,Also in,Keep,Favorite,Path\n");
-        foreach (var i in Matches(filter))
+        foreach (var i in _catalog.Find(filter))
         {
             string[] cells =
             [
@@ -138,6 +141,84 @@ public class JellyCleanController : ControllerBase
 
         // Not tied to the request: closing the page must never stop a removal halfway through an item.
         return Ok(Describe(await _remover.RemoveAsync(request.Ids, userId, CancellationToken.None).ConfigureAwait(false)));
+    }
+
+    /// <summary>
+    /// The Leaving soon list.
+    /// </summary>
+    /// <returns>The items, due first, with a reason when a safeguard now keeps one.</returns>
+    [HttpGet("LeavingSoon")]
+    public ActionResult GetLeavingSoon() => Ok(_leavingSoon.List());
+
+    /// <summary>
+    /// Puts items on the Leaving soon list. Nothing is removed.
+    /// </summary>
+    /// <param name="request">The selected ids.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>What was added and what was left off.</returns>
+    [HttpPost("LeavingSoon")]
+    public async Task<ActionResult> AddLeavingSoon([FromBody] Selection request, CancellationToken cancellationToken)
+        => Ok(Describe(await _leavingSoon.AddAsync(request.Ids, "you", cancellationToken).ConfigureAwait(false)));
+
+    /// <summary>
+    /// Takes items off the Leaving soon list.
+    /// </summary>
+    /// <param name="request">The ids.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>No content.</returns>
+    [HttpPost("LeavingSoon/Cancel")]
+    public async Task<ActionResult> CancelLeavingSoon([FromBody] Selection request, CancellationToken cancellationToken)
+    {
+        await _leavingSoon.CancelAsync(request.Ids, cancellationToken).ConfigureAwait(false);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Runs the daily check now: saved views marked "check daily" add their matches to Leaving soon.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>No content.</returns>
+    [HttpPost("LeavingSoon/Run")]
+    public async Task<ActionResult> RunLeavingSoon(CancellationToken cancellationToken)
+    {
+        await _leavingSoon.RunAsync(cancellationToken).ConfigureAwait(false);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Saves a filter under a name, replacing one with the same name.
+    /// </summary>
+    /// <param name="view">The view.</param>
+    /// <returns>No content.</returns>
+    [HttpPost("Views")]
+    public ActionResult SaveView([FromBody] SavedView view)
+    {
+        if (string.IsNullOrWhiteSpace(view.Name) || LeavingSoon.FilterOf(view) is null)
+        {
+            return BadRequest("A view needs a name and a filter.");
+        }
+
+        var plugin = Plugin.Instance!;
+        view.Name = view.Name.Trim();
+        var old = plugin.Configuration.Views.FirstOrDefault(v => v.Name == view.Name);
+        view.CheckDaily = old?.CheckDaily ?? false;
+        plugin.Configuration.Views = plugin.Configuration.Views.Where(v => v.Name != view.Name).Append(view).ToArray();
+        plugin.SaveConfiguration();
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Deletes a saved view.
+    /// </summary>
+    /// <param name="name">Its name.</param>
+    /// <returns>No content.</returns>
+    [HttpDelete("Views")]
+    public ActionResult DeleteView([FromQuery] string name)
+    {
+        var plugin = Plugin.Instance!;
+        plugin.Configuration.Views = plugin.Configuration.Views.Where(v => v.Name != name).ToArray();
+        plugin.SaveConfiguration();
+        return NoContent();
     }
 
     /// <summary>
@@ -206,19 +287,6 @@ public class JellyCleanController : ControllerBase
         }
 
         return value.IndexOfAny([',', '"', '\n', '\r']) >= 0 ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"" : value;
-    }
-
-    private List<CatalogItem> Matches(Filter filter)
-    {
-        var kept = Plugin.Instance!.Configuration.KeptIds.ToHashSet();
-        var items = _catalog.Get().Values.Select(i =>
-        {
-            var copy = i.Copy();
-            copy.Kept = kept.Contains(i.Id);
-            return copy;
-        });
-
-        return filter.Apply(items, _userManager.GetUsers().Count()).ToList();
     }
 
     private static object Describe(RemovalPlan plan) => new

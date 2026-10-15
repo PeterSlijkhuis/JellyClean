@@ -27,7 +27,7 @@ public class LibraryTests
             Path = "/media/movies/" + name,
         };
 
-    private static List<string> Names(Filter filter, params CatalogItem[] items) => filter.Apply(items, 2).Select(i => i.Name).ToList();
+    private static List<string> Names(Filter filter, params CatalogItem[] items) => filter.Apply(items, 2, _now).Select(i => i.Name).ToList();
 
     [Fact]
     public void Watched_none_means_nobody_played_any_of_it()
@@ -58,7 +58,7 @@ public class LibraryTests
         var watched = Movie("Watched horror", daysOld: 800, genres: ["Horror"], watchedBy: [_anna]);
         var comedy = Movie("Old comedy", daysOld: 800, genres: ["Comedy"]);
 
-        var filter = new Filter { Genres = ["horror"], Watched = "none", AddedBefore = _now.AddDays(-730) };
+        var filter = new Filter { Genres = ["horror"], Watched = "none", AddedMoreThanDays = 730 };
         Assert.Equal(["Old horror"], Names(filter, match, recent, watched, comedy));
     }
 
@@ -69,7 +69,7 @@ public class LibraryTests
         var longAgo = Movie("Long ago", played: true, lastPlayedDaysAgo: 400);
         var lately = Movie("Lately", played: true, lastPlayedDaysAgo: 5);
 
-        Assert.Equal(["Long ago", "Never"], Names(new Filter { NotWatchedSince = _now.AddDays(-365), Sort = "name" }, never, longAgo, lately));
+        Assert.Equal(["Long ago", "Never"], Names(new Filter { NotPlayedForDays = 365, Sort = "name" }, never, longAgo, lately));
     }
 
     [Fact]

@@ -67,6 +67,24 @@ public class Catalog
     }
 
     /// <summary>
+    /// The items that match a filter, with their keep marks.
+    /// </summary>
+    /// <param name="filter">The filter.</param>
+    /// <returns>The matches, sorted.</returns>
+    public List<CatalogItem> Find(Filter filter)
+    {
+        var kept = Plugin.Instance!.Configuration.KeptIds.ToHashSet();
+        var items = Get().Values.Select(i =>
+        {
+            var copy = i.Copy();
+            copy.Kept = kept.Contains(i.Id);
+            return copy;
+        });
+
+        return filter.Apply(items, _userManager.GetUsers().Count()).ToList();
+    }
+
+    /// <summary>
     /// Makes the next <see cref="Get"/> read the library again.
     /// </summary>
     public void Invalidate()
@@ -93,6 +111,7 @@ public class Catalog
             var children = (folder.Type == "Series" ? bySeries[folder.Id] : bySeason[folder.Id]).ToList();
             folder.Size = children.Sum(e => e.Size);
             folder.AnyPlayed = children.Any(e => e.AnyPlayed);
+            folder.InProgress = children.Any(e => e.InProgress);
             folder.LastWatched = children.Max(e => e.LastWatched);
             folder.WatchedBy = children.Count == 0 ? [] : children.Select(e => (IEnumerable<Guid>)e.WatchedBy).Aggregate((a, b) => a.Intersect(b)).ToArray();
             (folder.Resolution, folder.Codec, folder.Hdr) = Quality.MostCommon(children);
@@ -151,6 +170,7 @@ public class Catalog
                 Type = item.GetBaseItemKind().ToString(),
                 Year = item.ProductionYear,
                 Genres = item.Genres ?? [],
+                Tags = item.Tags ?? [],
                 Added = item.DateCreated,
                 Path = item.Path ?? string.Empty,
                 Rating = item.CommunityRating,
@@ -179,6 +199,7 @@ public class Catalog
                 row.WatchedBy = data.Where(u => u.Data!.Played).Select(u => u.Id).ToArray();
                 row.AnyPlayed = row.WatchedBy.Length > 0 || data.Any(u => u.Data!.PlayCount > 0 || u.Data.PlaybackPositionTicks > 0);
                 row.LastWatched = data.Max(u => u.Data!.LastPlayedDate);
+                row.InProgress = data.Any(u => !u.Data!.Played && u.Data.PlaybackPositionTicks > 0);
             }
 
             return row;

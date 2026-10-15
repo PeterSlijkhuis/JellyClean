@@ -73,6 +73,12 @@ public sealed class CatalogItem
     /// <summary>Gets or sets a value indicating whether anyone played any of it, even one episode.</summary>
     public bool AnyPlayed { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether someone stopped halfway, so it is in their Continue Watching.</summary>
+    public bool InProgress { get; set; }
+
+    /// <summary>Gets or sets the Jellyfin tags.</summary>
+    public string[] Tags { get; set; } = [];
+
     /// <summary>Gets or sets when anyone last played it.</summary>
     public DateTime? LastWatched { get; set; }
 

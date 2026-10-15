@@ -35,7 +35,7 @@ Ideas, not code.
 
 ### Stack
 
-Same as JellyBadge: GPL-3.0 like Jellyfin itself, `net10.0`, `Jellyfin.Controller` and `Jellyfin.Model` 12.1.0 with runtime assets excluded, `TreatWarningsAsErrors`, nullable on, an `.slnx`, a test project, a GitHub Actions build that runs `dotnet test`, and a release workflow with a `manifest.json` repository like JellyTheme's.
+Same as JellyBadge: GPL-3.0 like Jellyfin itself, `net10.0`, `Jellyfin.Controller` and `Jellyfin.Model` 12.2.0 with runtime assets excluded, `TreatWarningsAsErrors`, nullable on, an `.slnx`, a test project, a GitHub Actions build that runs `dotnet test`, and a release workflow with a `manifest.json` repository like JellyTheme's.
 
 ```
 JellyClean.slnx
@@ -122,7 +122,9 @@ Layout:
 3. **Remove.** Selection, preview, confirmation, delete from disk, keep marks, favorites protection, the Activity tab.
 4. **Radarr and Sonarr.** Connection settings, matching, removal and unmonitoring as described above.
 5. **Quality, copies and export.** Resolution, codec and HDR per item with filters, copies of the same movie or series across libraries, and CSV export.
-6. **Later, if wanted.** Saved filters, a scheduled task that runs a saved filter as a dry run and reports, then optionally deletes. A "Keep" button on item pages (this is the only part that might need File Transformation).
+6. **Safeguards.** Continue Watching, recently added, recently played, a keep tag, protected libraries and a limit per removal, each a setting. A protected item also protects its season and series, and a kept series its episodes.
+7. **Saved views and Leaving soon.** Named filters with relative days. A Leaving soon list with a notice period, an optional collection for users, and a daily task that adds matches from views marked *Check daily*. It only deletes due items when that is switched on; otherwise they wait for review.
+8. **Later, if wanted.** A "Keep" button on item pages (this is the only part that might need File Transformation). Notifications when items become due.
 
 ## Tests
 
