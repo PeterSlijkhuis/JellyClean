@@ -85,6 +85,12 @@ public sealed class CatalogItem
     /// <summary>Gets or sets a value indicating whether any user made it a favorite.</summary>
     public bool Favorite { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether the series it is (in) has ended, so no new episodes come.</summary>
+    public bool Ended { get; set; }
+
+    /// <summary>Gets or sets the users who made it a favorite.</summary>
+    public Guid[] FavoriteBy { get; set; } = [];
+
     /// <summary>Gets or sets a value indicating whether it is marked keep. Filled in per request.</summary>
     public bool Kept { get; set; }
 

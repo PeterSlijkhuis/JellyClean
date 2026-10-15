@@ -28,6 +28,8 @@ public class JellyCleanController : ControllerBase
     private readonly ArrClient _arr;
     private readonly LeavingSoon _leavingSoon;
     private readonly IUserManager _userManager;
+    private readonly RecycleBin _bin;
+    private readonly ILibraryManager _libraryManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="JellyCleanController"/> class.
@@ -37,8 +39,12 @@ public class JellyCleanController : ControllerBase
     /// <param name="arr">Radarr and Sonarr client.</param>
     /// <param name="leavingSoon">Leaving soon list.</param>
     /// <param name="userManager">User manager.</param>
-    public JellyCleanController(Catalog catalog, Remover remover, ArrClient arr, LeavingSoon leavingSoon, IUserManager userManager)
+    /// <param name="bin">Recycle bin.</param>
+    /// <param name="libraryManager">Library manager.</param>
+    public JellyCleanController(Catalog catalog, Remover remover, ArrClient arr, LeavingSoon leavingSoon, IUserManager userManager, RecycleBin bin, ILibraryManager libraryManager)
     {
+        _bin = bin;
+        _libraryManager = libraryManager;
         _catalog = catalog;
         _remover = remover;
         _arr = arr;
@@ -93,7 +99,7 @@ public class JellyCleanController : ControllerBase
             Total = matches.Count,
             TotalSize = matches.Sum(i => i.Size),
             Items = matches.Skip(Math.Max(0, filter.Offset)).Take(Math.Clamp(filter.Limit, 1, 500)),
-            Ids = allIds ? matches.Select(i => new { i.Id, i.Size }) : null,
+            Ids = allIds ? matches.Select(i => new { i.Id, i.Size, i.SeriesId, i.SeasonId, Protected = i.Kept || i.Favorite || i.InProgress }) : null,
         });
     }
 
@@ -140,12 +146,21 @@ public class JellyCleanController : ControllerBase
     /// <param name="request">The selected ids.</param>
     /// <returns>What was removed and what was kept.</returns>
     [HttpPost("Remove")]
-    public async Task<ActionResult> Remove([FromBody] Selection request)
+    public ActionResult Remove([FromBody] Selection request)
     {
         var userId = Guid.TryParse(User.FindFirst("Jellyfin-UserId")?.Value, out var id) ? id : Guid.Empty;
+        return _remover.Start(request.Ids, userId) ? NoContent() : Conflict("Another removal is still running.");
+    }
 
-        // Not tied to the request: closing the page must never stop a removal halfway through an item.
-        return Ok(Describe(await _remover.RemoveAsync(request.Ids, userId, CancellationToken.None).ConfigureAwait(false)));
+    /// <summary>
+    /// How the removal started with Remove is going, and its result once done.
+    /// </summary>
+    /// <returns>The progress.</returns>
+    [HttpGet("Remove")]
+    public ActionResult RemoveStatus()
+    {
+        var p = _remover.Progress;
+        return Ok(new { p.Running, p.Done, p.Total, p.Current, p.Error, Result = p.Result is null ? null : Describe(p.Result) });
     }
 
     /// <summary>
@@ -179,16 +194,63 @@ public class JellyCleanController : ControllerBase
     }
 
     /// <summary>
-    /// Runs the daily check now: saved views marked "check daily" add their matches to Leaving soon.
+    /// Runs scheduled views now, whatever their time: all of them, or the one named. Their matches go on the Leaving soon list.
     /// </summary>
+    /// <param name="view">One view to run, by name.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>No content.</returns>
     [HttpPost("LeavingSoon/Run")]
-    public async Task<ActionResult> RunLeavingSoon(CancellationToken cancellationToken)
+    public async Task<ActionResult> RunLeavingSoon([FromQuery] string? view, CancellationToken cancellationToken)
     {
-        await _leavingSoon.RunAsync(cancellationToken).ConfigureAwait(false);
+        var views = view is null
+            ? Plugin.Instance!.Configuration.Views.Where(v => v.Runs().Length > 0).Select(v => v.Name).ToList()
+            : [view];
+        await _leavingSoon.RunAsync(cancellationToken, views).ConfigureAwait(false);
         return NoContent();
     }
+
+    /// <summary>
+    /// What is in the recycle bin, newest first.
+    /// </summary>
+    /// <returns>The items, with the days left before they are deleted for good.</returns>
+    [HttpGet("RecycleBin")]
+    public ActionResult GetRecycleBin()
+    {
+        var config = Plugin.Instance!.Configuration;
+        return Ok(config.Recycled.OrderByDescending(r => r.Removed).Select(r => new
+        {
+            r.Id,
+            r.Title,
+            r.Type,
+            r.Size,
+            r.Removed,
+            r.Source,
+            DeleteAt = RecycleBin.DeleteAt(r),
+            Arr = r.Arr.Select(a => a.Kind).Distinct(),
+        }));
+    }
+
+    /// <summary>
+    /// Puts an item from the recycle bin back, and scans the library so Jellyfin shows it again.
+    /// </summary>
+    /// <param name="itemId">Item id.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Why it could not (Error), or what did not work in Radarr or Sonarr (Warning).</returns>
+    [HttpPost("RecycleBin/Restore/{itemId}")]
+    public async Task<ActionResult> RestoreRecycled([FromRoute] Guid itemId, CancellationToken cancellationToken)
+    {
+        var (error, warning) = await _bin.RestoreAsync(itemId, cancellationToken).ConfigureAwait(false);
+        return Ok(new { Error = error, Warning = warning });
+    }
+
+    /// <summary>
+    /// Deletes everything in the recycle bin for good, removing held movies and series from Radarr and Sonarr.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>How many items were deleted.</returns>
+    [HttpPost("RecycleBin/Empty")]
+    public async Task<ActionResult> EmptyRecycleBin(CancellationToken cancellationToken)
+        => Ok(new { Count = await _bin.PurgeAsync(all: true, cancellationToken).ConfigureAwait(false) });
 
     /// <summary>
     /// Saves a filter under a name, replacing one with the same name.
@@ -206,7 +268,18 @@ public class JellyCleanController : ControllerBase
         var plugin = Plugin.Instance!;
         view.Name = view.Name.Trim();
         var old = plugin.Configuration.Views.FirstOrDefault(v => v.Name == view.Name);
-        view.CheckDaily = old?.CheckDaily ?? false;
+        if (old is not null && string.IsNullOrEmpty(view.Schedule))
+        {
+            // Saving the filter again keeps its schedule.
+            (view.CheckDaily, view.Schedule, view.Day, view.Hour, view.NoticeDays, view.AutoRemove) = (old.CheckDaily, old.Schedule, old.Day, old.Hour, old.NoticeDays, old.AutoRemove);
+        }
+
+        if (view.Schedule is not ("" or "daily" or "weekly") || view.Hour is < 0 or > 23 || view.NoticeDays < 0)
+        {
+            return BadRequest("The schedule is not valid.");
+        }
+
+        (view.LastRun, view.LastAdded) = (old?.LastRun, old?.LastAdded ?? 0);
         plugin.Configuration.Views = plugin.Configuration.Views.Where(v => v.Name != view.Name).Append(view).ToArray();
         plugin.SaveConfiguration();
         return NoContent();
@@ -233,14 +306,29 @@ public class JellyCleanController : ControllerBase
     /// <param name="keep">Keep it.</param>
     /// <returns>No content.</returns>
     [HttpPost("Keep/{itemId}")]
-    public ActionResult Keep([FromRoute] Guid itemId, [FromQuery] bool keep = true)
+    public async Task<ActionResult> Keep([FromRoute] Guid itemId, [FromQuery] bool keep = true)
     {
         var plugin = Plugin.Instance!;
         var kept = plugin.Configuration.KeptIds.Where(i => i != itemId);
         plugin.Configuration.KeptIds = (keep ? kept.Append(itemId) : kept).ToArray();
         plugin.SaveConfiguration();
+        if (keep)
+        {
+            await _leavingSoon.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
         return NoContent();
     }
+
+    /// <summary>
+    /// Takes one user's favorite mark off an item.
+    /// </summary>
+    /// <param name="itemId">Item id.</param>
+    /// <param name="userId">The user whose favorite it is.</param>
+    /// <returns>No content, or not found.</returns>
+    [HttpPost("Unfavorite/{itemId}")]
+    public ActionResult Unfavorite([FromRoute] Guid itemId, [FromQuery] Guid userId)
+        => _catalog.Unfavorite(itemId, userId) ? NoContent() : NotFound();
 
     /// <summary>
     /// Checks a Radarr or Sonarr address and API key.
@@ -258,6 +346,11 @@ public class JellyCleanController : ControllerBase
             return Ok(version.StartsWith(expected, StringComparison.OrdinalIgnoreCase)
                 ? new { Ok = true, Message = "Connected to " + version }
                 : new { Ok = false, Message = $"This is {version}, not {expected}." });
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The Jellyfin server makes this call, not the browser, so the address has to work from the server.
+            return Ok(new { Ok = false, Message = $"No answer from {server.Url} within 30 seconds. JellyClean connects from the Jellyfin server, not from your browser, so use an address that works on the server itself, like its local IP and port, or the container name if both run in Docker." });
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException or System.Text.Json.JsonException)
         {

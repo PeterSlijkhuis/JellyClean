@@ -32,15 +32,18 @@ Nothing changes until you remove something. Browsing and filtering only read.
 - **Everything in one list.** Title, library, year, genres, date added, who watched it, when it was last played, rating, size on disk and video quality (resolution, codec and HDR).
 - **Filters that add up.** Type (movies, series, seasons, episodes), library, genres, watched status (unwatched, watched by someone, by everyone, or by one user), added before or after, last played (never, or over a while ago), size, resolution, codec, HDR, and search on title or path.
 - **Start with what is empty.** The Library page opens on movies and series that take 0 B: usually series Sonarr added but that have no episodes yet, or whose episodes are all gone. Jellyfin only sees a download once Radarr or Sonarr moves it into the library, so anything still downloading is checked in Radarr and Sonarr and left alone. Removing them is the safest first clean-up. If a whole library folder can't be reached, like a network drive that is offline, its items are left alone, because they only look empty.
-- **One-click suggestions.** *Empty movies and series*, *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone*, *Series nobody played in 2 years*, *Movies you have twice* and *Old H.264 below 1080p*.
+- **One-click suggestions.** *Empty movies and series*, *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone*, *Finished series everyone watched*, *Series nobody played in 2 years*, *Movies you have twice* and *Old H.264 below 1080p*.
+- **Free up a set amount.** Type how many GB you need and press **Free up GB**: JellyClean selects from the top of the current list, in its sort order, skipping keep, favorites and Continue Watching, until that much is selected. Then check it in the preview.
+- **Finished series.** Filter on series that have ended, so no new episodes are coming. *Finished series everyone watched* finds the ones every user watched to the end.
 - **Copies.** Spots movies and series that are in Jellyfin more than once, like a 1080p copy next to a 4K one, so you can drop the one you don't need.
 - **Export.** Download the current list as a spreadsheet (CSV).
 - **Real sizes.** The size is what removing frees: the movie's folder with its extras and artwork, or the episode file with its subtitles. Series and seasons add up their episodes.
 - **Preview first.** See exactly which files and folders go, what happens in Radarr and Sonarr, and what stays and why. Removing 20 or more items asks you to type the number.
-- **Keep what matters.** Mark anything **keep** with the lock button and it is never removed, nor the season or series it is in. Safeguards you choose in **Settings** keep favorites, Continue Watching, recently added and recently played items, items with a tag like `keep`, and whole libraries. One removal is capped at 200 items unless you change it.
+- **Keep what matters.** Mark anything **keep** with the lock button and it is never removed, nor the season or series it is in. Each favorite shows whose it is, and the × next to a name takes that person's favorite off, without opening the item. Safeguards you choose in **Settings** keep favorites, Continue Watching, recently added and recently played items, items with a tag like `keep`, and whole libraries. One removal is capped at 200 items unless you change it.
 - **Saved views.** Save any filter under a name and open it with one click. Days are relative, so *added over 2 years ago* still means that next year.
 - **Leaving soon.** Instead of deleting right away, put items on a list with a notice period (14 days by default). Users can see the list as a Jellyfin collection if you like. When items are due you review and remove them; safeguards are checked again at that moment.
-- **Daily checks (optional).** A saved view can be checked every day, putting new matches on the Leaving soon list. Nothing is deleted unless you also switch on *Remove due items without asking*.
+- **Scheduled Leaving soon.** Turn any filter into a rule with **Schedule for Leaving soon**. Each rule runs every day or every week at the hour you pick, with its own notice period, and puts what it finds on the Leaving soon list. Once due, items wait for you, or are removed on their own if you switch that on for the rule.
+- **Recycle bin and Recover tab.** Set a number of days under **Settings** and removed files move to a hidden `.jellyclean-trash` folder in their library folder instead of being deleted. While they are there, Radarr and Sonarr only stop monitoring them, so nothing is downloaded again. The **Recover** tab lists everything that can come back: **Recover** puts the files back, Jellyfin scans them in, Radarr and Sonarr monitor them again, and the item is marked keep so a Leaving soon rule does not take it again. Space counts as freed once the bin is emptied. When the days are over, the files are deleted for good and the movie or series is removed from Radarr and Sonarr. Whatever Leaving soon removes on its own always goes through the recycle bin (7 days by default), even when it is off for removals by hand.
 - **Radarr and Sonarr.** Removed movies leave Radarr, removed series leave Sonarr, and removed seasons or episodes stop being monitored, so new episodes still come in. Several of each are fine, like a separate 4K one.
 - **Activity log.** Every removal, every item that was kept and why, and every error.
 
@@ -77,7 +80,7 @@ JellyClean needs **Jellyfin 12.2 or newer**. No other plugins are needed.
 For each item, in this order:
 
 1. **Radarr or Sonarr.** A movie is removed from Radarr, a whole series from Sonarr, both with *delete files* off and optionally added to the exclusion list. For seasons and episodes, Sonarr keeps the series and only stops monitoring those episodes. Items are found by their TMDb, TVDb or IMDb id.
-2. **Jellyfin and the disk.** Jellyfin's own delete removes the files, the item and its artwork, exactly like the Delete button in the Jellyfin app.
+2. **Jellyfin and the disk.** Jellyfin's own delete removes the files, the item and its artwork, exactly like the Delete button in the Jellyfin app. With the recycle bin on, the files are moved to the bin first, Radarr and Sonarr only stop monitoring the item, and Jellyfin forgets it. If Radarr or Sonarr fails, the files go straight back and any change already made in another Radarr or Sonarr is undone. Removing the movie or series from Radarr or Sonarr waits until the bin is emptied; if that fails, the item stays in the bin and it is tried again an hour later.
 
 If Radarr or Sonarr can't be reached, or a step there fails, that item is skipped and its files stay, because Radarr or Sonarr would only download it again. The Activity tab says why.
 
@@ -101,9 +104,19 @@ The preview lists every item that stays, with the reason.
 
 1. In the preview, press **Leaving soon** instead of **Delete from disk**. Protected items are left off the list.
 2. Optionally switch on **Show it to users as a collection** under **Settings**, so everyone sees what is leaving and can ask to keep it, or mark it a favorite.
-3. When the notice period is over, the Library page shows the due items. Press **Review due items**, check the preview and remove them.
+3. The list keeps up with changes. An item that becomes protected leaves it at once when someone makes it a favorite or you mark it keep, and at the next hourly run for anything else, like someone playing it. An item a rule added that no longer matches that rule leaves too. The Activity tab says why.
+4. When the notice period is over, the Library page shows the due items. Press **Review due items**, check the preview and remove them.
 
-The daily task **Update Leaving soon** (under **Dashboard > Scheduled Tasks**) adds matches from saved views marked *Check daily*, drops items that are gone and keeps the collection up to date. It only deletes when **Remove due items without asking** is on.
+### Scheduled rules
+
+Set a filter on the Library page and press **Schedule for Leaving soon**. Under **Settings > Leaving soon** every saved view has:
+
+- **Schedule**: not scheduled, every day, or every week on a day you pick;
+- **At**: the hour it runs (server time);
+- **Notice days**: how long its items stay on the list before they are due (empty uses the general notice period);
+- **Remove when due, without asking**: off, due items wait for you; on, they are removed once due, with every safeguard checked again first.
+
+**Run now** runs one rule straight away. The task **Leaving soon and recycle bin** (under **Dashboard > Scheduled Tasks**, every hour) runs the rules whose time has come, removes due items where that is on, drops items that are gone, keeps the collection up to date and empties what has been in the recycle bin long enough.
 
 ## FAQ
 

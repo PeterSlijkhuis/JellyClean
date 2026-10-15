@@ -18,7 +18,7 @@
             #JellyCleanSettingsPage .content-primary { max-width: 1240px; padding-bottom: 8em; }
             #JellyCleanSettingsPage [hidden] { display: none !important; }
             #JellyCleanSettingsPage button:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 2px; }
-            #JellyCleanSettingsPage .jc-tabs { display: flex; gap: 0.4em; margin: 1em 0 1.4em; flex-wrap: wrap; }
+            #JellyCleanSettingsPage .jc-tabs { display: flex; gap: 0.4em; flex-wrap: wrap; margin: 1em 0 1.4em; flex-wrap: wrap; }
             #JellyCleanSettingsPage .jc-tab { padding: 0.6em 1.2em; border-radius: 999px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: inherit; opacity: 0.75; }
             #JellyCleanSettingsPage .jc-tab[aria-current="page"] { background: linear-gradient(135deg, var(--jc-accent-2), var(--jc-accent)); border-color: transparent; color: #fff; opacity: 1; }
             #JellyCleanSettingsPage .jc-card { background: var(--jc-card); border: 1px solid var(--jc-line); border-radius: var(--jc-radius); padding: 1.3em 1.4em; margin-bottom: 1.2em; }
@@ -72,9 +72,15 @@
             #JellyCleanSettingsPage .jc-chip[aria-pressed="true"] { border-color: #e05a5a; background: rgba(224, 90, 90, 0.14); }
             #JellyCleanSettingsPage .jc-sub { margin: 1.1em 0 0.5em; font-weight: 600; font-size: 0.95em; }
             #JellyCleanSettingsPage .jc-warn { border-color: rgba(224, 90, 90, 0.6); }
-            #JellyCleanSettingsPage .jc-view { display: flex; align-items: center; gap: 0.7em; flex-wrap: wrap; padding: 0.6em 0; border-top: 1px solid var(--jc-line); }
-            #JellyCleanSettingsPage .jc-view > b { flex: 1 1 200px; }
-            #JellyCleanSettingsPage .jc-view .jc-tile { width: auto; flex: 1 1 280px; }
+            #JellyCleanSettingsPage .jc-view { display: flex; align-items: flex-end; gap: 0.7em; flex-wrap: wrap; padding: 0.9em 0; border-top: 1px solid var(--jc-line); }
+            #JellyCleanSettingsPage .jc-view-name { flex: 1 1 100%; display: flex; gap: 0.6em; align-items: baseline; flex-wrap: wrap; }
+            #JellyCleanSettingsPage .jc-view-name small { opacity: 0.65; }
+            #JellyCleanSettingsPage .jc-view label { display: flex; flex-direction: column; gap: 0.3em; font-size: 0.85em; font-weight: 600; }
+            #JellyCleanSettingsPage .jc-view select, #JellyCleanSettingsPage .jc-view input {
+                padding: 0.55em 0.7em; border-radius: 10px; font: inherit; font-weight: 400; border: 1px solid var(--jc-line); background: rgba(128, 128, 128, 0.1); color: inherit;
+            }
+            #JellyCleanSettingsPage .jc-view input { width: 6em; }
+            #JellyCleanSettingsPage .jc-view .jc-tile { width: auto; flex: 1 1 260px; }
             #JellyCleanSettingsPage .jc-dirty { margin-right: auto; opacity: 0.85; font-size: 0.92em; }
         </style>
 
@@ -82,6 +88,7 @@
             <div class="content-primary">
                 <nav class="jc-tabs" aria-label="JellyClean">
                     <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
                     <button type="button" class="jc-tab" aria-current="page">Settings</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
                 </nav>
@@ -104,8 +111,10 @@
                         <div class="jc-field"><label>Keep items played in the last (days)<input type="number" min="0" data-num="ProtectPlayedDays"></label></div>
                         <div class="jc-field"><label>Keep items with the tag<input type="text" data-text="KeepTag" placeholder="keep" autocomplete="off"></label></div>
                         <div class="jc-field"><label>Most items per removal<input type="number" min="0" data-num="MaxItemsPerRemoval"></label></div>
+                        <div class="jc-field"><label>Recycle bin: keep removed files (days, 0 deletes right away)<input type="number" min="0" data-num="RecycleDays"></label></div>
+                        <div class="jc-field"><label>Recycle bin for automatic removals (days, at least 1)<input type="number" min="1" data-num="AutoRecycleDays"></label></div>
                     </div>
-                    <p class="jc-hint" style="margin-top:0.5em;">0 or empty switches a number or the tag off. Add the tag to an item in Jellyfin (Edit metadata, Tags).</p>
+                    <p class="jc-hint" style="margin-top:0.5em;">0 or empty switches a number or the tag off. Add the tag to an item in Jellyfin (Edit metadata, Tags). The recycle bin is a hidden .jellyclean-trash folder in each library folder, so moving is instant. While an item is in it, Radarr and Sonarr only stop monitoring it, so nothing is downloaded again and Recover puts everything back. When its days are over it is deleted for good and removed from Radarr and Sonarr. Items Leaving soon removes on its own always go to the recycle bin first, even when it is off for removals by hand.</p>
                     <div class="jc-sub">Never remove anything from these libraries</div>
                     <div class="jc-chips" id="jcLibraries"></div>
                     <div class="jc-row">
@@ -116,7 +125,7 @@
 
                 <section class="jc-card">
                     <h2>Leaving soon</h2>
-                    <p class="jc-hint">Put items on the Leaving soon list from the preview on the Library page, instead of removing them right away. They are due after the notice period, and then wait for you to review and remove them. Safeguards are checked again at removal, so an item someone started watching in the meantime stays.</p>
+                    <p class="jc-hint">Put items on the Leaving soon list from the preview on the Library page, instead of removing them right away. They are due after the notice period, and then wait for you to review and remove them. An item that becomes protected in the meantime, like a new favorite, leaves the list on its own, and so does one that no longer matches the view that added it.</p>
                     <div class="jc-fields">
                         <div class="jc-field"><label>Notice period (days)<input type="number" min="0" data-num="NoticeDays"></label></div>
                         <div class="jc-field"><label>Collection name<input type="text" data-text="CollectionName" placeholder="Leaving soon" autocomplete="off"></label></div>
@@ -127,22 +136,22 @@
                             <span class="jc-switch" aria-hidden="true"></span>
                         </button>
                         <button type="button" class="jc-tile jc-warn" role="switch" data-flag="AutoRemoveWhenDue">
-                            <span class="jc-tile-text"><b>Remove due items without asking</b><small>The daily task deletes due items from disk on its own. Off is safer: due items wait for you.</small></span>
+                            <span class="jc-tile-text"><b>Remove due items without asking</b><small>Every due item is removed on its own, whatever put it on the list. Off is safer: due items wait for you, unless a scheduled view says otherwise.</small></span>
                             <span class="jc-switch" aria-hidden="true"></span>
                         </button>
                     </div>
-                    <div class="jc-sub">Saved views</div>
-                    <p class="jc-hint">Save a view on the Library page. A view checked daily puts its new matches on the Leaving soon list; it never removes anything itself.</p>
+                    <div class="jc-sub">Scheduled views</div>
+                    <p class="jc-hint">Save a filter as a view on the Library page, then give it a schedule here. At its time it puts its matches on the Leaving soon list, with its own notice period. Once due they wait for you, or go on their own when you switch that on for the view. Safeguards are checked at every step. Run now uses the saved settings.</p>
                     <div id="jcViews"></div>
                     <div class="jc-row">
-                        <button type="button" class="jc-btn" id="jcRun">Check now</button>
+                        <button type="button" class="jc-btn" id="jcRun">Run all scheduled views now</button>
                         <span class="jc-test" id="jcRunResult"></span>
                     </div>
                 </section>
 
                 <section class="jc-card">
                     <h2>Radarr and Sonarr</h2>
-                    <p class="jc-hint">Without them, a deleted movie or episode is seen as missing and downloaded again. With them, JellyClean removes the movie from Radarr, removes the series from Sonarr when you remove a whole series, and stops monitoring the episodes when you remove seasons or episodes. If Radarr or Sonarr can't be reached, the files stay. Add a second Radarr or Sonarr, like a 4K one, if you have it. Rather not add API keys? Switch on Unmonitor Deleted Movies (Radarr) and Unmonitor Deleted Episodes (Sonarr) under Settings, Media Management instead: they then stop monitoring what disappears from disk, though the movie or series stays listed there.</p>
+                    <p class="jc-hint">Without them, a deleted movie or episode is seen as missing and downloaded again. With them, JellyClean removes the movie from Radarr, removes the series from Sonarr when you remove a whole series, and stops monitoring the episodes when you remove seasons or episodes. If Radarr or Sonarr can't be reached, the files stay. The Jellyfin server connects to them, not your browser, so use the address that works on the server, like http://192.168.1.10:8989, even when you manage Jellyfin from away. Add a second Radarr or Sonarr, like a 4K one, if you have it. Rather not add API keys? Switch on Unmonitor Deleted Movies (Radarr) and Unmonitor Deleted Episodes (Sonarr) under Settings, Media Management instead: they then stop monitoring what disappears from disk, though the movie or series stays listed there.</p>
                     <div id="jcServers"></div>
                     <div class="jc-row">
                         <button type="button" class="jc-btn" data-add="Radarr">Add Radarr</button>
@@ -265,24 +274,68 @@
                     });
                 }
 
+                var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+                function when(d) { return new Date(d).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+
+                function select(options, value, onChange) {
+                    var s = el('select', {});
+                    options.forEach(function (o) { s.append(el('option', { value: o[0], textContent: o[1] })); });
+                    s.value = value;
+                    s.addEventListener('change', function () { onChange(s.value); dirty(); });
+                    return s;
+                }
+
                 function renderViews() {
                     var box = $('jcViews');
                     box.textContent = '';
                     if (!config.Views.length) {
-                        box.append(el('div', { className: 'jc-empty', textContent: 'No saved views yet.' }));
+                        box.append(el('div', { className: 'jc-empty', textContent: 'No saved views yet. Set a filter on the Library page and choose Save this view.' }));
                     }
                     config.Views.forEach(function (view, index) {
-                        var daily = el('button', { type: 'button', className: 'jc-tile' },
+                        // Older versions only had "check daily"; the first change here moves it to a schedule.
+                        if (!view.Schedule && view.CheckDaily) { view.Schedule = 'daily'; }
+                        view.CheckDaily = false;
+                        if (typeof view.Day === 'number') { view.Day = DAYS[view.Day]; }
+                        view.Day = view.Day || 'Monday';
+
+                        var day = select(DAYS.map(function (d) { return [d, d]; }), view.Day, function (v) { view.Day = v; });
+                        var dayLabel = el('label', {}, 'Day', day);
+                        dayLabel.hidden = view.Schedule !== 'weekly';
+                        var schedule = select([['', 'Not scheduled'], ['daily', 'Every day'], ['weekly', 'Every week']], view.Schedule || '', function (v) {
+                            view.Schedule = v;
+                            dayLabel.hidden = v !== 'weekly';
+                        });
+                        var hours = [];
+                        for (var h = 0; h < 24; h++) { hours.push([String(h), (h < 10 ? '0' : '') + h + ':00']); }
+                        var hour = select(hours, String(view.Hour == null ? 4 : view.Hour), function (v) { view.Hour = Number(v); });
+                        var notice = el('input', { type: 'number', min: '0', value: view.NoticeDays || '', placeholder: String(config.NoticeDays) });
+                        notice.addEventListener('input', function () { view.NoticeDays = Number(notice.value) || 0; dirty(); });
+
+                        var auto = el('button', { type: 'button', className: 'jc-tile jc-warn' },
                             el('span', { className: 'jc-tile-text' },
-                                el('b', { textContent: 'Check daily' }),
-                                el('small', { textContent: 'Put new matches on the Leaving soon list.' })),
+                                el('b', { textContent: 'Remove when due, without asking' }),
+                                el('small', { textContent: 'Off: due items wait for you on the Library page.' })),
                             el('span', { className: 'jc-switch', ariaHidden: 'true' }));
-                        daily.setAttribute('role', 'switch');
-                        daily.setAttribute('aria-checked', String(view.CheckDaily));
-                        daily.addEventListener('click', function () {
-                            view.CheckDaily = !view.CheckDaily;
-                            daily.setAttribute('aria-checked', String(view.CheckDaily));
+                        auto.setAttribute('role', 'switch');
+                        auto.setAttribute('aria-checked', String(!!view.AutoRemove));
+                        auto.addEventListener('click', function () {
+                            if (!view.AutoRemove && !window.confirm('Items from "' + view.Name + '" will be removed on their own once due. Continue?')) { return; }
+                            view.AutoRemove = !view.AutoRemove;
+                            auto.setAttribute('aria-checked', String(view.AutoRemove));
                             dirty();
+                        });
+
+                        var run = el('button', { type: 'button', className: 'jc-btn', textContent: 'Run now' });
+                        run.addEventListener('click', function () {
+                            run.disabled = true;
+                            post('JellyClean/LeavingSoon/Run?view=' + encodeURIComponent(view.Name)).then(function () {
+                                return ApiClient.getPluginConfiguration(pluginId);
+                            }).then(function (latest) {
+                                var fresh = (latest.Views || []).filter(function (v) { return v.Name === view.Name; })[0];
+                                if (fresh) { view.LastRun = fresh.LastRun; view.LastAdded = fresh.LastAdded; }
+                                renderViews();
+                            }).catch(function (err) { window.alert(err.message); run.disabled = false; });
                         });
                         var remove = el('button', { type: 'button', className: 'jc-btn danger', textContent: 'Delete' });
                         remove.addEventListener('click', function () {
@@ -291,7 +344,13 @@
                             renderViews();
                             dirty();
                         });
-                        box.append(el('div', { className: 'jc-view' }, el('b', { textContent: view.Name }), daily, remove));
+
+                        var last = view.LastRun ? 'Last run ' + when(view.LastRun) + ', ' + view.LastAdded + ' added.' : 'Not run yet.';
+                        box.append(el('div', { className: 'jc-view' },
+                            el('div', { className: 'jc-view-name' }, el('b', { textContent: view.Name }), el('small', { textContent: last })),
+                            el('label', {}, 'Schedule', schedule), dayLabel, el('label', {}, 'At', hour),
+                            el('label', {}, 'Notice days', notice),
+                            auto, run, remove));
                     });
                 }
 
@@ -327,7 +386,7 @@
                     } else if (b.dataset.flag) {
                         var on = !config[b.dataset.flag];
                         if (on && b.dataset.flag === 'AutoRemoveWhenDue'
-                            && !window.confirm('Due items will then be deleted from disk by the daily task, without asking you first. Switch it on?')) {
+                            && !window.confirm('Every due item will then be removed by the scheduled task, without asking you first. Switch it on?')) {
                             return;
                         }
                         config[b.dataset.flag] = on;
@@ -368,10 +427,13 @@
                             config.CollectionId = latest.CollectionId;
                             config.FreedBytes = latest.FreedBytes;
                             config.RemovedCount = latest.RemovedCount;
-                            var daily = {};
-                            config.Views.forEach(function (v) { daily[v.Name] = v.CheckDaily; });
+                            config.Recycled = latest.Recycled || [];
+                            // Schedules come from this page; the filter, last run and new views come from the latest.
+                            var mine = {};
+                            config.Views.forEach(function (v) { mine[v.Name] = v; });
                             config.Views = (latest.Views || []).filter(function (v) { return deletedViews.indexOf(v.Name) < 0; }).map(function (v) {
-                                if (Object.prototype.hasOwnProperty.call(daily, v.Name)) { v.CheckDaily = daily[v.Name]; }
+                                var m = mine[v.Name];
+                                if (m) { ['CheckDaily', 'Schedule', 'Day', 'Hour', 'NoticeDays', 'AutoRemove'].forEach(function (k) { v[k] = m[k]; }); }
                                 return v;
                             });
                             return ApiClient.updatePluginConfiguration(pluginId, config);

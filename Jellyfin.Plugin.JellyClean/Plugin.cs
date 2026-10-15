@@ -62,6 +62,12 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             },
             new PluginPageInfo
             {
+                Name = "JellyCleanRecover",
+                DisplayName = "JellyClean recover",
+                EmbeddedResourcePath = GetType().Namespace + ".Configuration.recoverPage.html"
+            },
+            new PluginPageInfo
+            {
                 Name = "JellyCleanActivity",
                 DisplayName = "JellyClean activity",
                 EmbeddedResourcePath = GetType().Namespace + ".Configuration.activityPage.html"
@@ -80,6 +86,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     {
         serviceCollection.AddSingleton<Catalog>();
         serviceCollection.AddSingleton<ArrClient>();
+        serviceCollection.AddSingleton<RecycleBin>();
         serviceCollection.AddSingleton<Remover>();
         serviceCollection.AddSingleton<LeavingSoon>();
     }

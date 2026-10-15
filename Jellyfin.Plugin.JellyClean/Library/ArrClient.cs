@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -127,16 +128,144 @@ public class ArrClient
     /// </summary>
     /// <param name="step">The step.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task.</returns>
-    public async Task ApplyAsync(ArrStep step, CancellationToken cancellationToken)
+    /// <returns>What is needed to undo it.</returns>
+    public async Task<ArrUndo> ApplyAsync(ArrStep step, CancellationToken cancellationToken)
     {
         var server = step.Server;
         var exclusion = server.AddExclusion ? "true" : "false";
+        var undo = new ArrUndo { Kind = server.Kind, Url = server.Url, EpisodeIds = step.EpisodeIds, Excluded = server.AddExclusion };
+        if (step.EpisodeIds.Length == 0)
+        {
+            // Keep the movie or series as it was, with its quality profile, folder and monitored seasons, to add it back.
+            using var get = new HttpRequestMessage(HttpMethod.Get, Url(server, (server.IsSonarr ? "series/" : "movie/") + step.ArrId));
+            using var got = await SendAsync(server, get, cancellationToken).ConfigureAwait(false);
+            undo.Json = await got.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         using var request = step.EpisodeIds.Length > 0
             ? new HttpRequestMessage(HttpMethod.Put, Url(server, "episode/monitor")) { Content = JsonContent.Create(new { episodeIds = step.EpisodeIds, monitored = false }) }
             : server.IsSonarr
                 ? new HttpRequestMessage(HttpMethod.Delete, Url(server, $"series/{step.ArrId}?deleteFiles=false&addImportListExclusion={exclusion}"))
                 : new HttpRequestMessage(HttpMethod.Delete, Url(server, $"movie/{step.ArrId}?deleteFiles=false&addImportExclusion={exclusion}"));
+        using var response = await SendAsync(server, request, cancellationToken).ConfigureAwait(false);
+        return undo;
+    }
+
+    /// <summary>
+    /// The recycle bin's first half of a step: the movie, series or episodes stop being monitored, so nothing is
+    /// downloaded again, but stay in Radarr or Sonarr until the recycle bin is emptied.
+    /// </summary>
+    /// <param name="step">The step.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>What is needed to finish or undo it.</returns>
+    public async Task<ArrUndo> HoldAsync(ArrStep step, CancellationToken cancellationToken)
+    {
+        var server = step.Server;
+        await MonitorAsync(server, step.ArrId, step.EpisodeIds, false, cancellationToken).ConfigureAwait(false);
+        return new ArrUndo { Kind = server.Kind, Url = server.Url, ArrId = step.ArrId, EpisodeIds = step.EpisodeIds, Excluded = server.AddExclusion, Held = true };
+    }
+
+    /// <summary>
+    /// The second half, when the recycle bin is emptied: a held movie or series is removed from Radarr or Sonarr.
+    /// Held episodes need nothing more: they stay unmonitored.
+    /// </summary>
+    /// <param name="undo">What was held.</param>
+    /// <param name="servers">The servers set up now.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    public async Task FinishAsync(ArrUndo undo, IEnumerable<ArrServer> servers, CancellationToken cancellationToken)
+    {
+        if (!undo.Held || undo.EpisodeIds.Length > 0)
+        {
+            return;
+        }
+
+        // A server that was taken out of the settings has nothing left to remove.
+        if (!servers.Any(s => Same(s, undo)))
+        {
+            return;
+        }
+
+        var server = Find(undo, servers);
+        var exclusion = undo.Excluded ? "true" : "false";
+        using var request = server.IsSonarr
+            ? new HttpRequestMessage(HttpMethod.Delete, Url(server, $"series/{undo.ArrId}?deleteFiles=false&addImportListExclusion={exclusion}"))
+            : new HttpRequestMessage(HttpMethod.Delete, Url(server, $"movie/{undo.ArrId}?deleteFiles=false&addImportExclusion={exclusion}"));
+        try
+        {
+            using var response = await SendAsync(server, request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            // Already removed there by someone: done.
+        }
+    }
+
+    /// <summary>
+    /// Undoes a step: monitors the episodes again, or takes the movie or series off the exclusion list and adds it back
+    /// as it was, without searching. Radarr or Sonarr then finds the files that are back in its folder.
+    /// </summary>
+    /// <param name="undo">What was done.</param>
+    /// <param name="servers">The servers set up now.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    public async Task UndoAsync(ArrUndo undo, IEnumerable<ArrServer> servers, CancellationToken cancellationToken)
+    {
+        var server = Find(undo, servers);
+        if (undo.Held || undo.EpisodeIds.Length > 0)
+        {
+            await MonitorAsync(server, undo.ArrId, undo.EpisodeIds, true, cancellationToken).ConfigureAwait(false);
+
+            // Look at the folder now, so the files that are back count as present right away.
+            object command = server.IsSonarr ? new { name = "RescanSeries", seriesId = undo.ArrId } : new { name = "RefreshMovie", movieIds = new[] { undo.ArrId } };
+            using var rescan = new HttpRequestMessage(HttpMethod.Post, Url(server, "command")) { Content = JsonContent.Create(command) };
+            using var rescanned = await SendAsync(server, rescan, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (JsonNode.Parse(undo.Json ?? "null") is not JsonObject entry)
+        {
+            return;
+        }
+
+        var key = server.IsSonarr ? "tvdbId" : "tmdbId";
+        var id = entry[key]?.GetValue<int>() ?? 0;
+        if (undo.Excluded && id > 0)
+        {
+            var path = server.IsSonarr ? "importlistexclusion" : "exclusions";
+            var exclusions = await GetAsync<List<JsonObject>>(server, path, cancellationToken).ConfigureAwait(false);
+            foreach (var ex in exclusions.Where(e => e[key]?.GetValue<int>() == id))
+            {
+                using var delete = new HttpRequestMessage(HttpMethod.Delete, Url(server, $"{path}/{ex["id"]}"));
+                using var deleted = await SendAsync(server, delete, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        entry.Remove("id");
+        entry["addOptions"] = server.IsSonarr
+            ? new JsonObject { ["searchForMissingEpisodes"] = false, ["searchForCutoffUnmetEpisodes"] = false }
+            : new JsonObject { ["searchForMovie"] = false };
+        using var add = new HttpRequestMessage(HttpMethod.Post, Url(server, server.IsSonarr ? "series" : "movie"))
+        {
+            Content = new StringContent(entry.ToJsonString(), System.Text.Encoding.UTF8, "application/json"),
+        };
+        using var added = await SendAsync(server, add, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool Same(ArrServer server, ArrUndo undo)
+        => server.Kind == undo.Kind && server.Url.Trim().TrimEnd('/') == undo.Url.Trim().TrimEnd('/');
+
+    private static ArrServer Find(ArrUndo undo, IEnumerable<ArrServer> servers)
+        => servers.FirstOrDefault(s => Same(s, undo))
+            ?? throw new HttpRequestException($"{undo.Kind} at {undo.Url} is no longer set up");
+
+    private async Task MonitorAsync(ArrServer server, int arrId, int[] episodeIds, bool monitored, CancellationToken cancellationToken)
+    {
+        object body = episodeIds.Length > 0 ? new { episodeIds, monitored }
+            : server.IsSonarr ? new { seriesIds = new[] { arrId }, monitored }
+            : new { movieIds = new[] { arrId }, monitored };
+        var path = episodeIds.Length > 0 ? "episode/monitor" : server.IsSonarr ? "series/editor" : "movie/editor";
+        using var request = new HttpRequestMessage(HttpMethod.Put, Url(server, path)) { Content = JsonContent.Create(body) };
         using var response = await SendAsync(server, request, cancellationToken).ConfigureAwait(false);
     }
 

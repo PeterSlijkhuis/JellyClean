@@ -64,7 +64,52 @@ public sealed class RemoverTests : IDisposable
         sessions.Setup(s => s.Sessions).Returns([]);
 
         _config.Servers = [new ArrServer { Kind = "Radarr", Url = _radarrUrl, ApiKey = "key" }];
-        return new Remover(catalog, new ArrClient(factory.Object), _library.Object, sessions.Object, Mock.Of<IActivityManager>(), NullLogger<Remover>.Instance);
+        return new Remover(catalog, new ArrClient(factory.Object), new RecycleBin(_library.Object, new ArrClient(Mock.Of<IHttpClientFactory>()), NullLogger<RecycleBin>.Instance), _library.Object, sessions.Object, Mock.Of<IActivityManager>(), NullLogger<Remover>.Instance);
+    }
+
+    [Fact]
+    public async Task Leaving_soon_drops_items_that_became_protected()
+    {
+        var remover = Remover();
+        var catalog = new Catalog(_library.Object, Mock.Of<IUserManager>(u => u.GetUsers() == Array.Empty<Jellyfin.Database.Implementations.Entities.User>()), Mock.Of<IUserDataManager>(), NullLogger<Catalog>.Instance);
+        var leaving = new LeavingSoon(catalog, remover, Mock.Of<MediaBrowser.Controller.Collections.ICollectionManager>(), _library.Object, NullLogger<LeavingSoon>.Instance);
+        _config.UseCollection = false;
+        _config.LeavingSoon = [new LeavingItem { Id = _movie.Id, Title = "Alien", Source = "you" }];
+
+        await leaving.ReconcileAsync(CancellationToken.None);
+        Assert.Single(_config.LeavingSoon);
+
+        _config.KeptIds = [_movie.Id];
+        await leaving.ReconcileAsync(CancellationToken.None);
+        Assert.Empty(_config.LeavingSoon);
+    }
+
+    [Fact]
+    public async Task Recycle_bin_moves_restores_and_purges()
+    {
+        var lib = Path.Combine(_root, "movies");
+        var folder = Path.Combine(lib, "Alien (1979)");
+        Directory.CreateDirectory(folder);
+        await File.WriteAllTextAsync(Path.Combine(folder, "Alien.mkv"), "x");
+        _library.Setup(l => l.GetVirtualFolders()).Returns([new MediaBrowser.Model.Entities.VirtualFolderInfo { Name = "Movies", Locations = [lib] }]);
+        var bin = new RecycleBin(_library.Object, new ArrClient(Mock.Of<IHttpClientFactory>()), NullLogger<RecycleBin>.Instance);
+        var item = new CatalogItem { Id = _movie.Id, Name = "Alien", Type = "Movie" };
+
+        var recycled = bin.Move(item, [folder]);
+        RecycleBin.Add(recycled);
+        Assert.False(Directory.Exists(folder));
+        Assert.True(File.Exists(Path.Combine(recycled.Paths[0].To, "Alien.mkv")));
+
+        Assert.Null(bin.Restore(item.Id));
+        Assert.True(File.Exists(Path.Combine(folder, "Alien.mkv")));
+        Assert.Empty(_config.Recycled);
+
+        RecycleBin.Add(bin.Move(item, [folder]));
+        _config.RecycleDays = 30;
+        Assert.Equal(0, await bin.PurgeAsync(all: false, CancellationToken.None));
+        Assert.Equal(1, await bin.PurgeAsync(all: true, CancellationToken.None));
+        Assert.Empty(_config.Recycled);
+        Assert.Equal([".ignore"], Directory.EnumerateFileSystemEntries(Path.Combine(lib, RecycleBin.FolderName)).Select(Path.GetFileName));
     }
 
     [Fact]
@@ -75,6 +120,21 @@ public sealed class RemoverTests : IDisposable
         Assert.True(_radarrCalled);
         Assert.Single(plan.Remove);
         _library.Verify(l => l.DeleteItem(_movie, It.Is<DeleteOptions>(o => o.DeleteFileLocation)), Times.Once);
+    }
+
+    [Fact]
+    public async Task Start_runs_in_the_background_and_reports_progress()
+    {
+        var remover = Remover();
+        Assert.True(remover.Start([_movie.Id], Guid.Empty));
+        for (var i = 0; i < 100 && remover.Progress.Running; i++)
+        {
+            await Task.Delay(50);
+        }
+
+        Assert.False(remover.Progress.Running);
+        Assert.Equal(1, remover.Progress.Done);
+        Assert.Single(remover.Progress.Result!.Remove);
     }
 
     [Fact]

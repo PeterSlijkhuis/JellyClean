@@ -20,7 +20,7 @@
             #JellyCleanLibraryPage [hidden] { display: none !important; }
             #JellyCleanLibraryPage button:focus-visible, #JellyCleanLibraryPage a:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 2px; }
 
-            #JellyCleanLibraryPage .jc-tabs { display: flex; gap: 0.4em; margin: 1em 0 0; flex-wrap: wrap; }
+            #JellyCleanLibraryPage .jc-tabs { display: flex; gap: 0.4em; flex-wrap: wrap; margin: 1em 0 0; flex-wrap: wrap; }
             #JellyCleanLibraryPage .jc-tab { padding: 0.6em 1.2em; border-radius: 999px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: inherit; opacity: 0.75; }
             #JellyCleanLibraryPage .jc-tab[aria-current="page"] { background: linear-gradient(135deg, var(--jc-accent-2), var(--jc-accent)); border-color: transparent; color: #fff; opacity: 1; }
 
@@ -121,6 +121,10 @@
             #JellyCleanLibraryPage .jc-tag.copy { border-color: rgba(240, 120, 60, 0.6); color: #ff9a5c; }
             #JellyCleanLibraryPage .jc-tag.protected { border-color: rgba(170, 92, 195, 0.7); color: #c58ad8; }
             #JellyCleanLibraryPage .jc-size { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 5em; text-align: right; }
+            #JellyCleanLibraryPage .jc-target { display: inline-flex; gap: .4em; align-items: center; }
+            #JellyCleanLibraryPage .jc-target input { width: 6em; padding: .45em .6em; border-radius: 8px; border: 1px solid var(--jc-line); background: transparent; color: inherit; font: inherit; }
+            #JellyCleanLibraryPage .jc-unfav { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; padding: 0 0 0 .2em; opacity: .7; }
+            #JellyCleanLibraryPage .jc-unfav:hover { opacity: 1; }
             #JellyCleanLibraryPage .jc-keep {
                 flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--jc-line); background: transparent;
                 color: inherit; cursor: pointer; display: grid; place-items: center; opacity: 0.55;
@@ -184,6 +188,7 @@
             <div class="content-primary">
                 <nav class="jc-tabs" aria-label="JellyClean">
                     <button type="button" class="jc-tab" aria-current="page">Library</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanSettings">Settings</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
                 </nav>
@@ -230,6 +235,18 @@
                     <div class="jc-plan" id="jcLeavingList" hidden></div>
                 </section>
 
+                <section class="jc-card jc-leaving" id="jcBin" hidden>
+                    <div class="jc-head" style="margin:0;">
+                        <div>
+                            <h2>Recycle bin</h2>
+                            <p class="jc-hint" id="jcBinText" style="margin:0;"></p>
+                        </div>
+                        <div class="jc-actions">
+                            <button type="button" class="jc-btn" data-page="JellyCleanRecover">Open Recover</button>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="jc-card">
                     <h2>Filter</h2>
                     <p class="jc-hint">Start from a suggestion or set your own filters. The list updates as you go.</p>
@@ -238,6 +255,7 @@
                         <button type="button" class="jc-preset" data-preset="stale">Never played, added over a year ago</button>
                         <button type="button" class="jc-preset" data-preset="biggest">Biggest movies</button>
                         <button type="button" class="jc-preset" data-preset="everyone">Watched by everyone</button>
+                        <button type="button" class="jc-preset" data-preset="finished">Finished series everyone watched</button>
                         <button type="button" class="jc-preset" data-preset="forgotten">Series nobody played in 2 years</button>
                         <button type="button" class="jc-preset" data-preset="copies">Movies you have twice</button>
                         <button type="button" class="jc-preset" data-preset="lowres">Old H.264 below 1080p</button>
@@ -355,6 +373,10 @@
                         <span class="jc-switch" aria-hidden="true"></span>
                         <span>Only movies and series that are in Jellyfin more than once, like a 1080p and a 4K copy</span>
                     </button>
+                    <button type="button" class="jc-toggle" role="switch" id="jcEnded" aria-checked="false">
+                        <span class="jc-switch" aria-hidden="true"></span>
+                        <span>Only series that have ended, so no new episodes are coming</span>
+                    </button>
                     <button type="button" class="jc-toggle" role="switch" id="jcHideProtected" aria-checked="false">
                         <span class="jc-switch" aria-hidden="true"></span>
                         <span>Hide items marked keep and favorites</span>
@@ -365,6 +387,10 @@
                     <div class="jc-head">
                         <span class="jc-count" id="jcCount" aria-live="polite">Reading your library. The very first read can take a few minutes on a big library.</span>
                         <div class="jc-actions">
+                            <span class="jc-target">
+                                <input type="number" id="jcTarget" min="1" step="any" placeholder="500" aria-label="Space to free up, in GB">
+                                <button type="button" class="jc-btn" id="jcFreeUp" title="Selects matches from the top of this list, skipping keep, favorites and Continue Watching, until they add up to this many GB">Free up GB</button>
+                            </span>
                             <button type="button" class="jc-btn" id="jcSelectAll">Select all</button>
                             <button type="button" class="jc-btn" id="jcExport" title="Download this list as a spreadsheet">Export</button>
                             <button type="button" class="jc-btn" id="jcRefresh" title="Read the library again">Refresh</button>
@@ -486,6 +512,7 @@
                         Hdr: $('jcHdr').value || null,
                         Codec: $('jcCodec').value || null,
                         CopiesOnly: $('jcCopies').getAttribute('aria-checked') === 'true',
+                        EndedOnly: $('jcEnded').getAttribute('aria-checked') === 'true',
                         Search: $('jcSearch').value || null,
                         HideProtected: $('jcHideProtected').getAttribute('aria-checked') === 'true',
                         Sort: sort[0],
@@ -501,14 +528,16 @@
                     var box = $('jcViews');
                     box.textContent = '';
                     (config.Views || []).forEach(function (v) {
-                        var open = el('button', { type: 'button', textContent: v.Name, title: 'Show this view' }, v.CheckDaily ? el('small', { textContent: 'daily' }) : null);
+                        var runs = v.Schedule || (v.CheckDaily ? 'daily' : '');
+                        var open = el('button', { type: 'button', textContent: v.Name, title: 'Show this view' }, runs ? el('small', { textContent: runs }) : null);
                         open.dataset.view = v.Name;
                         var del = el('button', { type: 'button', textContent: '×', title: 'Delete this view', ariaLabel: 'Delete ' + v.Name });
                         del.dataset.deleteView = v.Name;
                         box.append(el('span', { className: 'jc-view' }, open, del));
                     });
                     var save = el('button', { type: 'button', className: 'jc-preset', id: 'jcSaveView', textContent: '+ Save this view' });
-                    box.append(save);
+                    var schedule = el('button', { type: 'button', className: 'jc-preset', id: 'jcScheduleView', textContent: '+ Schedule for Leaving soon', title: 'Every day, put what this filter finds on the Leaving soon list' });
+                    box.append(save, schedule);
                 }
 
                 function applyView(name) {
@@ -527,10 +556,13 @@
                     $('jcSort').value = (f.Sort || 'added') + '|' + (f.Descending ? '1' : '0');
                     $('jcSearch').value = f.Search || '';
                     $('jcCopies').setAttribute('aria-checked', String(!!f.CopiesOnly));
+                    $('jcEnded').setAttribute('aria-checked', String(!!f.EndedOnly));
                     $('jcHideProtected').setAttribute('aria-checked', String(!!f.HideProtected));
                     genres = new Set(f.Genres || []);
                     page.querySelectorAll('.jc-genre').forEach(function (b) { b.setAttribute('aria-pressed', String(genres.has(b.dataset.genre))); });
-                    ['jcType', 'jcLibrary', 'jcWatched', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
+                    $('jcTarget').addEventListener('keydown', function (e) { if (e.key === 'Enter') { $('jcFreeUp').click(); } });
+
+                ['jcType', 'jcLibrary', 'jcWatched', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
                         if ($(id).selectedIndex < 0) { $(id).selectedIndex = 0; }
                     });
                     load(false);
@@ -565,11 +597,34 @@
                             box.append(el('div', { className: 'jc-leave-row' },
                                 el('div', {},
                                     el('b', { textContent: l.Title }), ' ', el('span', { textContent: bytes(l.Size) }),
-                                    el('small', { textContent: (l.Source === 'you' ? 'Added by you' : 'From view ' + l.Source) + ' on ' + date(l.Added) }),
+                                    el('small', { textContent: (l.Source === 'you' ? 'Added by you' : 'From view ' + l.Source) + ' on ' + date(l.Added) + (l.AutoRemove ? '. Goes on its own when due.' : '. Waits for you when due.') }),
                                     l.Protected ? el('small', { textContent: 'Will stay: ' + l.Protected }) : null),
                                 el('span', { className: l.IsDue ? 'jc-due' : '', textContent: l.IsDue ? 'Due' : 'Due ' + date(l.Due) }),
                                 cancel));
                         });
+                    });
+                }
+
+                // One × per person, so each favorite can be taken off on its own.
+                function favoriteTag(item) {
+                    var tag = el('span', { className: 'jc-tag protected', textContent: 'Favorite of' });
+                    item.FavoriteBy.forEach(function (id, i) {
+                        var name = users[id] || 'someone';
+                        var clear = el('button', { type: 'button', className: 'jc-unfav', textContent: '×', title: 'Take ' + name + "'s favorite off", ariaLabel: 'Remove favorite of ' + name });
+                        clear.dataset.unfavorite = item.Id;
+                        clear.dataset.user = id;
+                        tag.append((i ? ', ' : ' ') + name, clear);
+                    });
+                    return tag;
+                }
+
+                // Recycle bin
+
+                function loadBin() {
+                    return call('GET', 'RecycleBin').then(function (list) {
+                        var size = list.reduce(function (sum, r) { return sum + r.Size; }, 0);
+                        $('jcBin').hidden = !list.length;
+                        $('jcBinText').textContent = plural(list.length, 'item', 'items') + ', ' + bytes(size) + ', still on disk and can be recovered.';
                     });
                 }
 
@@ -604,9 +659,10 @@
                         item.LastWatched ? el('span', { className: 'jc-tag', textContent: 'Last played ' + date(item.LastWatched) }) : null,
                         item.Rating ? el('span', { className: 'jc-tag', textContent: '★ ' + item.Rating.toFixed(1) }) : null,
                         item.Resolution ? el('span', { className: 'jc-tag quality', textContent: [item.Resolution, item.Codec, item.Hdr].filter(Boolean).join(' · ') }) : null,
+                        item.Ended && item.Type === 'Series' ? el('span', { className: 'jc-tag', textContent: 'Ended' }) : null,
                         item.CopiesIn.length ? el('span', { className: 'jc-tag copy', textContent: 'Also in ' + item.CopiesIn.join(', ') }) : null,
                         item.Kept ? el('span', { className: 'jc-tag protected', textContent: 'Keep' }) : null,
-                        item.Favorite ? el('span', { className: 'jc-tag protected', textContent: 'Favorite' }) : null);
+                        item.Favorite ? favoriteTag(item) : null);
 
                     var img = el('img', {
                         className: 'jc-poster' + (item.Type === 'Episode' ? ' wide' : ''), alt: '', loading: 'lazy',
@@ -701,7 +757,7 @@
                         var stats = $('jcStats');
                         stats.textContent = '';
                         var tiles = [[o.Movies.toLocaleString(), 'movies'], [o.Series.toLocaleString(), 'series'], [bytes(o.Size), 'on disk'], [bytes(o.NeverWatchedSize), 'never played']];
-                        if (o.FreedBytes > 0) { tiles.push([bytes(o.FreedBytes), 'freed so far']); }
+                        if (o.RemovedCount > 0) { tiles.push([bytes(o.FreedBytes), 'freed, ' + plural(o.RemovedCount, 'item', 'items') + ' removed']); }
                         tiles.forEach(function (s) {
                             stats.append(el('div', { className: 'jc-stat' }, el('b', { textContent: s[0] }), el('small', { textContent: s[1] })));
                         });
@@ -747,6 +803,7 @@
                         stale: { jcType: 'Movie,Series', jcWatched: 'none', jcAdded: '365', jcSort: 'size|1' },
                         biggest: { jcType: 'Movie', jcSort: 'size|1' },
                         everyone: { jcType: 'Movie', jcWatched: 'all', jcSort: 'watched|0' },
+                        finished: { jcType: 'Series', jcWatched: 'all', jcSort: 'size|1', ended: true },
                         forgotten: { jcType: 'Series', jcIdle: '730', jcSort: 'size|1' },
                         copies: { jcType: 'Movie', jcSort: 'name|0', copies: true },
                         lowres: { jcType: 'Movie,Series', jcResolution: '720p,SD', jcCodec: 'H.264', jcSort: 'size|1' }
@@ -755,6 +812,7 @@
                     Object.keys(defaults).forEach(function (id) { $(id).value = values[id] !== undefined ? values[id] : defaults[id]; });
                     if ($('jcCodec').selectedIndex < 0) { $('jcCodec').value = ''; }
                     $('jcCopies').setAttribute('aria-checked', String(!!values.copies));
+                    $('jcEnded').setAttribute('aria-checked', String(!!values.ended));
                     genres.clear();
                     page.querySelectorAll('.jc-genre').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
                     load(false);
@@ -786,10 +844,13 @@
 
                 function showPlan(plan) {
                     var count = plan.Remove.length;
-                    openDialog(count ? 'Delete ' + plural(count, 'item', 'items') + ', ' + plan.Size + ', from disk?' : 'Nothing can be removed');
+                    var binDays = (config && config.RecycleDays) || 0;
+                    openDialog(!count ? 'Nothing can be removed' : binDays ? 'Remove ' + plural(count, 'item', 'items') + ', ' + plan.Size + '?' : 'Delete ' + plural(count, 'item', 'items') + ', ' + plan.Size + ', from disk?');
                     var body = $('jcDialogBody');
                     if (count) {
-                        body.append(el('p', { className: 'jc-hint', textContent: 'The files are deleted from disk and the items are removed from Jellyfin. This cannot be undone.' }));
+                        body.append(el('p', { className: 'jc-hint', textContent: binDays
+                            ? 'The files go to the recycle bin for ' + plural(binDays, 'day', 'days') + ' and the items are removed from Jellyfin. Radarr and Sonarr stop monitoring them until then. Until then you can get everything back on the Recover tab.'
+                            : 'The files are deleted from disk and the items are removed from Jellyfin. This cannot be undone.' }));
                         if (!servers) {
                             body.append(el('div', { className: 'jc-warn', textContent: 'No Radarr or Sonarr is set up. If they manage these items, they may download them again. Add them under Settings.' }));
                         } else if (plan.Remove.some(function (p) { return !p.Arr.length; })) {
@@ -806,7 +867,7 @@
                     cancel.addEventListener('click', closeDialog);
                     if (!count) { foot.append(cancel); return; }
 
-                    var go = el('button', { type: 'button', className: 'jc-btn danger', textContent: 'Delete from disk' });
+                    var go = el('button', { type: 'button', className: 'jc-btn danger', textContent: binDays ? 'Move to recycle bin' : 'Delete from disk' });
                     // Bigger removals need the number typed, so a stray click can't delete a library.
                     var typed = count >= 20 ? el('input', { type: 'text', inputMode: 'numeric', placeholder: 'Type ' + count + ' to confirm', ariaLabel: 'Type ' + count + ' to confirm' }) : null;
                     if (typed) {
@@ -818,7 +879,24 @@
                         go.disabled = true;
                         cancel.disabled = true;
                         go.textContent = 'Removing...';
-                        call('POST', 'Remove', { Ids: plan.Remove.map(function (p) { return p.Item.Id; }) }).then(showResult).catch(function (err) {
+                        // The removal runs on the server; ask how it goes until it is done.
+                        call('POST', 'Remove', { Ids: plan.Remove.map(function (p) { return p.Item.Id; }) }).then(function () {
+                            var status = el('p', { className: 'jc-hint', textContent: 'Starting...' });
+                            $('jcDialogBody').prepend(status);
+                            (function check() {
+                                call('GET', 'Remove').then(function (p) {
+                                    if (p.Running) {
+                                        go.textContent = 'Removing ' + Math.min(p.Done + 1, p.Total || 1) + ' of ' + (p.Total || '?') + '...';
+                                        status.textContent = p.Current ? 'Now: ' + p.Current + '. You can close this page; the removal carries on.' : 'Checking Radarr and Sonarr...';
+                                        setTimeout(check, 1500);
+                                    } else if (p.Error) {
+                                        showResult(null, new Error(p.Error));
+                                    } else {
+                                        showResult(p.Result);
+                                    }
+                                }).catch(function () { setTimeout(check, 3000); });
+                            })();
+                        }).catch(function (err) {
                             showResult(null, err);
                         });
                     });
@@ -866,6 +944,7 @@
                     $('jcDialogFoot').append(close);
                     updateBar();
                     loadLeaving();
+                    loadBin().catch(function () {});
                     loadOverview(false).then(function () { load(false); });
                 }
 
@@ -884,7 +963,7 @@
                     var b = e.target.closest('button');
                     if (!b || !page.contains(b)) { return; }
 
-                    if (b.classList.contains('jc-tab') && b.dataset.page) {
+                    if (b.dataset.page) {
                         Dashboard.navigate(Dashboard.getPluginUrl(b.dataset.page));
                     } else if (b.dataset.preset) {
                         applyPreset(b.dataset.preset);
@@ -893,7 +972,7 @@
                         if (on) { genres.add(b.dataset.genre); } else { genres.delete(b.dataset.genre); }
                         b.setAttribute('aria-pressed', String(on));
                         load(false);
-                    } else if (b.id === 'jcHideProtected' || b.id === 'jcCopies') {
+                    } else if (b.id === 'jcHideProtected' || b.id === 'jcCopies' || b.id === 'jcEnded') {
                         b.setAttribute('aria-checked', String(b.getAttribute('aria-checked') !== 'true'));
                         load(false);
                     } else if (b.dataset.storageLibrary) {
@@ -915,6 +994,9 @@
                         });
                         lastCheck = b;
                         updateBar();
+                    } else if (b.dataset.unfavorite) {
+                        b.disabled = true;
+                        call('POST', 'Unfavorite/' + b.dataset.unfavorite + '?userId=' + b.dataset.user).then(function () { load(false); });
                     } else if (b.dataset.keep) {
                         var keep = b.getAttribute('aria-pressed') !== 'true';
                         b.disabled = true;
@@ -924,6 +1006,36 @@
                     } else if (b.id === 'jcRefresh') {
                         b.disabled = true;
                         loadOverview(true).then(function () { return load(false); }).finally(function () { b.disabled = false; });
+                    } else if (b.id === 'jcFreeUp') {
+                        var target = Number($('jcTarget').value) * 1e9;
+                        if (!(target > 0)) { $('jcTarget').focus(); return; }
+                        b.disabled = true;
+                        var tf = filter(0);
+                        tf.Limit = 1;
+                        call('POST', 'Items?allIds=true', tf).then(function (result) {
+                            // Top of the list first, in the sort order shown. A season or episode of a series already picked adds nothing.
+                            selected.clear();
+                            // ponytail: only keep, favorites and Continue Watching are skipped here; the preview applies the other safeguards.
+                            var picked = new Set();
+                            var parents = new Set();
+                            var sum = 0;
+                            result.Ids.forEach(function (i) {
+                                // Skip what a picked series or season already holds, and a series or season something in it was picked from.
+                                if (sum >= target || i.Protected || !i.Size || picked.has(i.SeriesId) || picked.has(i.SeasonId) || parents.has(i.Id)) { return; }
+                                picked.add(i.Id);
+                                if (i.SeriesId) { parents.add(i.SeriesId); }
+                                if (i.SeasonId) { parents.add(i.SeasonId); }
+                                setSelected(i.Id, i.Size, true);
+                                sum += i.Size;
+                            });
+                            page.querySelectorAll('.jc-check').forEach(function (c) {
+                                var on = selected.has(c.dataset.id);
+                                c.setAttribute('aria-checked', String(on));
+                                c.closest('.jc-row').classList.toggle('selected', on);
+                            });
+                            updateBar();
+                            if (sum < target) { window.alert('This list only adds up to ' + bytes(sum) + ' that can be removed. Widen the filter to free up more.'); }
+                        }).finally(function () { b.disabled = false; });
                     } else if (b.id === 'jcSelectAll') {
                         b.disabled = true;
                         var f = filter(0);
@@ -938,6 +1050,16 @@
                     } else if (b.dataset.deleteView) {
                         if (window.confirm('Delete the view "' + b.dataset.deleteView + '"?')) {
                             call('DELETE', 'Views?name=' + encodeURIComponent(b.dataset.deleteView)).then(loadConfig);
+                        }
+                    } else if (b.id === 'jcScheduleView') {
+                        var rule = window.prompt('Every day at 04:00 this filter puts what it finds on the Leaving soon list. They are due after ' + (config.NoticeDays || 0) + ' days and then wait for you. Change the schedule, notice days and automatic removal in Settings.\n\nName for this rule, like "Unwatched for a year"');
+                        if (rule && rule.trim()) {
+                            var rf = filter(0);
+                            delete rf.Offset;
+                            delete rf.Limit;
+                            call('POST', 'Views', { Name: rule.trim(), Filter: JSON.stringify(rf), Schedule: 'daily', Hour: 4 }).then(loadConfig).catch(function (err) {
+                                window.alert('Could not schedule it: ' + err.message);
+                            });
                         }
                     } else if (b.id === 'jcSaveView') {
                         var name = window.prompt('Name for this view, like "Old horror"');
@@ -1018,6 +1140,7 @@
                     poll();
                     loadConfig();
                     loadLeaving().catch(function () { $('jcLeaving').hidden = true; });
+                    loadBin().catch(function () { $('jcBin').hidden = true; });
                     loadOverview(false).then(function () {
                         // Empty movies and series are the safest first clean-up, so the page opens on them.
                         if (opened) { return load(false); }

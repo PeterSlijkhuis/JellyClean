@@ -42,6 +42,19 @@ public class LeavingSoon
         _collectionManager = collectionManager;
         _libraryManager = libraryManager;
         _logger = logger;
+
+        // A favorite set on a listed item takes it off the list right away, not at the next run.
+        _catalog.FavoritesChanged += (_, _) => Task.Run(async () =>
+        {
+            try
+            {
+                await ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not update the Leaving soon list");
+            }
+        });
     }
 
     private static PluginConfiguration Config => Plugin.Instance!.Configuration;
@@ -69,8 +82,9 @@ public class LeavingSoon
     /// <param name="ids">Item ids.</param>
     /// <param name="source">"you" or the name of a saved view.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="noticeDays">Days until due; 0 uses the general notice period.</param>
     /// <returns>The items added and the ones left off.</returns>
-    public async Task<RemovalPlan> AddAsync(IEnumerable<Guid> ids, string source, CancellationToken cancellationToken)
+    public async Task<RemovalPlan> AddAsync(IEnumerable<Guid> ids, string source, CancellationToken cancellationToken, int noticeDays = 0)
     {
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -81,18 +95,77 @@ public class LeavingSoon
             var plan = RemovalPlan.Build(ids.Where(id => !listed.Contains(id)), _catalog.Get(), safeguards);
 
             var now = DateTime.UtcNow;
+            var due = now.AddDays(noticeDays > 0 ? noticeDays : Math.Max(0, Config.NoticeDays));
             Config.LeavingSoon = Config.LeavingSoon
-                .Concat(plan.Remove.Select(p => new LeavingItem { Id = p.Item.Id, Title = p.Item.Title, Added = now, Due = now.AddDays(Math.Max(0, Config.NoticeDays)), Source = source }))
+                .Concat(plan.Remove.Select(p => new LeavingItem { Id = p.Item.Id, Title = p.Item.Title, Added = now, Due = due, Source = source }))
                 .ToArray();
             Plugin.Instance!.SaveConfiguration();
 
             if (plan.Remove.Count > 0)
             {
-                Activity.Info(_logger, "{Count} items are leaving soon ({Source}), due {Due:d}", plan.Remove.Count, source, now.AddDays(Config.NoticeDays));
+                Activity.Info(_logger, "{Count} items are leaving soon ({Source}), due {Due:d}", plan.Remove.Count, source, due);
             }
 
             await SyncCollectionAsync().ConfigureAwait(false);
             return plan;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Takes items off the list that should no longer leave: ones a safeguard now keeps (a favorite, keep, someone
+    /// watching it), and ones a scheduled view put there that no longer match that view.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    public async Task ReconcileAsync(CancellationToken cancellationToken)
+    {
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (Config.LeavingSoon.Length == 0)
+            {
+                return;
+            }
+
+            var items = _catalog.Get();
+            var safeguards = _remover.Safeguards();
+            safeguards.MaxItems = 0;
+            var reasons = RemovalPlan.Build(Config.LeavingSoon.Select(l => l.Id), items, safeguards).Skip
+                .Where(p => items.ContainsKey(p.Item.Id))
+                .ToDictionary(p => p.Item.Id, p => p.Reason);
+
+            foreach (var view in Config.Views)
+            {
+                var listed = Config.LeavingSoon.Where(l => l.Source == view.Name && !reasons.ContainsKey(l.Id)).ToList();
+                if (listed.Count == 0 || FilterOf(view) is not { } filter)
+                {
+                    continue;
+                }
+
+                var matches = _catalog.Find(filter).Select(i => i.Id).ToHashSet();
+                foreach (var l in listed.Where(l => items.ContainsKey(l.Id) && !matches.Contains(l.Id)))
+                {
+                    reasons[l.Id] = $"It no longer matches {view.Name}.";
+                }
+            }
+
+            if (reasons.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var l in Config.LeavingSoon.Where(l => reasons.ContainsKey(l.Id)))
+            {
+                Activity.Info(_logger, "{Title} left the Leaving soon list. {Reason}", l.Title, reasons[l.Id]);
+            }
+
+            Config.LeavingSoon = Config.LeavingSoon.Where(l => !reasons.ContainsKey(l.Id)).ToArray();
+            Plugin.Instance!.SaveConfiguration();
+            await SyncCollectionAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -146,21 +219,32 @@ public class LeavingSoon
                 l.Due,
                 l.Source,
                 IsDue = l.Due <= DateTime.UtcNow,
+                AutoRemove = RemovesOnItsOwn(l),
                 Protected = reasons.GetValueOrDefault(l.Id),
             });
     }
 
     /// <summary>
-    /// The daily run: saved views marked "check daily" add their matches, items that are gone leave the list,
-    /// and, only when switched on, due items are removed.
+    /// Whether an item is removed without asking once due: when that is on for everything, or for the view that added it.
+    /// </summary>
+    /// <param name="item">The listed item.</param>
+    /// <returns>True when it goes on its own.</returns>
+    public static bool RemovesOnItsOwn(LeavingItem item)
+        => Config.AutoRemoveWhenDue || Config.Views.Any(v => v.Name == item.Source && v.AutoRemove && v.Runs().Length > 0);
+
+    /// <summary>
+    /// The scheduled run: views whose time has come add their matches, items that are gone leave the list,
+    /// and due items are removed where that is switched on.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="views">Run these views now, whatever their schedule. Null: the ones that are due.</param>
     /// <returns>A task.</returns>
-    public async Task RunAsync(CancellationToken cancellationToken)
+    public async Task RunAsync(CancellationToken cancellationToken, IReadOnlyCollection<string>? views = null)
     {
         var items = _catalog.Get(refresh: true);
+        var now = DateTime.Now;
 
-        foreach (var view in Config.Views.Where(v => v.CheckDaily))
+        foreach (var view in Config.Views.Where(v => views is null ? v.NextRun(now) <= now : views.Contains(v.Name)).ToList())
         {
             if (FilterOf(view) is not { } filter)
             {
@@ -168,7 +252,9 @@ public class LeavingSoon
                 continue;
             }
 
-            await AddAsync(_catalog.Find(filter).Select(i => i.Id), view.Name, cancellationToken).ConfigureAwait(false);
+            var plan = await AddAsync(_catalog.Find(filter).Select(i => i.Id), view.Name, cancellationToken, view.NoticeDays).ConfigureAwait(false);
+            (view.LastRun, view.LastAdded) = (now, plan.Remove.Count);
+            Plugin.Instance!.SaveConfiguration();
         }
 
         var missing = Config.LeavingSoon.Where(l => !items.ContainsKey(l.Id)).Select(l => l.Id).ToList();
@@ -177,14 +263,15 @@ public class LeavingSoon
             await CancelAsync(missing, cancellationToken).ConfigureAwait(false);
         }
 
-        if (Config.AutoRemoveWhenDue)
+        await ReconcileAsync(cancellationToken).ConfigureAwait(false);
+
+        var due = Config.LeavingSoon.Where(l => l.Due <= DateTime.UtcNow && RemovesOnItsOwn(l)).Select(l => l.Id).ToList();
+        if (due.Count > 0)
         {
-            var due = Config.LeavingSoon.Where(l => l.Due <= DateTime.UtcNow).Select(l => l.Id).ToList();
-            if (due.Count > 0)
-            {
-                Activity.Info(_logger, "Removing {Count} items that are due (Remove when due is on)", due.Count);
-                await _remover.RemoveAsync(due, Guid.Empty, cancellationToken).ConfigureAwait(false);
-            }
+            Activity.Info(_logger, "Removing {Count} items that are due and set to go on their own", due.Count);
+            // Never straight off the disk: automatic removals always wait in the recycle bin, so a mistake can be undone.
+            var days = Math.Max(Math.Max(1, Config.AutoRecycleDays), Config.RecycleDays);
+            await _remover.RemoveAsync(due, Guid.Empty, cancellationToken, days, "Leaving soon").ConfigureAwait(false);
         }
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);

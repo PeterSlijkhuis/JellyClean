@@ -95,7 +95,7 @@ public class LibraryTests
     [Fact]
     public void Series_and_seasons_add_up_their_episodes()
     {
-        var series = new CatalogItem { Id = Guid.NewGuid(), Name = "Dark", Type = "Series", Genres = ["Drama"] };
+        var series = new CatalogItem { Id = Guid.NewGuid(), Name = "Dark", Type = "Series", Genres = ["Drama"], Ended = true };
         var season = new CatalogItem { Id = Guid.NewGuid(), Name = "Season 1", Type = "Season", SeriesId = series.Id, Season = 1 };
         CatalogItem Episode(int n, Guid[] watchedBy, int? lastDaysAgo) => new()
         {
@@ -115,6 +115,8 @@ public class LibraryTests
         Assert.Equal(_now.AddDays(-10), season.LastWatched);
         Assert.Equal(["Drama"], e1.Genres);
         Assert.Equal("Dark S01E02 E2", e2.Title);
+        Assert.True(e2.Ended);
+        Assert.Equal(2, new Filter { EndedOnly = true, Types = ["Series", "Season"] }.Apply([series, season, e1, new CatalogItem { Name = "Running", Type = "Series" }], 2).Count());
     }
 
     [Fact]
@@ -133,5 +135,27 @@ public class LibraryTests
         Assert.Equal("186 GB", Remover.Bytes(186_000_000_000));
         Assert.Equal("1.5 TB", Remover.Bytes(1_500_000_000_000));
         Assert.Equal("512 B", Remover.Bytes(512));
+    }
+
+    [Fact]
+    public void Scheduled_views_run_at_their_hour_and_day()
+    {
+        var now = new DateTime(2026, 10, 15, 12, 0, 0); // a Thursday
+        var view = new Jellyfin.Plugin.JellyClean.Configuration.SavedView { Schedule = "daily", Hour = 4 };
+        Assert.Equal(now, view.NextRun(now));
+
+        view.LastRun = new DateTime(2026, 10, 15, 4, 0, 0);
+        Assert.Equal(new DateTime(2026, 10, 16, 4, 0, 0), view.NextRun(now));
+
+        view.LastRun = new DateTime(2026, 10, 15, 3, 0, 0);
+        Assert.Equal(new DateTime(2026, 10, 15, 4, 0, 0), view.NextRun(now));
+
+        (view.Schedule, view.Day) = ("weekly", DayOfWeek.Monday);
+        Assert.Equal(new DateTime(2026, 10, 19, 4, 0, 0), view.NextRun(now));
+
+        view.Schedule = string.Empty;
+        Assert.Null(view.NextRun(now));
+        view.CheckDaily = true;
+        Assert.Equal("daily", view.Runs());
     }
 }

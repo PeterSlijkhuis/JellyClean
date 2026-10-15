@@ -56,6 +56,9 @@ public class Filter
     /// <summary>Gets or sets a value indicating whether to show only movies and series that are in Jellyfin more than once.</summary>
     public bool CopiesOnly { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether to show only series (and their seasons and episodes) that have ended.</summary>
+    public bool EndedOnly { get; set; }
+
     /// <summary>Gets or sets text to look for in the title or path.</summary>
     public string? Search { get; set; }
 
@@ -117,6 +120,7 @@ public class Filter
                 _ => i.Hdr == Hdr,
             })
             && (!CopiesOnly || i.CopiesIn.Length > 0)
+            && (!EndedOnly || i.Ended)
             && (string.IsNullOrWhiteSpace(Search)
                 || i.Title.Contains(Search.Trim(), StringComparison.OrdinalIgnoreCase)
                 || i.Path.Contains(Search.Trim(), StringComparison.OrdinalIgnoreCase))
