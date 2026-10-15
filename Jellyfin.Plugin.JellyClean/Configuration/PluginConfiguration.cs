@@ -87,6 +87,16 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets the id of that collection, once made.
     /// </summary>
     public Guid CollectionId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the bytes JellyClean has freed so far.
+    /// </summary>
+    public long FreedBytes { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many items JellyClean has removed so far.
+    /// </summary>
+    public int RemovedCount { get; set; }
 }
 
 /// <summary>

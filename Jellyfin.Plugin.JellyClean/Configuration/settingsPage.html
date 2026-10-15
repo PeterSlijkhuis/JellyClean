@@ -366,6 +366,8 @@
                             if (config.KeptIds.length) { config.KeptIds = latest.KeptIds || []; }
                             config.LeavingSoon = latest.LeavingSoon || [];
                             config.CollectionId = latest.CollectionId;
+                            config.FreedBytes = latest.FreedBytes;
+                            config.RemovedCount = latest.RemovedCount;
                             var daily = {};
                             config.Views.forEach(function (v) { daily[v.Name] = v.CheckDaily; });
                             config.Views = (latest.Views || []).filter(function (v) { return deletedViews.indexOf(v.Name) < 0; }).map(function (v) {

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<!-- Source for jellyclean.png. Render at 1280x720 (e.g. a headless browser screenshot). -->
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;800&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; }
+  body {
+    font-family: 'Poppins', sans-serif;
+    background:
+      radial-gradient(circle at 18% 30%, rgba(170, 92, 195, .55), transparent 45%),
+      radial-gradient(circle at 85% 80%, rgba(0, 164, 220, .45), transparent 45%),
+      linear-gradient(135deg, #0d0b24 0%, #1b1240 55%, #0a1f3a 100%);
+    color: #fff;
+    display: flex; align-items: center; gap: 40px; padding: 0 80px; box-sizing: border-box;
+  }
+  .waves { position: absolute; inset: 0; opacity: .18; }
+  h1 { font-size: 112px; font-weight: 800; margin: 0; line-height: 1; letter-spacing: -2px; }
+  h1 span { background: linear-gradient(90deg, #c77dff, #3cc8f5); -webkit-background-clip: text; color: transparent; }
+  p { font-size: 34px; font-weight: 500; margin: 22px 0 34px; color: #d9d4f5; }
+  .chips { display: flex; gap: 14px; flex-wrap: wrap; max-width: 760px; }
+  .chip { font-size: 22px; font-weight: 500; padding: 8px 22px; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); }
+</style>
+</head>
+<body>
+<svg class="waves" viewBox="0 0 1280 720" preserveAspectRatio="none">
+  <path d="M0 560 Q160 500 320 560 T640 560 T960 560 T1280 560" fill="none" stroke="#fff" stroke-width="3"/>
+  <path d="M0 610 Q160 550 320 610 T640 610 T960 610 T1280 610" fill="none" stroke="#fff" stroke-width="2"/>
+  <path d="M0 660 Q160 600 320 660 T640 660 T960 660 T1280 660" fill="none" stroke="#fff" stroke-width="1.5"/>
+</svg>
+<svg width="380" height="460" viewBox="0 0 380 460" style="position:relative;flex:none">
+  <defs>
+    <linearGradient id="dome" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c77dff"/><stop offset="1" stop-color="#2fb7ee"/>
+    </linearGradient>
+    <radialGradient id="shine" cx=".35" cy=".25" r=".5">
+      <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3c98b"/><stop offset="1" stop-color="#c98a4b"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="12"/></filter>
+  </defs>
+
+  <!-- dust cloud and sparkles, where the broom sweeps -->
+  <g fill="#fff">
+    <circle cx="300" cy="420" r="16" opacity=".22"/>
+    <circle cx="326" cy="404" r="22" opacity=".18"/>
+    <circle cx="352" cy="426" r="14" opacity=".2"/>
+    <circle cx="272" cy="436" r="10" opacity=".16"/>
+    <circle cx="340" cy="378" r="7" opacity=".28"/>
+  </g>
+  <g fill="#fff">
+    <path d="M356 330 l5 14 14 5 -14 5 -5 14 -5 -14 -14 -5 14 -5 z" opacity=".9"/>
+    <path d="M300 360 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 z" opacity=".75"/>
+    <path d="M246 404 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z" opacity=".6"/>
+  </g>
+
+  <!-- tentacles -->
+  <g fill="none" stroke="url(#dome)" stroke-width="10" stroke-linecap="round">
+    <path d="M88 236 q-20 32 0 64 t0 64"/>
+    <path d="M140 242 q16 34 0 68 t0 60"/>
+    <path d="M192 242 q-16 30 0 58"/>
+  </g>
+
+  <!-- broom: handle held by a tentacle, bristles sweeping the dust -->
+  <g transform="rotate(-38 250 330)">
+    <rect x="243" y="170" width="14" height="190" rx="7" fill="url(#wood)"/>
+    <rect x="236" y="352" width="28" height="14" rx="4" fill="#7b4fd6"/>
+    <path d="M232 364 L268 364 L292 446 L208 446 Z" fill="#ffd36e"/>
+    <g stroke="#e0a83a" stroke-width="3" stroke-linecap="round">
+      <line x1="238" y1="372" x2="226" y2="440"/>
+      <line x1="250" y1="372" x2="250" y2="442"/>
+      <line x1="262" y1="372" x2="274" y2="440"/>
+    </g>
+  </g>
+  <!-- the tentacles that hold it -->
+  <g fill="none" stroke="url(#dome)" stroke-width="10" stroke-linecap="round">
+    <path d="M236 232 q30 20 22 52 q-4 14 10 22"/>
+    <path d="M210 240 q10 40 44 66"/>
+  </g>
+  <circle cx="262" cy="300" r="9" fill="#7fd2f5"/>
+
+  <!-- dome -->
+  <path d="M30 220 A130 130 0 0 1 290 220 Q290 244 266 244 L54 244 Q30 244 30 220 Z" fill="url(#dome)" filter="url(#glow)" opacity=".7"/>
+  <path d="M30 220 A130 130 0 0 1 290 220 Q290 244 266 244 L54 244 Q30 244 30 220 Z" fill="url(#dome)"/>
+  <path d="M30 220 A130 130 0 0 1 290 220 Q290 244 266 244 L54 244 Q30 244 30 220 Z" fill="url(#shine)"/>
+  <!-- scalloped rim -->
+  <path d="M30 230 q22 22 44 0 q22 22 44 0 q22 22 44 0 q22 22 44 0 q22 22 44 0 q22 22 44 0" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="4"/>
+
+  <!-- face -->
+  <circle cx="126" cy="170" r="14" fill="#1a1033"/>
+  <circle cx="194" cy="170" r="14" fill="#1a1033"/>
+  <circle cx="131" cy="165" r="5" fill="#fff"/>
+  <circle cx="199" cy="165" r="5" fill="#fff"/>
+  <path d="M142 196 q18 16 36 0" fill="none" stroke="#1a1033" stroke-width="7" stroke-linecap="round"/>
+  <ellipse cx="104" cy="196" rx="12" ry="7" fill="#ff8fc8" opacity=".55"/>
+  <ellipse cx="216" cy="196" rx="12" ry="7" fill="#ff8fc8" opacity=".55"/>
+
+  <!-- a little cleaning bandana -->
+  <path d="M62 132 Q160 70 258 132 L250 112 Q160 50 70 112 Z" fill="#ffd36e"/>
+  <g fill="#fff" opacity=".7"><circle cx="110" cy="104" r="4"/><circle cx="160" cy="92" r="4"/><circle cx="210" cy="104" r="4"/></g>
+  <path d="M254 120 l26 -14 -6 22 z M254 120 l30 6 -18 12 z" fill="#f2b84b"/>
+</svg>
+<div style="position:relative">
+  <h1>Jelly<span>Clean</span></h1>
+  <p>Free up space, the safe way</p>
+  <div class="chips"><div class="chip">Unwatched and old</div><div class="chip">Radarr and Sonarr</div><div class="chip">Safeguards</div></div>
+</div>
+</body>
+</html>
