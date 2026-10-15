@@ -28,6 +28,8 @@ public class JellyCleanController : ControllerBase
     private readonly ArrClient _arr;
     private readonly LeavingSoon _leavingSoon;
     private readonly IUserManager _userManager;
+    private readonly RecycleBin _bin;
+    private readonly ILibraryManager _libraryManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="JellyCleanController"/> class.
@@ -37,8 +39,12 @@ public class JellyCleanController : ControllerBase
     /// <param name="arr">Radarr and Sonarr client.</param>
     /// <param name="leavingSoon">Leaving soon list.</param>
     /// <param name="userManager">User manager.</param>
-    public JellyCleanController(Catalog catalog, Remover remover, ArrClient arr, LeavingSoon leavingSoon, IUserManager userManager)
+    /// <param name="bin">Recycle bin.</param>
+    /// <param name="libraryManager">Library manager.</param>
+    public JellyCleanController(Catalog catalog, Remover remover, ArrClient arr, LeavingSoon leavingSoon, IUserManager userManager, RecycleBin bin, ILibraryManager libraryManager)
     {
+        _bin = bin;
+        _libraryManager = libraryManager;
         _catalog = catalog;
         _remover = remover;
         _arr = arr;
@@ -198,6 +204,48 @@ public class JellyCleanController : ControllerBase
         await _leavingSoon.RunAsync(cancellationToken).ConfigureAwait(false);
         return NoContent();
     }
+
+    /// <summary>
+    /// What is in the recycle bin, newest first.
+    /// </summary>
+    /// <returns>The items, with the days left before they are deleted for good.</returns>
+    [HttpGet("RecycleBin")]
+    public ActionResult GetRecycleBin()
+    {
+        var config = Plugin.Instance!.Configuration;
+        return Ok(config.Recycled.OrderByDescending(r => r.Removed).Select(r => new
+        {
+            r.Id,
+            r.Title,
+            r.Size,
+            r.Removed,
+            DaysLeft = Math.Max(0, (int)Math.Ceiling((r.Removed.AddDays(config.RecycleDays) - DateTime.UtcNow).TotalDays)),
+        }));
+    }
+
+    /// <summary>
+    /// Puts an item from the recycle bin back, and scans the library so Jellyfin shows it again.
+    /// </summary>
+    /// <param name="itemId">Item id.</param>
+    /// <returns>Why it could not, or null.</returns>
+    [HttpPost("RecycleBin/Restore/{itemId}")]
+    public ActionResult RestoreRecycled([FromRoute] Guid itemId)
+    {
+        var error = _bin.Restore(itemId);
+        if (error is null)
+        {
+            _libraryManager.QueueLibraryScan();
+        }
+
+        return Ok(new { Error = error });
+    }
+
+    /// <summary>
+    /// Deletes everything in the recycle bin for good.
+    /// </summary>
+    /// <returns>How many items were deleted.</returns>
+    [HttpPost("RecycleBin/Empty")]
+    public ActionResult EmptyRecycleBin() => Ok(new { Count = _bin.Purge(all: true) });
 
     /// <summary>
     /// Saves a filter under a name, replacing one with the same name.

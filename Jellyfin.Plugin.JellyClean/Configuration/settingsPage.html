@@ -104,8 +104,9 @@
                         <div class="jc-field"><label>Keep items played in the last (days)<input type="number" min="0" data-num="ProtectPlayedDays"></label></div>
                         <div class="jc-field"><label>Keep items with the tag<input type="text" data-text="KeepTag" placeholder="keep" autocomplete="off"></label></div>
                         <div class="jc-field"><label>Most items per removal<input type="number" min="0" data-num="MaxItemsPerRemoval"></label></div>
+                        <div class="jc-field"><label>Recycle bin: keep removed files (days, 0 deletes right away)<input type="number" min="0" data-num="RecycleDays"></label></div>
                     </div>
-                    <p class="jc-hint" style="margin-top:0.5em;">0 or empty switches a number or the tag off. Add the tag to an item in Jellyfin (Edit metadata, Tags).</p>
+                    <p class="jc-hint" style="margin-top:0.5em;">0 or empty switches a number or the tag off. Add the tag to an item in Jellyfin (Edit metadata, Tags). The recycle bin is a hidden .jellyclean-trash folder in each library folder, so moving is instant; the daily clean-up task deletes what is older than the set days.</p>
                     <div class="jc-sub">Never remove anything from these libraries</div>
                     <div class="jc-chips" id="jcLibraries"></div>
                     <div class="jc-row">
@@ -368,6 +369,7 @@
                             config.CollectionId = latest.CollectionId;
                             config.FreedBytes = latest.FreedBytes;
                             config.RemovedCount = latest.RemovedCount;
+                            config.Recycled = latest.Recycled || [];
                             var daily = {};
                             config.Views.forEach(function (v) { daily[v.Name] = v.CheckDaily; });
                             config.Views = (latest.Views || []).filter(function (v) { return deletedViews.indexOf(v.Name) < 0; }).map(function (v) {

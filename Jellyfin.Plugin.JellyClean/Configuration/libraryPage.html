@@ -232,6 +232,22 @@
                     <div class="jc-plan" id="jcLeavingList" hidden></div>
                 </section>
 
+                <section class="jc-card jc-leaving" id="jcBin" hidden>
+                    <div class="jc-head" style="margin:0;">
+                        <div>
+                            <h2>Recycle bin</h2>
+                            <p class="jc-hint" id="jcBinText" style="margin:0;"></p>
+                        </div>
+                        <div class="jc-actions">
+                            <button type="button" class="jc-btn" id="jcBinToggle" aria-expanded="false">Show list</button>
+                            <button type="button" class="jc-btn danger" id="jcBinEmpty">Empty now</button>
+                        </div>
+                    </div>
+                    <div class="jc-plan" id="jcBinList" hidden>
+                        <p class="jc-hint">A restored item is back in Jellyfin after a library scan, which starts by itself. Radarr and Sonarr no longer track it: add it there again if you want them to.</p>
+                    </div>
+                </section>
+
                 <section class="jc-card">
                     <h2>Filter</h2>
                     <p class="jc-hint">Start from a suggestion or set your own filters. The list updates as you go.</p>
@@ -582,6 +598,28 @@
                     return el('span', { className: 'jc-tag protected', textContent: 'Favorite of ' + who.join(', ') + ' ' }, clear);
                 }
 
+                // Recycle bin
+
+                function loadBin() {
+                    return call('GET', 'RecycleBin').then(function (list) {
+                        var size = list.reduce(function (sum, r) { return sum + r.Size; }, 0);
+                        $('jcBin').hidden = !list.length;
+                        $('jcBinText').textContent = plural(list.length, 'item', 'items') + ', ' + bytes(size) + ', still on disk until they are deleted for good.';
+                        var box = $('jcBinList');
+                        box.querySelectorAll('.jc-leave-row').forEach(function (r) { r.remove(); });
+                        list.forEach(function (r) {
+                            var restore = el('button', { type: 'button', className: 'jc-btn', textContent: 'Restore' });
+                            restore.dataset.restore = r.Id;
+                            box.append(el('div', { className: 'jc-leave-row' },
+                                el('div', {},
+                                    el('b', { textContent: r.Title }), ' ', el('span', { textContent: bytes(r.Size) }),
+                                    el('small', { textContent: 'Removed on ' + date(r.Removed) })),
+                                el('span', { textContent: r.DaysLeft ? 'Deleted in ' + plural(r.DaysLeft, 'day', 'days') : 'Deleted tonight' }),
+                                restore));
+                        });
+                    });
+                }
+
                 function watchedTag(item) {
                     if (!item.AnyPlayed) { return el('span', { className: 'jc-tag never', textContent: 'Never played' }); }
                     var who = item.WatchedBy.map(function (id) { return users[id] || 'someone'; });
@@ -795,10 +833,13 @@
 
                 function showPlan(plan) {
                     var count = plan.Remove.length;
-                    openDialog(count ? 'Delete ' + plural(count, 'item', 'items') + ', ' + plan.Size + ', from disk?' : 'Nothing can be removed');
+                    var binDays = (config && config.RecycleDays) || 0;
+                    openDialog(!count ? 'Nothing can be removed' : binDays ? 'Remove ' + plural(count, 'item', 'items') + ', ' + plan.Size + '?' : 'Delete ' + plural(count, 'item', 'items') + ', ' + plan.Size + ', from disk?');
                     var body = $('jcDialogBody');
                     if (count) {
-                        body.append(el('p', { className: 'jc-hint', textContent: 'The files are deleted from disk and the items are removed from Jellyfin. This cannot be undone.' }));
+                        body.append(el('p', { className: 'jc-hint', textContent: binDays
+                            ? 'The files go to the recycle bin for ' + plural(binDays, 'day', 'days') + ' and the items are removed from Jellyfin. Until then you can restore them here.'
+                            : 'The files are deleted from disk and the items are removed from Jellyfin. This cannot be undone.' }));
                         if (!servers) {
                             body.append(el('div', { className: 'jc-warn', textContent: 'No Radarr or Sonarr is set up. If they manage these items, they may download them again. Add them under Settings.' }));
                         } else if (plan.Remove.some(function (p) { return !p.Arr.length; })) {
@@ -815,7 +856,7 @@
                     cancel.addEventListener('click', closeDialog);
                     if (!count) { foot.append(cancel); return; }
 
-                    var go = el('button', { type: 'button', className: 'jc-btn danger', textContent: 'Delete from disk' });
+                    var go = el('button', { type: 'button', className: 'jc-btn danger', textContent: binDays ? 'Move to recycle bin' : 'Delete from disk' });
                     // Bigger removals need the number typed, so a stray click can't delete a library.
                     var typed = count >= 20 ? el('input', { type: 'text', inputMode: 'numeric', placeholder: 'Type ' + count + ' to confirm', ariaLabel: 'Type ' + count + ' to confirm' }) : null;
                     if (typed) {
@@ -892,6 +933,7 @@
                     $('jcDialogFoot').append(close);
                     updateBar();
                     loadLeaving();
+                    loadBin().catch(function () {});
                     loadOverview(false).then(function () { load(false); });
                 }
 
@@ -978,6 +1020,22 @@
                                 window.alert('Could not save the view: ' + err.message);
                             });
                         }
+                    } else if (b.id === 'jcBinToggle') {
+                        var show = $('jcBinList').hidden;
+                        $('jcBinList').hidden = !show;
+                        b.setAttribute('aria-expanded', String(show));
+                        b.textContent = show ? 'Hide list' : 'Show list';
+                    } else if (b.dataset.restore) {
+                        b.disabled = true;
+                        call('POST', 'RecycleBin/Restore/' + b.dataset.restore).then(function (r) {
+                            if (r.Error) { window.alert('Could not restore it: ' + r.Error); }
+                            return loadBin();
+                        });
+                    } else if (b.id === 'jcBinEmpty') {
+                        if (window.confirm('Delete everything in the recycle bin for good? This can not be undone.')) {
+                            b.disabled = true;
+                            call('POST', 'RecycleBin/Empty').then(loadBin).finally(function () { b.disabled = false; });
+                        }
                     } else if (b.id === 'jcLeavingToggle') {
                         var open = $('jcLeavingList').hidden;
                         $('jcLeavingList').hidden = !open;
@@ -1047,6 +1105,7 @@
                     poll();
                     loadConfig();
                     loadLeaving().catch(function () { $('jcLeaving').hidden = true; });
+                    loadBin().catch(function () { $('jcBin').hidden = true; });
                     loadOverview(false).then(function () {
                         // Empty movies and series are the safest first clean-up, so the page opens on them.
                         if (opened) { return load(false); }
