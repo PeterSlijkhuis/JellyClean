@@ -40,12 +40,14 @@
             #JellyCleanActivityPage .jc-no-problems { display: none; }
             #JellyCleanActivityPage .jc-log.problems .jc-no-problems { display: block; }
             @media (max-width: 600px) { #JellyCleanActivityPage .jc-log-row { grid-template-columns: 1fr; } }
+            #JellyCleanActivityPage [hidden] { display: none !important; }
         </style>
 
         <div data-role="content">
             <div class="content-primary">
                 <nav class="jc-tabs" aria-label="JellyClean">
                     <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanLeaving">Leaving soon</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanSettings">Settings</button>
                     <button type="button" class="jc-tab" aria-current="page">Activity</button>

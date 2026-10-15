@@ -255,10 +255,11 @@ public class JellyCleanController : ControllerBase
     /// <summary>
     /// Saves a filter under a name, replacing one with the same name.
     /// </summary>
-    /// <param name="view">The view.</param>
+    /// <param name="view">The view, with its schedule.</param>
+    /// <param name="keepSchedule">Keep the schedule of the view saved under this name, and only change the filter.</param>
     /// <returns>No content.</returns>
     [HttpPost("Views")]
-    public ActionResult SaveView([FromBody] SavedView view)
+    public ActionResult SaveView([FromBody] SavedView view, [FromQuery] bool keepSchedule = false)
     {
         if (string.IsNullOrWhiteSpace(view.Name) || LeavingSoon.FilterOf(view) is null)
         {
@@ -268,9 +269,9 @@ public class JellyCleanController : ControllerBase
         var plugin = Plugin.Instance!;
         view.Name = view.Name.Trim();
         var old = plugin.Configuration.Views.FirstOrDefault(v => v.Name == view.Name);
-        if (old is not null && string.IsNullOrEmpty(view.Schedule))
+        view.CheckDaily = false;
+        if (old is not null && keepSchedule)
         {
-            // Saving the filter again keeps its schedule.
             (view.CheckDaily, view.Schedule, view.Day, view.Hour, view.NoticeDays, view.AutoRemove) = (old.CheckDaily, old.Schedule, old.Day, old.Hour, old.NoticeDays, old.AutoRemove);
         }
 

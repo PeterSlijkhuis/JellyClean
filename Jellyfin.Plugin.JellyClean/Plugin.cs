@@ -62,6 +62,12 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             },
             new PluginPageInfo
             {
+                Name = "JellyCleanLeaving",
+                DisplayName = "JellyClean leaving soon",
+                EmbeddedResourcePath = GetType().Namespace + ".Configuration.leavingPage.html"
+            },
+            new PluginPageInfo
+            {
                 Name = "JellyCleanRecover",
                 DisplayName = "JellyClean recover",
                 EmbeddedResourcePath = GetType().Namespace + ".Configuration.recoverPage.html"

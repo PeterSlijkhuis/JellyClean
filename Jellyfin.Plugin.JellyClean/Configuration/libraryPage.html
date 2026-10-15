@@ -73,7 +73,7 @@
                 border: 1px solid var(--jc-line); background: rgba(128, 128, 128, 0.1); color: inherit;
             }
             #JellyCleanLibraryPage .jc-field select option { color: #000; }
-            #JellyCleanLibraryPage .jc-field select:focus, #JellyCleanLibraryPage .jc-field input:focus { outline: none; border-color: var(--jc-accent); }
+            #JellyCleanLibraryPage .jc-field select:focus-visible, #JellyCleanLibraryPage .jc-field input:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 1px; border-color: var(--jc-accent); }
             #JellyCleanLibraryPage .jc-genres { display: flex; gap: 0.4em; flex-wrap: wrap; margin-top: 1em; }
             #JellyCleanLibraryPage .jc-genres-label { width: 100%; font-weight: 600; font-size: 0.9em; opacity: 0.85; }
             #JellyCleanLibraryPage .jc-toggle { display: flex; align-items: center; gap: 0.7em; margin-top: 1em; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
@@ -106,8 +106,10 @@
             #JellyCleanLibraryPage .jc-check[aria-checked="true"] { background: var(--jc-accent); border-color: var(--jc-accent); }
             #JellyCleanLibraryPage .jc-check[aria-checked="true"]::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
             #JellyCleanLibraryPage .jc-check:disabled { opacity: 0.35; cursor: default; }
-            #JellyCleanLibraryPage .jc-poster { width: 44px; height: 66px; flex: none; border-radius: 6px; object-fit: cover; background: rgba(128, 128, 128, 0.2); }
-            #JellyCleanLibraryPage .jc-poster.wide { width: 88px; height: 50px; }
+            #JellyCleanLibraryPage .jc-poster { width: 64px; height: 96px; flex: none; border-radius: 8px; object-fit: cover; background: rgba(128, 128, 128, 0.2); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+            #JellyCleanLibraryPage .jc-poster.wide { width: 128px; height: 72px; }
+            #JellyCleanLibraryPage .jc-poster.small { width: 36px; height: 54px; }
+            #JellyCleanLibraryPage .jc-poster.small.wide { width: 64px; height: 36px; }
             #JellyCleanLibraryPage .jc-body { flex: 1; min-width: 0; }
             #JellyCleanLibraryPage .jc-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             #JellyCleanLibraryPage .jc-title a { color: inherit; text-decoration: none; }
@@ -123,7 +125,7 @@
             #JellyCleanLibraryPage .jc-size { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 5em; text-align: right; }
             #JellyCleanLibraryPage .jc-target { display: inline-flex; gap: .4em; align-items: center; }
             #JellyCleanLibraryPage .jc-target input { width: 6em; padding: .45em .6em; border-radius: 8px; border: 1px solid var(--jc-line); background: transparent; color: inherit; font: inherit; }
-            #JellyCleanLibraryPage .jc-unfav { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; padding: 0 0 0 .2em; opacity: .7; }
+            #JellyCleanLibraryPage .jc-unfav { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; padding: 0.15em 0.35em; margin: -0.15em 0; opacity: .8; min-width: 24px; min-height: 24px; }
             #JellyCleanLibraryPage .jc-unfav:hover { opacity: 1; }
             #JellyCleanLibraryPage .jc-keep {
                 flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--jc-line); background: transparent;
@@ -145,6 +147,8 @@
             #JellyCleanLibraryPage .jc-view button + button { padding: 0.45em 0.8em 0.45em 0.4em; opacity: 0.6; }
             #JellyCleanLibraryPage .jc-view small { opacity: 0.6; margin-left: 0.4em; }
 
+            #JellyCleanLibraryPage .jc-progress { margin-bottom: 1.2em; padding: 0.8em 1.1em; border-radius: var(--jc-radius); border: 1px solid rgba(0, 164, 220, 0.5); background: rgba(0, 164, 220, 0.1); font-weight: 600; }
+
             /* Selection bar */
             #JellyCleanLibraryPage .jc-bar {
                 position: sticky; bottom: 1em; z-index: 4; display: flex; gap: 0.7em; align-items: center; justify-content: flex-end; flex-wrap: wrap;
@@ -159,12 +163,12 @@
                 background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px);
             }
             #JellyCleanLibraryPage .jc-sheet {
-                width: min(760px, 100%); max-height: calc(100vh - 2em); display: flex; flex-direction: column;
+                width: min(760px, 100%); max-height: calc(100vh - 2em); max-height: calc(100dvh - 2em); display: flex; flex-direction: column;
                 border-radius: var(--jc-radius); border: 1px solid var(--jc-line); background: #1c1c1e; color: #fff; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
             }
             #JellyCleanLibraryPage .jc-sheet-head { padding: 1.2em 1.4em 0.6em; }
             #JellyCleanLibraryPage .jc-sheet-head h2 { margin: 0; font-size: 1.3em; }
-            #JellyCleanLibraryPage .jc-sheet-body { padding: 0 1.4em; overflow: auto; flex: 1; }
+            #JellyCleanLibraryPage .jc-sheet-body { padding: 0 1.4em; overflow: auto; flex: 1; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
             #JellyCleanLibraryPage .jc-sheet-foot { padding: 1em 1.4em 1.2em; display: flex; gap: 0.6em; justify-content: flex-end; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--jc-line); }
             #JellyCleanLibraryPage .jc-sheet-foot input { flex: 1 1 12em; padding: 0.65em 0.8em; border-radius: 10px; font: inherit; border: 1px solid var(--jc-line); background: rgba(128, 128, 128, 0.15); color: inherit; }
             #JellyCleanLibraryPage .jc-warn { padding: 0.7em 0.9em; border-radius: 10px; border: 1px solid rgba(240, 180, 41, 0.5); background: rgba(240, 180, 41, 0.08); margin: 0.6em 0; font-size: 0.92em; }
@@ -172,14 +176,30 @@
             #JellyCleanLibraryPage .jc-plan { border: 1px solid var(--jc-line); border-radius: 10px; font-size: 0.9em; }
             #JellyCleanLibraryPage .jc-plan > div { padding: 0.5em 0.8em; border-bottom: 1px solid var(--jc-line); }
             #JellyCleanLibraryPage .jc-plan > div:last-child { border-bottom: 0; }
+            #JellyCleanLibraryPage .jc-plan-row { display: flex; gap: 0.8em; align-items: flex-start; }
+            #JellyCleanLibraryPage .jc-plan-row > div { flex: 1; min-width: 0; }
             #JellyCleanLibraryPage .jc-plan small { display: block; opacity: 0.65; overflow-wrap: anywhere; }
             #JellyCleanLibraryPage .jc-plan .jc-arr { opacity: 0.9; color: #7fd3f0; }
 
+            /* Fingers need bigger targets than a mouse. */
+            @media (pointer: coarse) {
+                #JellyCleanLibraryPage .jc-check { width: 30px; height: 30px; }
+                #JellyCleanLibraryPage .jc-keep { width: 44px; height: 44px; }
+                #JellyCleanLibraryPage .jc-btn, #JellyCleanLibraryPage .jc-preset, #JellyCleanLibraryPage .jc-tab, #JellyCleanLibraryPage .jc-target input { min-height: 44px; }
+            }
             @media (max-width: 600px) {
-                #JellyCleanLibraryPage .jc-poster { display: none; }
-                #JellyCleanLibraryPage .jc-row { flex-wrap: wrap; }
-                #JellyCleanLibraryPage .jc-body { flex-basis: calc(100% - 3em); }
-                #JellyCleanLibraryPage .jc-size { margin-left: 2.1em; text-align: left; min-width: 0; flex: 1; }
+                #JellyCleanLibraryPage .jc-sheet-body { padding: 0 1em; }
+                #JellyCleanLibraryPage .jc-dialog { padding: 0.5em; }
+                #JellyCleanLibraryPage .jc-poster { width: 48px; height: 72px; }
+                #JellyCleanLibraryPage .jc-poster.wide { width: 80px; height: 45px; }
+                /* Phone: check and poster on the left, details beside them, size and keep underneath. */
+                #JellyCleanLibraryPage .jc-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 0.4em 0.7em; align-items: start; padding: 0.7em 0.6em; }
+                #JellyCleanLibraryPage .jc-row > .jc-check { grid-column: 1; grid-row: 1 / 3; margin-top: 0.2em; }
+                #JellyCleanLibraryPage .jc-row > .jc-poster { grid-column: 2; grid-row: 1 / 3; }
+                #JellyCleanLibraryPage .jc-row > .jc-body { grid-column: 3 / 5; grid-row: 1; }
+                #JellyCleanLibraryPage .jc-row > .jc-size { grid-column: 3; grid-row: 2; align-self: center; text-align: left; min-width: 0; }
+                #JellyCleanLibraryPage .jc-row > .jc-keep { grid-column: 4; grid-row: 2; }
+                #JellyCleanLibraryPage .jc-title, #JellyCleanLibraryPage .jc-meta { white-space: normal; }
                 #JellyCleanLibraryPage .jc-bar .jc-btn { flex: 1 1 0; }
             }
         </style>
@@ -188,6 +208,7 @@
             <div class="content-primary">
                 <nav class="jc-tabs" aria-label="JellyClean">
                     <button type="button" class="jc-tab" aria-current="page">Library</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanLeaving">Leaving soon</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanSettings">Settings</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
@@ -221,6 +242,8 @@
                     </div>
                 </div>
 
+                <div class="jc-progress" id="jcProgress" role="status" hidden></div>
+
                 <section class="jc-card jc-leaving" id="jcLeaving" hidden>
                     <div class="jc-head" style="margin:0;">
                         <div>
@@ -228,11 +251,10 @@
                             <p class="jc-hint" id="jcLeavingText" style="margin:0;"></p>
                         </div>
                         <div class="jc-actions">
-                            <button type="button" class="jc-btn" id="jcLeavingToggle" aria-expanded="false">Show list</button>
+                            <button type="button" class="jc-btn" data-page="JellyCleanLeaving">Open Leaving soon</button>
                             <button type="button" class="jc-btn danger" id="jcReviewDue" hidden>Review due items</button>
                         </div>
                     </div>
-                    <div class="jc-plan" id="jcLeavingList" hidden></div>
                 </section>
 
                 <section class="jc-card jc-leaving" id="jcBin" hidden>
@@ -408,7 +430,7 @@
 
                 <div class="jc-dialog" id="jcDialog" role="dialog" aria-modal="true" aria-labelledby="jcDialogTitle" hidden>
                     <div class="jc-sheet">
-                        <div class="jc-sheet-head"><h2 id="jcDialogTitle"></h2></div>
+                        <div class="jc-sheet-head"><h2 id="jcDialogTitle" tabindex="-1"></h2></div>
                         <div class="jc-sheet-body" id="jcDialogBody"></div>
                         <div class="jc-sheet-foot" id="jcDialogFoot"></div>
                     </div>
@@ -585,23 +607,10 @@
                         var size = list.reduce(function (sum, l) { return sum + l.Size; }, 0);
                         $('jcLeaving').hidden = !list.length;
                         $('jcLeavingText').textContent = plural(list.length, 'item', 'items') + ', ' + bytes(size) + '. ' +
-                            (due.length ? plural(due.length, 'item is', 'items are').replace(/ is$| are$/, '') + (due.length === 1 ? ' is' : ' are') + ' due and waiting for you.' : 'Nothing is due yet.');
+                            (due.length ? plural(due.length, 'is', 'are') + ' due and waiting for you.' : 'Nothing is due yet.');
                         $('jcReviewDue').hidden = !due.length;
                         $('jcReviewDue').textContent = 'Review due items (' + due.length + ')';
 
-                        var box = $('jcLeavingList');
-                        box.textContent = '';
-                        list.forEach(function (l) {
-                            var cancel = el('button', { type: 'button', className: 'jc-btn', textContent: 'Cancel' });
-                            cancel.dataset.cancelLeaving = l.Id;
-                            box.append(el('div', { className: 'jc-leave-row' },
-                                el('div', {},
-                                    el('b', { textContent: l.Title }), ' ', el('span', { textContent: bytes(l.Size) }),
-                                    el('small', { textContent: (l.Source === 'you' ? 'Added by you' : 'From view ' + l.Source) + ' on ' + date(l.Added) + (l.AutoRemove ? '. Goes on its own when due.' : '. Waits for you when due.') }),
-                                    l.Protected ? el('small', { textContent: 'Will stay: ' + l.Protected }) : null),
-                                el('span', { className: l.IsDue ? 'jc-due' : '', textContent: l.IsDue ? 'Due' : 'Due ' + date(l.Due) }),
-                                cancel));
-                        });
                     });
                 }
 
@@ -637,6 +646,25 @@
                     return el('span', { className: 'jc-tag' + (who.length ? ' watched' : ''), textContent: text });
                 }
 
+                // The item's own image; a season or episode without one shows its series poster.
+                function poster(item, small) {
+                    var img = el('img', {
+                        className: 'jc-poster' + (item.Type === 'Episode' ? ' wide' : '') + (small ? ' small' : ''), alt: '', loading: 'lazy',
+                        src: ApiClient.getImageUrl(item.Id, { type: 'Primary', maxHeight: 240 })
+                    });
+                    var fallback = item.SeriesId;
+                    img.addEventListener('error', function () {
+                        if (fallback) {
+                            img.className = 'jc-poster' + (small ? ' small' : '');
+                            img.src = ApiClient.getImageUrl(fallback, { type: 'Primary', maxHeight: 240 });
+                            fallback = null;
+                        } else {
+                            img.style.visibility = 'hidden';
+                        }
+                    });
+                    return img;
+                }
+
                 function row(item) {
                     var isSelected = selected.has(item.Id);
                     var protectedItem = item.Kept || item.Favorite;
@@ -664,11 +692,7 @@
                         item.Kept ? el('span', { className: 'jc-tag protected', textContent: 'Keep' }) : null,
                         item.Favorite ? favoriteTag(item) : null);
 
-                    var img = el('img', {
-                        className: 'jc-poster' + (item.Type === 'Episode' ? ' wide' : ''), alt: '', loading: 'lazy',
-                        src: ApiClient.getImageUrl(item.Id, { type: 'Primary', maxHeight: 132 })
-                    });
-                    img.addEventListener('error', function () { img.style.visibility = 'hidden'; });
+                    var img = poster(item);
 
                     return el('div', { className: 'jc-row' + (isSelected ? ' selected' : '') + (protectedItem ? ' protected' : '') },
                         check, img,
@@ -678,6 +702,15 @@
                             tags),
                         el('span', { className: 'jc-size', textContent: bytes(item.Size) }),
                         keep);
+                }
+
+                // Changes one row in place, so the list keeps its place and everything loaded with Show more.
+                function updateRow(button, id, change) {
+                    var item = shown.filter(function (i) { return i.Id === id; })[0];
+                    var old = button.closest('.jc-row');
+                    if (!item || !old) { load(false); return; }
+                    change(item);
+                    old.replaceWith(row(item));
                 }
 
                 function render(append, items) {
@@ -820,23 +853,36 @@
 
                 // Preview and removal
 
+                // The window keeps focus inside it and the page behind it still, and gives focus back when it closes.
+                var returnFocus = null;
                 function openDialog(title) {
+                    if ($('jcDialog').hidden) { returnFocus = document.activeElement; }
                     $('jcDialogTitle').textContent = title;
                     $('jcDialogBody').textContent = '';
                     $('jcDialogFoot').textContent = '';
                     $('jcDialog').hidden = false;
+                    document.documentElement.style.overflow = 'hidden';
+                    setTimeout(function () {
+                        var first = $('jcDialogFoot').querySelector('button:not(:disabled), input');
+                        (first || $('jcDialogTitle')).focus();
+                    }, 0);
                 }
 
-                function closeDialog() { $('jcDialog').hidden = true; }
+                function closeDialog() {
+                    $('jcDialog').hidden = true;
+                    document.documentElement.style.overflow = '';
+                    if (returnFocus && document.contains(returnFocus)) { returnFocus.focus(); }
+                }
 
                 function planList(items, withReason) {
                     var box = el('div', { className: 'jc-plan' });
                     items.slice(0, 300).forEach(function (p) {
-                        box.append(el('div', {},
-                            el('b', { textContent: p.Item.Title }), ' ', el('span', { textContent: p.Item.Size ? bytes(p.Item.Size) : '' }),
-                            withReason ? el('small', { textContent: p.Reason }) : null,
-                            p.Paths.length ? el('small', { textContent: p.Paths.join(', ') }) : null,
-                            p.Arr.length ? el('small', { className: 'jc-arr', textContent: p.Arr.map(function (s) { return s.Description; }).join(', ') }) : null));
+                        box.append(el('div', { className: 'jc-plan-row' }, poster(p.Item, true),
+                            el('div', {},
+                                el('b', { textContent: p.Item.Title }), ' ', el('span', { textContent: p.Item.Size ? bytes(p.Item.Size) : '' }),
+                                withReason ? el('small', { textContent: p.Reason }) : null,
+                                p.Paths.length ? el('small', { textContent: p.Paths.join(', ') }) : null,
+                                p.Arr.length ? el('small', { className: 'jc-arr', textContent: p.Arr.map(function (s) { return s.Description; }).join(', ') }) : null)));
                     });
                     if (items.length > 300) { box.append(el('div', { textContent: 'And ' + (items.length - 300) + ' more.' })); }
                     return box;
@@ -878,24 +924,25 @@
                     go.addEventListener('click', function () {
                         go.disabled = true;
                         cancel.disabled = true;
+                        if (later) { later.disabled = true; }
                         go.textContent = 'Removing...';
-                        // The removal runs on the server; ask how it goes until it is done.
+                        // The removal runs on the server. The window can be closed; the bar at the top keeps showing how it goes.
                         call('POST', 'Remove', { Ids: plan.Remove.map(function (p) { return p.Item.Id; }) }).then(function () {
                             var status = el('p', { className: 'jc-hint', textContent: 'Starting...' });
                             $('jcDialogBody').prepend(status);
-                            (function check() {
-                                call('GET', 'Remove').then(function (p) {
-                                    if (p.Running) {
-                                        go.textContent = 'Removing ' + Math.min(p.Done + 1, p.Total || 1) + ' of ' + (p.Total || '?') + '...';
-                                        status.textContent = p.Current ? 'Now: ' + p.Current + '. You can close this page; the removal carries on.' : 'Checking Radarr and Sonarr...';
-                                        setTimeout(check, 1500);
-                                    } else if (p.Error) {
-                                        showResult(null, new Error(p.Error));
-                                    } else {
-                                        showResult(p.Result);
-                                    }
-                                }).catch(function () { setTimeout(check, 3000); });
-                            })();
+                            var detached = false;
+                            cancel.disabled = false;
+                            cancel.textContent = 'Close, keep removing';
+                            cancel.addEventListener('click', function () { detached = true; });
+                            watchRemoval(function (p) {
+                                if (detached) { return; }
+                                go.textContent = 'Removing ' + Math.min(p.Done + 1, p.Total || 1) + ' of ' + (p.Total || '?') + '...';
+                                status.textContent = p.Current ? 'Now: ' + p.Current + '. You can close this window or page; the removal carries on.' : 'Checking Radarr and Sonarr...';
+                            }, function (p) {
+                                if (detached) { return false; }
+                                if (p.Error) { showResult(null, new Error(p.Error)); } else { showResult(p.Result); }
+                                return true;
+                            });
                         }).catch(function (err) {
                             showResult(null, err);
                         });
@@ -908,7 +955,7 @@
                             call('POST', 'LeavingSoon', { Ids: plan.Remove.map(function (p) { return p.Item.Id; }) }).then(function (result) {
                                 openDialog(plural(result.Remove.length, 'item is', 'items are') + ' leaving soon');
                                 var body = $('jcDialogBody');
-                                body.append(el('p', { className: 'jc-hint', textContent: 'Nothing was deleted. They are listed at the top of this page' +
+                                body.append(el('p', { className: 'jc-hint', textContent: 'Nothing was deleted. They are on the Leaving soon tab' +
                                     (config.UseCollection ? ' and in the ' + config.CollectionName + ' collection' : '') + '. When they are due, review and remove them there.' }));
                                 if (result.Skip.length) { body.append(el('div', { className: 'jc-section', textContent: 'Left off (' + result.Skip.length + ')' }), planList(result.Skip, true)); }
                                 var close = el('button', { type: 'button', className: 'jc-btn primary', textContent: 'Done' });
@@ -924,6 +971,36 @@
                     foot.append(cancel);
                     if (later) { foot.append(later); }
                     foot.append(go);
+                }
+
+                // Follows a removal running on the server: the bar at the top of the page, and optionally the open window.
+                var watching = false;
+                function watchRemoval(onProgress, onDone) {
+                    if (watching) { return; }
+                    watching = true;
+                    var bar = $('jcProgress');
+                    (function check() {
+                        call('GET', 'Remove').then(function (p) {
+                            if (p.Running) {
+                                bar.hidden = false;
+                                bar.textContent = 'Removing ' + Math.min(p.Done + 1, p.Total || 1) + ' of ' + (p.Total || '?') + (p.Current ? ': ' + p.Current : '') + '. It carries on if you leave this page.';
+                                if (onProgress) { onProgress(p); }
+                                setTimeout(check, 1500);
+                                return;
+                            }
+                            watching = false;
+                            if (onDone && onDone(p)) { bar.hidden = true; return; }
+                            // Finished while the window was closed: say so in the bar and refresh the lists.
+                            bar.hidden = false;
+                            bar.textContent = p.Error ? 'The removal stopped: ' + p.Error + '. See the Activity tab.'
+                                : p.Result ? 'Done: removed ' + plural(p.Result.Remove.length, 'item', 'items') + ', ' + p.Result.Size + (p.Result.Skip.length ? '. ' + p.Result.Skip.length + ' kept, see the Activity tab.' : '.') : 'Done.';
+                            setTimeout(function () { bar.hidden = true; }, 15000);
+                            if (p.Result) { p.Result.Remove.forEach(function (r) { selected.delete(r.Item.Id); }); updateBar(); }
+                            loadLeaving();
+                            loadBin().catch(function () {});
+                            loadOverview(false).then(function () { load(false); });
+                        }).catch(function () { setTimeout(check, 3000); });
+                    })();
                 }
 
                 function showResult(plan, err) {
@@ -956,6 +1033,14 @@
                 $('jcSearch').addEventListener('input', reload);
 
                 page.addEventListener('keydown', function (e) {
+                    if (e.key === 'Tab' && !$('jcDialog').hidden) {
+                        var focusable = Array.prototype.filter.call($('jcDialog').querySelectorAll('button, input, a[href]'), function (x) { return !x.disabled && x.offsetParent !== null; });
+                        if (focusable.length) {
+                            var firstEl = focusable[0], lastEl = focusable[focusable.length - 1];
+                            if (e.shiftKey && document.activeElement === firstEl) { e.preventDefault(); lastEl.focus(); }
+                            else if (!e.shiftKey && document.activeElement === lastEl) { e.preventDefault(); firstEl.focus(); }
+                        }
+                    }
                     if (e.key === 'Escape' && !$('jcDialog').hidden && !$('jcDialogFoot').querySelector('button:disabled')) { closeDialog(); }
                 });
 
@@ -996,11 +1081,21 @@
                         updateBar();
                     } else if (b.dataset.unfavorite) {
                         b.disabled = true;
-                        call('POST', 'Unfavorite/' + b.dataset.unfavorite + '?userId=' + b.dataset.user).then(function () { load(false); });
+                        var fid = b.dataset.unfavorite, fuser = b.dataset.user;
+                        call('POST', 'Unfavorite/' + fid + '?userId=' + fuser).then(function () {
+                            updateRow(b, fid, function (item) {
+                                item.FavoriteBy = item.FavoriteBy.filter(function (u) { return u !== fuser; });
+                                item.Favorite = item.FavoriteBy.length > 0;
+                            });
+                        });
                     } else if (b.dataset.keep) {
                         var keep = b.getAttribute('aria-pressed') !== 'true';
                         b.disabled = true;
-                        call('POST', 'Keep/' + b.dataset.keep + '?keep=' + keep).then(function () { load(false); });
+                        var kid = b.dataset.keep;
+                        call('POST', 'Keep/' + kid + '?keep=' + keep).then(function () {
+                            updateRow(b, kid, function (item) { item.Kept = keep; });
+                            loadLeaving();
+                        });
                     } else if (b.id === 'jcMore') {
                         load(true);
                     } else if (b.id === 'jcRefresh') {
@@ -1052,12 +1147,14 @@
                             call('DELETE', 'Views?name=' + encodeURIComponent(b.dataset.deleteView)).then(loadConfig);
                         }
                     } else if (b.id === 'jcScheduleView') {
-                        var rule = window.prompt('Every day at 04:00 this filter puts what it finds on the Leaving soon list. They are due after ' + (config.NoticeDays || 0) + ' days and then wait for you. Change the schedule, notice days and automatic removal in Settings.\n\nName for this rule, like "Unwatched for a year"');
+                        var rule = window.prompt('Every day at 04:00 this filter puts what it finds on the Leaving soon list. They are due after ' + (config.NoticeDays || 0) + ' days and then wait for you. Change the schedule, notice days and automatic removal on the Leaving soon tab.\n\nName for this rule, like "Unwatched for a year"');
                         if (rule && rule.trim()) {
                             var rf = filter(0);
                             delete rf.Offset;
                             delete rf.Limit;
-                            call('POST', 'Views', { Name: rule.trim(), Filter: JSON.stringify(rf), Schedule: 'daily', Hour: 4 }).then(loadConfig).catch(function (err) {
+                            call('POST', 'Views', { Name: rule.trim(), Filter: JSON.stringify(rf), Schedule: 'daily', Hour: 4 }).then(function () {
+                                Dashboard.navigate(Dashboard.getPluginUrl('JellyCleanLeaving'));
+                            }).catch(function (err) {
                                 window.alert('Could not schedule it: ' + err.message);
                             });
                         }
@@ -1067,18 +1164,10 @@
                             var f = filter(0);
                             delete f.Offset;
                             delete f.Limit;
-                            call('POST', 'Views', { Name: name.trim(), Filter: JSON.stringify(f) }).then(loadConfig).catch(function (err) {
+                            call('POST', 'Views?keepSchedule=true', { Name: name.trim(), Filter: JSON.stringify(f) }).then(loadConfig).catch(function (err) {
                                 window.alert('Could not save the view: ' + err.message);
                             });
                         }
-                    } else if (b.id === 'jcLeavingToggle') {
-                        var open = $('jcLeavingList').hidden;
-                        $('jcLeavingList').hidden = !open;
-                        b.setAttribute('aria-expanded', String(open));
-                        b.textContent = open ? 'Hide list' : 'Show list';
-                    } else if (b.dataset.cancelLeaving) {
-                        b.disabled = true;
-                        call('POST', 'LeavingSoon/Cancel', { Ids: [b.dataset.cancelLeaving] }).then(loadLeaving);
                     } else if (b.id === 'jcReviewDue') {
                         var due = leaving.filter(function (l) { return l.IsDue && !l.Protected; }).map(function (l) { return l.Id; });
                         call('POST', 'Preview', { Ids: due }).then(showPlan).catch(function (err) {
@@ -1141,6 +1230,8 @@
                     loadConfig();
                     loadLeaving().catch(function () { $('jcLeaving').hidden = true; });
                     loadBin().catch(function () { $('jcBin').hidden = true; });
+                    // A removal started earlier may still be running.
+                    call('GET', 'Remove').then(function (p) { if (p.Running) { watchRemoval(); } }).catch(function () {});
                     loadOverview(false).then(function () {
                         // Empty movies and series are the safest first clean-up, so the page opens on them.
                         if (opened) { return load(false); }
