@@ -234,6 +234,7 @@
                     <h2>Filter</h2>
                     <p class="jc-hint">Start from a suggestion or set your own filters. The list updates as you go.</p>
                     <div class="jc-presets">
+                        <button type="button" class="jc-preset" data-preset="empty">Start here: empty movies and series</button>
                         <button type="button" class="jc-preset" data-preset="stale">Never played, added over a year ago</button>
                         <button type="button" class="jc-preset" data-preset="biggest">Biggest movies</button>
                         <button type="button" class="jc-preset" data-preset="everyone">Watched by everyone</button>
@@ -294,6 +295,7 @@
                             <label for="jcSize">Size</label>
                             <select id="jcSize">
                                 <option value="">Any size</option>
+                                <option value="empty">0 B (empty)</option>
                                 <option value="1">1 GB or more</option>
                                 <option value="5">5 GB or more</option>
                                 <option value="10">10 GB or more</option>
@@ -399,6 +401,7 @@
                 var total = 0;
                 var selected = new Map(); // id -> size
                 var lastCheck = null;
+                var opened = false;
                 var genres = new Set();
                 var timer = null;
                 var request = 0;
@@ -462,6 +465,7 @@
                     var added = parseInt($('jcAdded').value, 10);
                     var idle = parseInt($('jcIdle').value, 10);
                     var size = parseFloat($('jcSize').value);
+                    var empty = $('jcSize').value === 'empty';
                     var sort = $('jcSort').value.split('|');
                     return {
                         Types: $('jcType').value.split(','),
@@ -472,6 +476,7 @@
                         AddedWithinDays: added < 0 ? -added : null,
                         NotPlayedForDays: idle > 0 ? idle : null,
                         MinSize: size > 0 ? size * 1e9 : null,
+                        MaxSize: empty ? 0 : null,
                         Resolutions: $('jcResolution').value ? $('jcResolution').value.split(',') : null,
                         Hdr: $('jcHdr').value || null,
                         Codec: $('jcCodec').value || null,
@@ -510,7 +515,7 @@
                     $('jcWatched').value = f.Watched || '';
                     $('jcAdded').value = f.AddedMoreThanDays ? String(f.AddedMoreThanDays) : f.AddedWithinDays ? String(-f.AddedWithinDays) : '';
                     $('jcIdle').value = f.NotPlayedForDays ? String(f.NotPlayedForDays) : '';
-                    $('jcSize').value = f.MinSize ? String(Math.round(f.MinSize / 1e9)) : '';
+                    $('jcSize').value = f.MaxSize === 0 ? 'empty' : f.MinSize ? String(Math.round(f.MinSize / 1e9)) : '';
                     $('jcResolution').value = (f.Resolutions || []).join(',');
                     $('jcHdr').value = f.Hdr || '';
                     $('jcCodec').value = f.Codec || '';
@@ -618,7 +623,11 @@
                     var list = $('jcList');
                     if (!append) { list.textContent = ''; }
                     items.forEach(function (item) { list.append(row(item)); });
-                    if (!shown.length) { list.append(el('div', { className: 'jc-empty', textContent: 'Nothing matches these filters.' })); }
+                    if (!shown.length) {
+                        list.append(el('div', { className: 'jc-empty', textContent: $('jcSize').value === 'empty'
+                            ? 'No empty movies or series. Nice and tidy. Pick a suggestion above to keep going.'
+                            : 'Nothing matches these filters.' }));
+                    }
                     $('jcMore').hidden = shown.length >= total;
                 }
 
@@ -729,6 +738,7 @@
                 function applyPreset(name) {
                     var values = {
                         reset: {},
+                        empty: { jcType: 'Movie,Series', jcSize: 'empty', jcSort: 'name|0' },
                         stale: { jcType: 'Movie,Series', jcWatched: 'none', jcAdded: '365', jcSort: 'size|1' },
                         biggest: { jcType: 'Movie', jcSort: 'size|1' },
                         everyone: { jcType: 'Movie', jcWatched: 'all', jcSort: 'watched|0' },
@@ -981,7 +991,12 @@
                 page.addEventListener('pageshow', function () {
                     loadConfig();
                     loadLeaving().catch(function () { $('jcLeaving').hidden = true; });
-                    loadOverview(false).then(function () { return load(false); }).catch(function (err) {
+                    loadOverview(false).then(function () {
+                        // Empty movies and series are the safest first clean-up, so the page opens on them.
+                        if (opened) { return load(false); }
+                        opened = true;
+                        applyPreset('empty');
+                    }).catch(function (err) {
                         $('jcCount').textContent = 'Could not load the library: ' + err.message;
                     });
                 });

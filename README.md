@@ -31,7 +31,8 @@ Nothing changes until you remove something. Browsing and filtering only read.
 - **See where the space goes.** A bar per library shows how much space it takes and how much of that nobody ever played. Click a library to filter on it. JellyClean also counts how much it has freed so far.
 - **Everything in one list.** Title, library, year, genres, date added, who watched it, when it was last played, rating, size on disk and video quality (resolution, codec and HDR).
 - **Filters that add up.** Type (movies, series, seasons, episodes), library, genres, watched state (never played, watched by someone, by everyone, or by one user), added before or after, nobody played it in a while, size, resolution, codec, HDR, and search on title or path.
-- **One-click suggestions.** *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone*, *Series nobody played in 2 years*, *Movies you have twice* and *Old H.264 below 1080p*.
+- **Start with what is empty.** The Library page opens on movies and series that take 0 B: downloads that never finished, or series whose episodes are all gone. Removing them is the safest first clean-up. If a whole library folder can't be reached, like a network drive that is offline, its items are left alone, because they only look empty.
+- **One-click suggestions.** *Empty movies and series*, *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone*, *Series nobody played in 2 years*, *Movies you have twice* and *Old H.264 below 1080p*.
 - **Copies.** Spots movies and series that are in Jellyfin more than once, like a 1080p copy next to a 4K one, so you can drop the one you don't need.
 - **Export.** Download the current list as a spreadsheet (CSV).
 - **Real sizes.** The size is what removing frees: the movie's folder with its extras and artwork, or the episode file with its subtitles. Series and seasons add up their episodes.
@@ -67,7 +68,7 @@ JellyClean needs **Jellyfin 12.2 or newer**. No other plugins are needed.
 
 1. Open **JellyClean** in the dashboard menu.
 2. If you use Radarr or Sonarr, go to **Settings**, click **Add Radarr** or **Add Sonarr**, fill in the address and API key (in Radarr or Sonarr under **Settings > General**), press **Test connection** and **Save**.
-3. Back on **Library**, pick a suggestion or set your filters.
+3. Back on **Library**, start with the empty movies and series it opens on, then pick another suggestion or set your filters.
 4. Tick what you want gone (hold Shift to tick a whole range), or press **Select all**, then **Preview removal**.
 5. Check the preview and press **Delete from disk**.
 

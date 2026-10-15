@@ -63,6 +63,12 @@ public class LibraryTests
     }
 
     [Fact]
+    public void Max_size_zero_finds_empty_items()
+    {
+        Assert.Equal(["Empty"], Names(new Filter { MaxSize = 0 }, Movie("Empty", gb: 0), Movie("Full")));
+    }
+
+    [Fact]
     public void Not_watched_since_includes_never_played()
     {
         var never = Movie("Never");

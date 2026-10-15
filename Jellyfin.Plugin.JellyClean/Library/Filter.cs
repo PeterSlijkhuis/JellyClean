@@ -38,6 +38,9 @@ public class Filter
     /// <summary>Gets or sets the smallest size in bytes.</summary>
     public long? MinSize { get; set; }
 
+    /// <summary>Gets or sets the largest size in bytes; 0 finds empty movies and series.</summary>
+    public long? MaxSize { get; set; }
+
     /// <summary>Gets or sets resolutions: 4K, 1080p, 720p, SD.</summary>
     public string[]? Resolutions { get; set; }
 
@@ -99,6 +102,7 @@ public class Filter
             && (addedAfter is null || i.Added > addedAfter)
             && (playedBefore is null || i.LastWatched is null || i.LastWatched < playedBefore)
             && (MinSize is null || i.Size >= MinSize)
+            && (MaxSize is null || i.Size <= MaxSize)
             && (Resolutions is not { Length: > 0 } || Resolutions.Contains(i.Resolution))
             && (string.IsNullOrEmpty(Codec) || i.Codec == Codec)
             && (Hdr switch
