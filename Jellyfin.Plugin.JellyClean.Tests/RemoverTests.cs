@@ -78,6 +78,21 @@ public sealed class RemoverTests : IDisposable
     }
 
     [Fact]
+    public async Task Start_runs_in_the_background_and_reports_progress()
+    {
+        var remover = Remover();
+        Assert.True(remover.Start([_movie.Id], Guid.Empty));
+        for (var i = 0; i < 100 && remover.Progress.Running; i++)
+        {
+            await Task.Delay(50);
+        }
+
+        Assert.False(remover.Progress.Running);
+        Assert.Equal(1, remover.Progress.Done);
+        Assert.Single(remover.Progress.Result!.Remove);
+    }
+
+    [Fact]
     public async Task Files_stay_when_radarr_cannot_be_reached()
     {
         _radarrUrl = "http://down:7878";

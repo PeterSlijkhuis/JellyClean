@@ -818,7 +818,24 @@
                         go.disabled = true;
                         cancel.disabled = true;
                         go.textContent = 'Removing...';
-                        call('POST', 'Remove', { Ids: plan.Remove.map(function (p) { return p.Item.Id; }) }).then(showResult).catch(function (err) {
+                        // The removal runs on the server; ask how it goes until it is done.
+                        call('POST', 'Remove', { Ids: plan.Remove.map(function (p) { return p.Item.Id; }) }).then(function () {
+                            var status = el('p', { className: 'jc-hint', textContent: 'Starting...' });
+                            $('jcDialogBody').prepend(status);
+                            (function check() {
+                                call('GET', 'Remove').then(function (p) {
+                                    if (p.Running) {
+                                        go.textContent = 'Removing ' + Math.min(p.Done + 1, p.Total || 1) + ' of ' + (p.Total || '?') + '...';
+                                        status.textContent = p.Current ? 'Now: ' + p.Current + '. You can close this page; the removal carries on.' : 'Checking Radarr and Sonarr...';
+                                        setTimeout(check, 1500);
+                                    } else if (p.Error) {
+                                        showResult(null, new Error(p.Error));
+                                    } else {
+                                        showResult(p.Result);
+                                    }
+                                }).catch(function () { setTimeout(check, 3000); });
+                            })();
+                        }).catch(function (err) {
                             showResult(null, err);
                         });
                     });

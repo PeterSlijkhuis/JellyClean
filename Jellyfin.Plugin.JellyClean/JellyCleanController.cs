@@ -140,12 +140,21 @@ public class JellyCleanController : ControllerBase
     /// <param name="request">The selected ids.</param>
     /// <returns>What was removed and what was kept.</returns>
     [HttpPost("Remove")]
-    public async Task<ActionResult> Remove([FromBody] Selection request)
+    public ActionResult Remove([FromBody] Selection request)
     {
         var userId = Guid.TryParse(User.FindFirst("Jellyfin-UserId")?.Value, out var id) ? id : Guid.Empty;
+        return _remover.Start(request.Ids, userId) ? NoContent() : Conflict("Another removal is still running.");
+    }
 
-        // Not tied to the request: closing the page must never stop a removal halfway through an item.
-        return Ok(Describe(await _remover.RemoveAsync(request.Ids, userId, CancellationToken.None).ConfigureAwait(false)));
+    /// <summary>
+    /// How the removal started with Remove is going, and its result once done.
+    /// </summary>
+    /// <returns>The progress.</returns>
+    [HttpGet("Remove")]
+    public ActionResult RemoveStatus()
+    {
+        var p = _remover.Progress;
+        return Ok(new { p.Running, p.Done, p.Total, p.Current, p.Error, Result = p.Result is null ? null : Describe(p.Result) });
     }
 
     /// <summary>

@@ -18,6 +18,7 @@ namespace Jellyfin.Plugin.JellyClean.Library;
 /// </summary>
 public class Remover
 {
+    private static readonly object _progressLock = new();
     private static readonly SemaphoreSlim _oneAtATime = new(1, 1);
 
     private readonly Catalog _catalog;
@@ -134,6 +135,51 @@ public class Remover
     }
 
     /// <summary>
+    /// Gets how the current or last removal started with <see cref="Start"/> is going.
+    /// </summary>
+    public RemovalProgress Progress { get; private set; } = new();
+
+    /// <summary>
+    /// Starts a removal in the background, so a slow one is not cut off with the web request (a proxy or tunnel may stop waiting).
+    /// </summary>
+    /// <param name="ids">Selected item ids.</param>
+    /// <param name="userId">The admin who asked.</param>
+    /// <returns>False when another removal is still running.</returns>
+    public bool Start(IEnumerable<Guid> ids, Guid userId)
+    {
+        var list = ids.ToList();
+        lock (_progressLock)
+        {
+            if (Progress.Running)
+            {
+                return false;
+            }
+
+            Progress = new RemovalProgress { Running = true, Total = list.Count };
+        }
+
+        var progress = Progress;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Not tied to any request: closing the page must never stop a removal halfway through an item.
+                progress.Result = await RemoveAsync(list, userId, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Activity.Log(_logger, LogLevel.Error, ex, "The removal stopped");
+                progress.Error = ex.Message;
+            }
+            finally
+            {
+                progress.Running = false;
+            }
+        });
+        return true;
+    }
+
+    /// <summary>
     /// Removes the items: from Radarr and Sonarr, then from Jellyfin and the disk.
     /// </summary>
     /// <param name="ids">Selected item ids.</param>
@@ -146,9 +192,13 @@ public class Remover
         try
         {
             var plan = await PlanAsync(ids, cancellationToken).ConfigureAwait(false);
+            var progress = Progress;
+            progress.Total = plan.Remove.Count;
             foreach (var planned in plan.Remove.ToList())
             {
+                progress.Current = planned.Item.Title;
                 var error = await RemoveOneAsync(planned, cancellationToken).ConfigureAwait(false);
+                progress.Done++;
                 if (error is not null)
                 {
                     plan.Remove.Remove(planned);
@@ -226,4 +276,28 @@ public class Remover
 
     private IReadOnlyDictionary<string, string> ProviderIds(Guid id)
         => new Dictionary<string, string>(_libraryManager.GetItemById(id)?.ProviderIds ?? [], StringComparer.OrdinalIgnoreCase);
+}
+
+/// <summary>
+/// How a removal is going.
+/// </summary>
+public class RemovalProgress
+{
+    /// <summary>Gets or sets a value indicating whether it is still running.</summary>
+    public bool Running { get; set; }
+
+    /// <summary>Gets or sets how many items are done.</summary>
+    public int Done { get; set; }
+
+    /// <summary>Gets or sets how many items will be removed.</summary>
+    public int Total { get; set; }
+
+    /// <summary>Gets or sets the item being removed now.</summary>
+    public string? Current { get; set; }
+
+    /// <summary>Gets or sets the result, once done.</summary>
+    public RemovalPlan? Result { get; set; }
+
+    /// <summary>Gets or sets why it stopped, when it failed.</summary>
+    public string? Error { get; set; }
 }
