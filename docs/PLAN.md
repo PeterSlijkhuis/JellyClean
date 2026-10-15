@@ -35,7 +35,7 @@ Ideas, not code.
 
 ### Stack
 
-Same as JellyBadge: GPL-3.0 like Jellyfin itself, `net10.0`, `Jellyfin.Controller` and `Jellyfin.Model` 12.1.0 with runtime assets excluded, `TreatWarningsAsErrors`, nullable on, an `.slnx`, a test project, a GitHub Actions build that runs `dotnet test`, and a release workflow with a `manifest.json` repository like JellyTheme's.
+Same as JellyBadge: GPL-3.0 like Jellyfin itself, `net10.0`, `Jellyfin.Controller` and `Jellyfin.Model` 12.2.0 with runtime assets excluded, `TreatWarningsAsErrors`, nullable on, an `.slnx`, a test project, a GitHub Actions build that runs `dotnet test`, and a release workflow with a `manifest.json` repository like JellyTheme's.
 
 ```
 JellyClean.slnx

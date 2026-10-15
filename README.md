@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/PeterSlijkhuis/JellyClean/releases/latest"><img src="https://img.shields.io/github/v/release/PeterSlijkhuis/JellyClean?style=flat-square&label=release&color=aa5cc3" alt="Latest release" /></a>
-  <img src="https://img.shields.io/badge/Jellyfin-12.1%2B-00a4dc?style=flat-square" alt="Jellyfin 12.1 or newer" />
+  <img src="https://img.shields.io/badge/Jellyfin-12.2%2B-00a4dc?style=flat-square" alt="Jellyfin 12.2 or newer" />
   <a href="https://github.com/PeterSlijkhuis/JellyClean/actions/workflows/build.yaml"><img src="https://img.shields.io/github/actions/workflow/status/PeterSlijkhuis/JellyClean/build.yaml?style=flat-square&label=build" alt="Build" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-555?style=flat-square" alt="GPL-3.0" /></a>
 </p>
@@ -44,7 +44,7 @@ Nothing changes until you remove something. Browsing and filtering only read.
 
 ## Install
 
-JellyClean needs **Jellyfin 12.1 or newer**. No other plugins are needed.
+JellyClean needs **Jellyfin 12.2 or newer**. No other plugins are needed.
 
 ### Option 1: plugin repository (recommended)
 
@@ -132,7 +132,7 @@ dotnet test JellyClean.slnx
 dotnet publish Jellyfin.Plugin.JellyClean -c Release -o out
 ```
 
-- Targets .NET 10 and Jellyfin 12.1.
+- Targets .NET 10 and Jellyfin 12.2.
 - Filtering (`Library/Filter.cs`), the removal plan (`Library/RemovalPlan.cs`) and the Radarr and Sonarr calls (`Library/ArrClient.cs`) are covered by unit tests. No test touches a real file or server.
 - **Releasing.** Open **Actions > Release > Run workflow**, fill in the version and release notes, and run it. It builds, tests and publishes a release with the plugin zip and `manifest.json`.
 
