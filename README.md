@@ -11,20 +11,88 @@
 
 <p align="center"><b>See what is in your libraries, find what nobody watches, and free up space in bulk.</b></p>
 
+<p align="center">
+  <img src="docs/jellyclean-demo.webp" alt="JellyClean in 19 seconds: the storage overview, filtering, the removal preview, Leaving soon and Recover" width="100%" />
+  <br /><sub>19 second tour. <a href="docs/jellyclean-demo.mp4">Download the MP4</a> (0.7 MB).</sub>
+</p>
+
 JellyClean adds a **JellyClean** page to the Jellyfin dashboard. It lists every movie, series, season and episode with when it was added, who watched it, when it was last played and how much space it takes. Filter it down, for example to *horror movies nobody played that were added over two years ago*, check the preview, and remove them all at once. Removed items are deleted from disk and from Jellyfin, and also from Radarr and Sonarr, so they are not downloaded again.
 
 Nothing changes until you remove something. Browsing and filtering only read.
 
 ## Contents
 
+- [Why JellyClean](#why-jellyclean)
+- [Screenshots](#screenshots)
 - [What you get](#what-you-get)
 - [Install](#install)
 - [Getting started](#getting-started)
 - [How removing works](#how-removing-works)
 - [Leaving soon](#leaving-soon)
+- [Recycle bin and Recover](#recycle-bin-and-recover)
 - [FAQ](#faq)
 - [For developers](#for-developers)
 - [License](#license)
+
+## Why JellyClean
+
+A media server fills up quietly. Radarr and Sonarr keep adding, nobody keeps removing, and one day the disk is full. Deleting by hand in Jellyfin is one item at a time with no idea what anyone watched. Automatic cleaners are fast but scary: one wrong rule and a whole library is gone.
+
+JellyClean sits in between. It shows you the facts, lets you decide, and makes every step reversible for as long as you like.
+
+- **It lives inside Jellyfin.** No extra container, no database, no web app on another port, no separate login. Install it from the plugin catalog and it uses Jellyfin's own users, watch history and permissions.
+- **You see before anything happens.** Every removal starts with a preview that lists each file and folder, what happens in Radarr and Sonarr, and which items stay and why.
+- **Safe by default.** Favorites of any user, Continue Watching, recently added, recently played, a `keep` tag, protected libraries and anything playing right now are never touched. Each favorite shows whose it is.
+- **Nothing comes back by accident.** Removed movies and series leave Radarr and Sonarr (optionally on their exclusion list), so they are not downloaded again a day later.
+- **Mistakes are cheap.** With the recycle bin on, files wait in a hidden folder for the days you choose. One click on **Recover** puts everything back, in Jellyfin, Radarr and Sonarr.
+- **Automation that warns first.** Rules put items on a **Leaving soon** list with a notice period, optionally shown to your users as a collection, so people can save what they still want. Anything removed on its own always goes through the recycle bin.
+- **Built for the whole household.** Watched status, last played and favorites are per user, so *watched by everyone* really means everyone.
+
+### How it compares
+
+| | JellyClean | External cleaners (Maintainerr, Janitorr and similar) | Played-item cleanup plugins (media-cleaner and similar) |
+|---|---|---|---|
+| Runs inside Jellyfin, nothing else to host | Yes | No, a separate service | Yes |
+| Browse and filter everything by hand | Yes, with posters and per-user watch data | Usually rule-first | No, rule only |
+| Preview of exactly what goes | Yes, every file | Varies | No |
+| Radarr and Sonarr clean-up | Yes, several of each | Yes | No |
+| Notice period before removal | Yes, Leaving soon list and collection | Often | No |
+| Recycle bin with one-click recover | Yes | Rarely | No |
+| Per-user favorites protect items | Yes, and shows whose favorite | Varies | Partly |
+
+The other tools are good at what they do and you can check their own pages for details. Pick JellyClean when you want to see and decide first, keep it all inside Jellyfin, and be able to undo.
+
+## Screenshots
+
+**Library.** Where the space goes, per library, with what nobody ever played striped.
+
+<img src="docs/screenshots/library-top.png" alt="Library tab with storage per library, the Leaving soon and Recycle bin summary and the filters" width="100%" />
+
+**The list.** Poster, who watched it, last played, rating, quality, copies, favorites and size. Tick what goes, or press **Free up GB**.
+
+<img src="docs/screenshots/library-list.png" alt="List of movies with posters, watch status, quality and size" width="100%" />
+
+**Preview.** Exactly what is removed, what happens in Radarr and Sonarr, and what stays and why.
+
+<img src="docs/screenshots/preview.png" alt="Removal preview with removed and kept items" width="100%" />
+
+**Leaving soon.** Due now and coming up, with every detail, a **Cancel** per item, and the rules that fill it.
+
+<img src="docs/screenshots/leaving.png" alt="Leaving soon tab with due and upcoming items" width="100%" />
+<img src="docs/screenshots/rules.png" alt="Leaving soon rules with schedule, hour, notice days and automatic removal" width="100%" />
+
+**Recover.** Everything in the recycle bin, when it is deleted for good, and a **Recover** button.
+
+<img src="docs/screenshots/recover.png" alt="Recover tab listing items in the recycle bin" width="100%" />
+
+**Settings and Activity.** Safeguards, recycle bin days, Radarr and Sonarr, and a log of every removal and why something stayed.
+
+<img src="docs/screenshots/settings.png" alt="Settings tab with safeguards and recycle bin days" width="100%" />
+<img src="docs/screenshots/activity.png" alt="Activity log" width="100%" />
+
+**Phone and tablet.** Every tab works on a small screen, with large touch targets.
+
+<p align="center"><img src="docs/screenshots/phone.png" alt="Library and Leaving soon on a phone" width="70%" /></p>
 
 ## What you get
 
@@ -70,10 +138,11 @@ JellyClean needs **Jellyfin 12.2 or newer**. No other plugins are needed.
 ## Getting started
 
 1. Open **JellyClean** in the dashboard menu.
-2. If you use Radarr or Sonarr, go to **Settings**, click **Add Radarr** or **Add Sonarr**, fill in the address and API key (in Radarr or Sonarr under **Settings > General**), press **Test connection** and **Save**.
-3. Back on **Library**, start with the empty movies and series it opens on, then pick another suggestion or set your filters.
-4. Tick what you want gone (hold Shift to tick a whole range), or press **Select all**, then **Preview removal**.
-5. Check the preview and press **Delete from disk**.
+2. Under **Settings**, set **Recycle bin: keep removed files** to a few days, for example 7. Removals by hand then go to the recycle bin first and can be recovered. 0 deletes right away.
+3. If you use Radarr or Sonarr, go to **Settings**, click **Add Radarr** or **Add Sonarr**, fill in the address and API key (in Radarr or Sonarr under **Settings > General**), press **Test connection** and **Save**.
+4. Back on **Library**, start with the empty movies and series it opens on, then pick another suggestion or set your filters.
+5. Tick what you want gone (hold Shift to tick a whole range), or press **Select all**, then **Preview removal**.
+6. Check the preview and press **Delete from disk** (or **Move to recycle bin**). Press **Close, keep removing** if you don't want to wait; it carries on in the background and the bar comes back when you return.
 
 ## How removing works
 
@@ -105,18 +174,29 @@ The preview lists every item that stays, with the reason.
 1. In the preview, press **Leaving soon** instead of **Delete from disk**. Protected items are left off the list.
 2. Optionally switch on **Show it to users as a collection** under **Settings**, so everyone sees what is leaving and can ask to keep it, or mark it a favorite.
 3. The list keeps up with changes. An item that becomes protected leaves it at once when someone makes it a favorite or you mark it keep, and at the next hourly run for anything else, like someone playing it. An item a rule added that no longer matches that rule leaves too. The Activity tab says why.
-4. When the notice period is over, the Library page shows the due items. Press **Review due items**, check the preview and remove them.
+4. The **Leaving soon** tab shows everything on the list with its poster and all details, grouped in *Due now* and *Coming up*, with why it is there and when it is due. **Cancel** takes one item off the list and marks it keep.
+5. When the notice period is over, press **Review due items**, check the preview and remove them.
 
 ### Scheduled rules
 
-Set a filter on the Library page and press **Schedule for Leaving soon**. Under **Settings > Leaving soon** every saved view has:
+Set a filter on the Library page and press **Schedule for Leaving soon**. It is saved as a daily rule and the **Leaving soon** tab opens. Under **Rules** every saved view has, saved as you change it:
 
 - **Schedule**: not scheduled, every day, or every week on a day you pick;
 - **At**: the hour it runs (server time);
 - **Notice days**: how long its items stay on the list before they are due (empty uses the general notice period);
 - **Remove when due, without asking**: off, due items wait for you; on, they are removed once due, with every safeguard checked again first.
 
-**Run now** runs one rule straight away. The task **Leaving soon and recycle bin** (under **Dashboard > Scheduled Tasks**, every hour) runs the rules whose time has come, removes due items where that is on, drops items that are gone, keeps the collection up to date and empties what has been in the recycle bin long enough.
+**Run now** runs one rule straight away and the list updates on the spot; **Run all rules now** runs every scheduled one. The task **Leaving soon and recycle bin** (under **Dashboard > Scheduled Tasks**, every hour) runs the rules whose time has come, removes due items where that is on, drops items that are gone, keeps the collection up to date and empties what has been in the recycle bin long enough.
+
+## Recycle bin and Recover
+
+The recycle bin is what makes JellyClean forgiving.
+
+- **Where.** Each library folder gets a hidden `.jellyclean-trash` folder with an `.ignore` file, so Jellyfin does not scan it. Moving there is instant, because it is on the same disk.
+- **How long.** **Recycle bin: keep removed files** under **Settings** is for removals by hand (0 deletes right away). **Recycle bin for automatic removals** is for what Leaving soon removes on its own; it is always at least 1 day, so automation never deletes straight away.
+- **Radarr and Sonarr wait.** While an item is in the bin, Radarr and Sonarr only stop monitoring it, so it is not downloaded again and nothing is lost there either. When its days are over, the files are deleted for good and the movie or series is removed from Radarr or Sonarr, added to the exclusion list if you set that.
+- **Recover.** The **Recover** tab lists everything in the bin, how big it is, who or what removed it and when it is deleted for good. **Recover** moves the files back, Jellyfin scans them in, Radarr and Sonarr monitor them again and rescan, and the item is marked keep so a rule does not take it again. **Empty now** deletes everything in the bin for good.
+- **Space.** Freed space is counted when the bin is emptied, because the files still take space until then.
 
 ## FAQ
 
@@ -132,11 +212,47 @@ Yes. In Radarr switch on **Unmonitor Deleted Movies**, and in Sonarr **Unmonitor
 **Do I need the File Transformation plugin?**
 No. JellyClean lives in its own dashboard page and does not change the Jellyfin web app.
 
+**Is it safe to try?**
+Yes. Browsing, filtering, saved views and the preview never change anything. Turn the recycle bin on before your first removal and even that can be undone.
+
+**What exactly gets deleted?**
+For a movie, its folder with extras, subtitles and artwork. For an episode, the episode file and its subtitles. Seasons and series remove their episodes. The preview lists every path before you confirm.
+
+**Can it remove things on its own?**
+Only if you switch on **Remove when due, without asking** for a rule. Even then every safeguard is checked again at that moment and the files go to the recycle bin first.
+
+**Someone wants to keep something on the Leaving soon list.**
+They can mark it a favorite in Jellyfin; it leaves the list at once and the Leaving soon tab shows whose favorite it is. You can also press **Cancel** on the Leaving soon tab or **keep** on the Library tab.
+
+**Can I take away someone's favorite?**
+Yes. Each favorite tag shows the names, and the × next to a name takes off only that person's favorite, without opening the item. Changes made in Jellyfin itself show up in JellyClean right away.
+
+**I removed something by mistake.**
+If the recycle bin was on, open **Recover** and press **Recover**. If it was off, the files are gone; Radarr or Sonarr can download it again once you remove it from the exclusion list and add it back.
+
+**Does Recover give back the same item, with its watch history?**
+The files go back to the same place and Jellyfin scans them in again. Jellyfin keeps watched state per item, and usually finds the item again at the same path, but this is up to Jellyfin.
+
+**Will a series I recover come back fully monitored in Sonarr?**
+JellyClean monitors again what it stopped monitoring. If Sonarr's own **Unmonitor Deleted Episodes** is on, Sonarr may have stopped monitoring episodes by itself when the files left; check the series in Sonarr after a recover.
+
+**Does it work with several Radarr or Sonarr servers, like a 4K one?**
+Yes. Add as many as you have. Each item is matched by its TMDb, TVDb or IMDb id on every server, and changes are undone on all of them if one fails.
+
+**Does it work on a phone or tablet?**
+Yes. Every tab adapts to small screens, buttons are big enough to tap, and it works with a keyboard and screen reader too.
+
+**Does it slow down Jellyfin?**
+No. It keeps a light list in memory, updates it when Jellyfin scans, and reads watch state again every few minutes. The hourly task only does work when a rule is due or something in the bin is old enough.
+
 **What counts as watched?**
 What Jellyfin shows as watched for each user. *Never played by anyone* means nobody started it at all; a series counts as watched by a user once they watched every episode.
 
 **Why is a series folder on disk a bit bigger than shown?**
 A series adds up its episode files. Artwork and extras in the series folder are not counted.
+
+**When do rules run?**
+Every hour the task **Leaving soon and recycle bin** checks which rules are due, at the hour you picked in the server's time zone. If you use an older version and see the task running daily, set its trigger to every hour under **Dashboard > Scheduled Tasks**.
 
 **The list is not up to date.**
 When a Jellyfin scan adds or removes movies or episodes, the Library page updates on its own within about a minute. Watched state and sizes are read again every few minutes. Press **Refresh** to read everything right away.
