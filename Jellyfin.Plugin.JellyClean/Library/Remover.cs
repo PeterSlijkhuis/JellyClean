@@ -130,6 +130,7 @@ public class Remover
                 .ToHashSet(),
             Favorites = config.ProtectFavorites,
             InProgress = config.ProtectInProgress,
+            NextUp = config.ProtectNextUp,
             AddedAfter = config.ProtectAddedDays > 0 ? now.AddDays(-config.ProtectAddedDays) : null,
             PlayedAfter = config.ProtectPlayedDays > 0 ? now.AddDays(-config.ProtectPlayedDays) : null,
             Tag = config.KeepTag,

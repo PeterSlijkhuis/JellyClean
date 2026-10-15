@@ -120,6 +120,36 @@ public class LibraryTests
     }
 
     [Fact]
+    public void Next_up_keeps_what_a_viewer_has_yet_to_see()
+    {
+        var show = Guid.NewGuid();
+        CatalogItem Ep(int season, int number, params Guid[] watched) => new()
+        {
+            Id = Guid.NewGuid(), Type = "Episode", SeriesId = show, Season = season, Episode = number, WatchedBy = watched,
+            PlayedOn = watched.ToDictionary(u => u, _ => _now.AddDays(-3)),
+        };
+        var special = Ep(0, 1);
+        var e1 = Ep(1, 1, _anna);
+        var e2 = Ep(1, 2);
+        var e3 = Ep(2, 1);
+        var stale = Ep(1, 1, _ben);
+        stale.SeriesId = Guid.NewGuid();
+        stale.PlayedOn[_ben] = _now.AddYears(-2);
+        var staleNext = Ep(1, 2);
+        staleNext.SeriesId = stale.SeriesId;
+
+        Catalog.MarkNextUp([e3, special, e2, e1, stale, staleNext], _now.AddDays(-365));
+
+        Assert.False(e1.NextUp);
+        Assert.True(e2.NextUp);
+        Assert.True(e3.NextUp);
+        Assert.False(special.NextUp);
+        Assert.False(staleNext.NextUp);
+        Assert.Contains("Next Up", new Safeguards().Check(e2, "It "), StringComparison.Ordinal);
+        Assert.Null(new Safeguards { NextUp = false }.Check(e2, "It "));
+    }
+
+    [Fact]
     public void Empty_series_counts_as_never_watched()
     {
         var series = new CatalogItem { Id = Guid.NewGuid(), Name = "Empty", Type = "Series" };

@@ -98,6 +98,17 @@
 
                 <div class="jc-status" id="jcStatus" role="status" aria-live="polite" hidden></div>
 
+                <section class="jc-card" aria-labelledby="jcRulesTitle">
+                    <h2 id="jcRulesTitle">Rules</h2>
+                    <div class="jc-row">
+                        <p class="jc-hint">A rule is a saved filter from the Library page with a schedule. At its time it puts what it finds on this list, with its own notice period. Changes save right away.</p>
+                        <div class="jc-actions">
+                            <button type="button" class="jc-btn" id="jcRunAll">Run all rules now</button>
+                        </div>
+                    </div>
+                    <div id="jcRules"></div>
+                </section>
+
                 <section class="jc-card" aria-labelledby="jcListTitle">
                     <h2 id="jcListTitle">Leaving soon</h2>
                     <div class="jc-row">
@@ -108,17 +119,6 @@
                     </div>
                     <div class="jc-review" id="jcReviewBox" hidden></div>
                     <div id="jcList"></div>
-                </section>
-
-                <section class="jc-card" aria-labelledby="jcRulesTitle">
-                    <h2 id="jcRulesTitle">Rules</h2>
-                    <div class="jc-row">
-                        <p class="jc-hint">A rule is a saved filter from the Library page with a schedule. At its time it puts what it finds on this list, with its own notice period. Changes save right away.</p>
-                        <div class="jc-actions">
-                            <button type="button" class="jc-btn" id="jcRunAll">Run all rules now</button>
-                        </div>
-                    </div>
-                    <div id="jcRules"></div>
                 </section>
             </div>
         </div>

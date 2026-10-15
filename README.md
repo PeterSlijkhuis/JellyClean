@@ -76,10 +76,10 @@ The other tools are good at what they do and you can check their own pages for d
 
 <img src="docs/screenshots/preview.png" alt="Removal preview with removed and kept items" width="100%" />
 
-**Leaving soon.** Due now and coming up, with every detail, a **Cancel** per item, and the rules that fill it.
+**Leaving soon.** The rules that fill it on top, then what is due now and coming up, with every detail and a **Cancel** per item.
 
-<img src="docs/screenshots/leaving.png" alt="Leaving soon tab with due and upcoming items" width="100%" />
 <img src="docs/screenshots/rules.png" alt="Leaving soon rules with schedule, hour, notice days and automatic removal" width="100%" />
+<img src="docs/screenshots/leaving.png" alt="Leaving soon tab with due and upcoming items" width="100%" />
 
 **Recover.** Everything in the recycle bin, when it is deleted for good, and a **Recover** button.
 
@@ -98,7 +98,7 @@ The other tools are good at what they do and you can check their own pages for d
 
 - **See where the space goes.** A bar per library shows how much space it takes and how much of that nobody ever played. Click a library to filter on it. JellyClean also counts how much it has freed so far.
 - **Everything in one list.** Title, library, year, genres, date added, who watched it, when it was last played, rating, size on disk and video quality (resolution, codec and HDR).
-- **Filters that add up.** Type (movies, series, seasons, episodes), library, genres, watched status (unwatched, watched by someone, by everyone, or by one user), added before or after, last played (never, or over a while ago), size, resolution, codec, HDR, and search on title or path.
+- **Filters that add up, in groups.** Type, library, sort and search are always there; the rest sits in groups you open (Watching, Added and size, Quality, Genres, More), and a closed group shows how many of its filters are on. Type (movies, series, seasons, episodes), library, genres, watched status (unwatched, watched by someone, by everyone, or by one user), added before or after, last played (never, or over a while ago), size, resolution, codec, HDR, and search on title or path.
 - **Start with what is empty.** The Library page opens on movies and series that take 0 B: usually series Sonarr added but that have no episodes yet, or whose episodes are all gone. Jellyfin only sees a download once Radarr or Sonarr moves it into the library, so anything still downloading is checked in Radarr and Sonarr and left alone. Removing them is the safest first clean-up. If a whole library folder can't be reached, like a network drive that is offline, its items are left alone, because they only look empty.
 - **One-click suggestions.** *Empty movies and series*, *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone*, *Finished series everyone watched*, *Series nobody played in 2 years*, *Movies you have twice* and *Old H.264 below 1080p*.
 - **Free up a set amount.** Type how many GB you need and press **Free up GB**: JellyClean selects from the top of the current list, in its sort order, skipping keep, favorites and Continue Watching, until that much is selected. Then check it in the preview.
@@ -107,7 +107,7 @@ The other tools are good at what they do and you can check their own pages for d
 - **Export.** Download the current list as a spreadsheet (CSV).
 - **Real sizes.** The size is what removing frees: the movie's folder with its extras and artwork, or the episode file with its subtitles. Series and seasons add up their episodes.
 - **Preview first.** See exactly which files and folders go, what happens in Radarr and Sonarr, and what stays and why. Removing 20 or more items asks you to type the number.
-- **Keep what matters.** Mark anything **keep** with the lock button and it is never removed, nor the season or series it is in. Each favorite shows whose it is, and the × next to a name takes that person's favorite off, without opening the item. Safeguards you choose in **Settings** keep favorites, Continue Watching, recently added and recently played items, items with a tag like `keep`, and whole libraries. One removal is capped at 200 items unless you change it.
+- **Keep what matters.** Mark anything **keep** with the lock button and it is never removed, nor the season or series it is in. Each favorite shows whose it is, and the × next to a name takes that person's favorite off, without opening the item. Safeguards you choose in **Settings** keep favorites, Continue Watching, Next Up, recently added and recently played items, items with a tag like `keep`, and whole libraries. One removal is capped at 200 items unless you change it.
 - **Saved views.** Save any filter under a name and open it with one click. Days are relative, so *added over 2 years ago* still means that next year.
 - **Leaving soon.** Instead of deleting right away, put items on a list with a notice period (14 days by default). Users can see the list as a Jellyfin collection if you like. When items are due you review and remove them; safeguards are checked again at that moment.
 - **Scheduled Leaving soon.** Turn any filter into a rule with **Schedule for Leaving soon**. Each rule runs every day or every week at the hour you pick, with its own notice period, and puts what it finds on the Leaving soon list. Once due, items wait for you, or are removed on their own if you switch that on for the rule.
@@ -139,7 +139,7 @@ JellyClean needs **Jellyfin 12.2 or newer**. No other plugins are needed.
 
 1. Open **JellyClean** in the dashboard menu.
 2. Under **Settings**, set **Recycle bin: keep removed files** to a few days, for example 7. Removals by hand then go to the recycle bin first and can be recovered. 0 deletes right away.
-3. If you use Radarr or Sonarr, go to **Settings**, click **Add Radarr** or **Add Sonarr**, fill in the address and API key (in Radarr or Sonarr under **Settings > General**), press **Test connection** and **Save**.
+3. If you use Radarr or Sonarr, go to **Settings**, click **Add Radarr** or **Add Sonarr**, fill in the address and API key (in Radarr or Sonarr under **Settings > General**), and press **Test connection**. Settings save on their own as you change them.
 4. Back on **Library**, start with the empty movies and series it opens on, then pick another suggestion or set your filters.
 5. Tick what you want gone (hold Shift to tick a whole range), or press **Select all**, then **Preview removal**.
 6. Check the preview and press **Delete from disk** (or **Move to recycle bin**). Press **Close, keep removing** if you don't want to wait; it carries on in the background and the bar comes back when you return.
@@ -163,6 +163,7 @@ These stay unless you switch them off under **Settings**:
 
 - favorites of any user, and the seasons and series they are in;
 - anything in someone's Continue Watching, and the season and series it is in;
+- Next Up: in a series someone is watching, every episode they have not seen yet, and its season and series;
 - items added in the last 30 days, and items anyone played in the last 30 days;
 - items with the tag `keep` (add it in Jellyfin under **Edit metadata**);
 - everything in libraries you mark as protected.
@@ -244,6 +245,12 @@ Yes. Every tab adapts to small screens, buttons are big enough to tap, and it wo
 
 **Does it slow down Jellyfin?**
 No. It keeps a light list in memory, updates it when Jellyfin scans, and reads watch state again every few minutes. The hourly task only does work when a rule is due or something in the bin is old enough.
+
+**Someone is halfway through a series but not in the middle of an episode. Is it safe?**
+Yes, with **Keep Next Up** on (the default). When someone watched an episode of a series in the last year, every episode after the last one they watched stays, and so do its season and series. Episodes they already watched can still go. Specials don't count, like in Jellyfin's own Next Up.
+
+**Do I need to press Save in Settings?**
+No. Every change saves on its own after a moment, and the bar at the bottom says when it is saved.
 
 **What counts as watched?**
 What Jellyfin shows as watched for each user. *Never played by anyone* means nobody started it at all; a series counts as watched by a user once they watched every episode.
