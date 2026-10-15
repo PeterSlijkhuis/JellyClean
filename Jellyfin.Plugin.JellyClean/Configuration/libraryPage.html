@@ -257,13 +257,13 @@
                         </div>
                         <div class="jc-field">
                             <label for="jcLibrary">Library</label>
-                            <select id="jcLibrary"><option value="">All</option></select>
+                            <select id="jcLibrary"><option value="">All libraries</option></select>
                         </div>
                         <div class="jc-field">
                             <label for="jcWatched">Watched</label>
                             <select id="jcWatched">
-                                <option value="">All</option>
-                                <option value="none">Unwatched (never played)</option>
+                                <option value="">Any watch status</option>
+                                <option value="none">Unwatched by everyone</option>
                                 <option value="any">Watched by someone</option>
                                 <option value="all">Watched by everyone</option>
                             </select>
@@ -271,30 +271,31 @@
                         <div class="jc-field">
                             <label for="jcAdded">Added</label>
                             <select id="jcAdded">
-                                <option value="">All</option>
+                                <option value="">Any time</option>
+                                <option value="-30">In the last month</option>
                                 <option value="30">Over a month ago</option>
                                 <option value="91">Over 3 months ago</option>
                                 <option value="182">Over 6 months ago</option>
                                 <option value="365">Over a year ago</option>
                                 <option value="730">Over 2 years ago</option>
                                 <option value="1826">Over 5 years ago</option>
-                                <option value="-30">In the last month</option>
                             </select>
                         </div>
                         <div class="jc-field">
-                            <label for="jcIdle">Nobody played it in</label>
+                            <label for="jcIdle">Last played</label>
                             <select id="jcIdle">
-                                <option value="">All</option>
-                                <option value="91">3 months</option>
-                                <option value="182">6 months</option>
-                                <option value="365">A year</option>
-                                <option value="730">2 years</option>
+                                <option value="">Any time</option>
+                                <option value="never">Never</option>
+                                <option value="91">Over 3 months ago, or never</option>
+                                <option value="182">Over 6 months ago, or never</option>
+                                <option value="365">Over a year ago, or never</option>
+                                <option value="730">Over 2 years ago, or never</option>
                             </select>
                         </div>
                         <div class="jc-field">
                             <label for="jcSize">Size</label>
                             <select id="jcSize">
-                                <option value="">All</option>
+                                <option value="">Any size</option>
                                 <option value="empty">Empty (0 B)</option>
                                 <option value="1">1 GB or more</option>
                                 <option value="5">5 GB or more</option>
@@ -307,7 +308,7 @@
                         <div class="jc-field">
                             <label for="jcResolution">Resolution</label>
                             <select id="jcResolution">
-                                <option value="">All</option>
+                                <option value="">Any resolution</option>
                                 <option value="4K">4K</option>
                                 <option value="1080p">1080p</option>
                                 <option value="720p">720p</option>
@@ -318,7 +319,7 @@
                         <div class="jc-field">
                             <label for="jcHdr">Dynamic range</label>
                             <select id="jcHdr">
-                                <option value="">All</option>
+                                <option value="">Any dynamic range</option>
                                 <option value="hdr">HDR (any kind)</option>
                                 <option value="Dolby Vision">Dolby Vision</option>
                                 <option value="HDR10+">HDR10+</option>
@@ -329,7 +330,7 @@
                         </div>
                         <div class="jc-field">
                             <label for="jcCodec">Codec</label>
-                            <select id="jcCodec"><option value="">All</option></select>
+                            <select id="jcCodec"><option value="">Any codec</option></select>
                         </div>
                         <div class="jc-field">
                             <label for="jcSort">Sort by</label>
@@ -478,6 +479,7 @@
                         AddedMoreThanDays: added > 0 ? added : null,
                         AddedWithinDays: added < 0 ? -added : null,
                         NotPlayedForDays: idle > 0 ? idle : null,
+                        NeverPlayed: $('jcIdle').value === 'never',
                         MinSize: size > 0 ? size * 1e9 : null,
                         MaxSize: empty ? 0 : null,
                         Resolutions: $('jcResolution').value ? $('jcResolution').value.split(',') : null,
@@ -517,7 +519,7 @@
                     $('jcLibrary').value = f.Library || '';
                     $('jcWatched').value = f.Watched || '';
                     $('jcAdded').value = f.AddedMoreThanDays ? String(f.AddedMoreThanDays) : f.AddedWithinDays ? String(-f.AddedWithinDays) : '';
-                    $('jcIdle').value = f.NotPlayedForDays ? String(f.NotPlayedForDays) : '';
+                    $('jcIdle').value = f.NeverPlayed ? 'never' : f.NotPlayedForDays ? String(f.NotPlayedForDays) : '';
                     $('jcSize').value = f.MaxSize === 0 ? 'empty' : f.MinSize ? String(Math.round(f.MinSize / 1e9)) : '';
                     $('jcResolution').value = (f.Resolutions || []).join(',');
                     $('jcHdr').value = f.Hdr || '';

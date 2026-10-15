@@ -35,6 +35,9 @@ public class Filter
     /// <summary>Gets or sets a number of days: only items nobody played in that time, including items never played.</summary>
     public int? NotPlayedForDays { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether to show only items nobody ever started.</summary>
+    public bool NeverPlayed { get; set; }
+
     /// <summary>Gets or sets the smallest size in bytes.</summary>
     public long? MinSize { get; set; }
 
@@ -101,6 +104,7 @@ public class Filter
             && (addedBefore is null || i.Added < addedBefore)
             && (addedAfter is null || i.Added > addedAfter)
             && (playedBefore is null || i.LastWatched is null || i.LastWatched < playedBefore)
+            && (!NeverPlayed || !i.AnyPlayed)
             && (MinSize is null || i.Size >= MinSize)
             && (MaxSize is null || i.Size <= MaxSize)
             && (Resolutions is not { Length: > 0 } || Resolutions.Contains(i.Resolution))
