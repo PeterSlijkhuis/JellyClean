@@ -701,7 +701,7 @@
                         var stats = $('jcStats');
                         stats.textContent = '';
                         var tiles = [[o.Movies.toLocaleString(), 'movies'], [o.Series.toLocaleString(), 'series'], [bytes(o.Size), 'on disk'], [bytes(o.NeverWatchedSize), 'never played']];
-                        if (o.FreedBytes > 0) { tiles.push([bytes(o.FreedBytes), 'freed so far']); }
+                        if (o.RemovedCount > 0) { tiles.push([bytes(o.FreedBytes), 'freed, ' + plural(o.RemovedCount, 'item', 'items') + ' removed']); }
                         tiles.forEach(function (s) {
                             stats.append(el('div', { className: 'jc-stat' }, el('b', { textContent: s[0] }), el('small', { textContent: s[1] })));
                         });
