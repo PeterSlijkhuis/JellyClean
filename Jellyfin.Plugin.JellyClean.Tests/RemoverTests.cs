@@ -68,6 +68,23 @@ public sealed class RemoverTests : IDisposable
     }
 
     [Fact]
+    public async Task Leaving_soon_drops_items_that_became_protected()
+    {
+        var remover = Remover();
+        var catalog = new Catalog(_library.Object, Mock.Of<IUserManager>(u => u.GetUsers() == Array.Empty<Jellyfin.Database.Implementations.Entities.User>()), Mock.Of<IUserDataManager>(), NullLogger<Catalog>.Instance);
+        var leaving = new LeavingSoon(catalog, remover, Mock.Of<MediaBrowser.Controller.Collections.ICollectionManager>(), _library.Object, NullLogger<LeavingSoon>.Instance);
+        _config.UseCollection = false;
+        _config.LeavingSoon = [new LeavingItem { Id = _movie.Id, Title = "Alien", Source = "you" }];
+
+        await leaving.ReconcileAsync(CancellationToken.None);
+        Assert.Single(_config.LeavingSoon);
+
+        _config.KeptIds = [_movie.Id];
+        await leaving.ReconcileAsync(CancellationToken.None);
+        Assert.Empty(_config.LeavingSoon);
+    }
+
+    [Fact]
     public void Recycle_bin_moves_restores_and_purges()
     {
         var lib = Path.Combine(_root, "movies");

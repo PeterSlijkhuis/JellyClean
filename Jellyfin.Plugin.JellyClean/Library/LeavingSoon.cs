@@ -42,6 +42,19 @@ public class LeavingSoon
         _collectionManager = collectionManager;
         _libraryManager = libraryManager;
         _logger = logger;
+
+        // A favorite set on a listed item takes it off the list right away, not at the next run.
+        _catalog.FavoritesChanged += (_, _) => Task.Run(async () =>
+        {
+            try
+            {
+                await ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not update the Leaving soon list");
+            }
+        });
     }
 
     private static PluginConfiguration Config => Plugin.Instance!.Configuration;
@@ -95,6 +108,64 @@ public class LeavingSoon
 
             await SyncCollectionAsync().ConfigureAwait(false);
             return plan;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Takes items off the list that should no longer leave: ones a safeguard now keeps (a favorite, keep, someone
+    /// watching it), and ones a scheduled view put there that no longer match that view.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    public async Task ReconcileAsync(CancellationToken cancellationToken)
+    {
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (Config.LeavingSoon.Length == 0)
+            {
+                return;
+            }
+
+            var items = _catalog.Get();
+            var safeguards = _remover.Safeguards();
+            safeguards.MaxItems = 0;
+            var reasons = RemovalPlan.Build(Config.LeavingSoon.Select(l => l.Id), items, safeguards).Skip
+                .Where(p => items.ContainsKey(p.Item.Id))
+                .ToDictionary(p => p.Item.Id, p => p.Reason);
+
+            foreach (var view in Config.Views)
+            {
+                var listed = Config.LeavingSoon.Where(l => l.Source == view.Name && !reasons.ContainsKey(l.Id)).ToList();
+                if (listed.Count == 0 || FilterOf(view) is not { } filter)
+                {
+                    continue;
+                }
+
+                var matches = _catalog.Find(filter).Select(i => i.Id).ToHashSet();
+                foreach (var l in listed.Where(l => items.ContainsKey(l.Id) && !matches.Contains(l.Id)))
+                {
+                    reasons[l.Id] = $"It no longer matches {view.Name}.";
+                }
+            }
+
+            if (reasons.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var l in Config.LeavingSoon.Where(l => reasons.ContainsKey(l.Id)))
+            {
+                Activity.Info(_logger, "{Title} left the Leaving soon list. {Reason}", l.Title, reasons[l.Id]);
+            }
+
+            Config.LeavingSoon = Config.LeavingSoon.Where(l => !reasons.ContainsKey(l.Id)).ToArray();
+            Plugin.Instance!.SaveConfiguration();
+            await SyncCollectionAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -191,6 +262,8 @@ public class LeavingSoon
         {
             await CancelAsync(missing, cancellationToken).ConfigureAwait(false);
         }
+
+        await ReconcileAsync(cancellationToken).ConfigureAwait(false);
 
         var due = Config.LeavingSoon.Where(l => l.Due <= DateTime.UtcNow && RemovesOnItsOwn(l)).Select(l => l.Id).ToList();
         if (due.Count > 0)

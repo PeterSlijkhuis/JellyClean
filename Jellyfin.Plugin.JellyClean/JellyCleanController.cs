@@ -305,12 +305,17 @@ public class JellyCleanController : ControllerBase
     /// <param name="keep">Keep it.</param>
     /// <returns>No content.</returns>
     [HttpPost("Keep/{itemId}")]
-    public ActionResult Keep([FromRoute] Guid itemId, [FromQuery] bool keep = true)
+    public async Task<ActionResult> Keep([FromRoute] Guid itemId, [FromQuery] bool keep = true)
     {
         var plugin = Plugin.Instance!;
         var kept = plugin.Configuration.KeptIds.Where(i => i != itemId);
         plugin.Configuration.KeptIds = (keep ? kept.Append(itemId) : kept).ToArray();
         plugin.SaveConfiguration();
+        if (keep)
+        {
+            await _leavingSoon.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
         return NoContent();
     }
 

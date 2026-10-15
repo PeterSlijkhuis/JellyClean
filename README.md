@@ -104,7 +104,8 @@ The preview lists every item that stays, with the reason.
 
 1. In the preview, press **Leaving soon** instead of **Delete from disk**. Protected items are left off the list.
 2. Optionally switch on **Show it to users as a collection** under **Settings**, so everyone sees what is leaving and can ask to keep it, or mark it a favorite.
-3. When the notice period is over, the Library page shows the due items. Press **Review due items**, check the preview and remove them.
+3. The list keeps up with changes. An item that becomes protected leaves it at once when someone makes it a favorite or you mark it keep, and at the next hourly run for anything else, like someone playing it. An item a rule added that no longer matches that rule leaves too. The Activity tab says why.
+4. When the notice period is over, the Library page shows the due items. Press **Review due items**, check the preview and remove them.
 
 ### Scheduled rules
 

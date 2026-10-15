@@ -62,6 +62,11 @@ public class Catalog
     public int Version { get; private set; }
 
     /// <summary>
+    /// Raised when a favorite is set or cleared, so lists that depend on it can follow at once.
+    /// </summary>
+    public event EventHandler? FavoritesChanged;
+
+    /// <summary>
     /// Gets the catalog, rebuilt when it is older than a few minutes or when asked.
     /// </summary>
     /// <param name="refresh">Rebuild now.</param>
@@ -333,8 +338,18 @@ public class Catalog
                     (row.FavoriteBy, row.Favorite) = (by, by.Length > 0);
                     Version++;
                 }
+                else
+                {
+                    return;
+                }
+            }
+            else
+            {
+                return;
             }
         }
+
+        FavoritesChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private Guid[] FavoriteBy(BaseItem item)
