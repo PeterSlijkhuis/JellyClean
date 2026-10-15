@@ -194,8 +194,9 @@ public class JellyCleanController : ControllerBase
     }
 
     /// <summary>
-    /// Runs the daily check now: saved views marked "check daily" add their matches to Leaving soon.
+    /// Runs scheduled views now, whatever their time: all of them, or the one named. Their matches go on the Leaving soon list.
     /// </summary>
+    /// <param name="view">One view to run, by name.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>No content.</returns>
     [HttpPost("LeavingSoon/Run")]

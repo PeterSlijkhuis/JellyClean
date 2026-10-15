@@ -136,4 +136,26 @@ public class LibraryTests
         Assert.Equal("1.5 TB", Remover.Bytes(1_500_000_000_000));
         Assert.Equal("512 B", Remover.Bytes(512));
     }
+
+    [Fact]
+    public void Scheduled_views_run_at_their_hour_and_day()
+    {
+        var now = new DateTime(2026, 10, 15, 12, 0, 0); // a Thursday
+        var view = new Jellyfin.Plugin.JellyClean.Configuration.SavedView { Schedule = "daily", Hour = 4 };
+        Assert.Equal(now, view.NextRun(now));
+
+        view.LastRun = new DateTime(2026, 10, 15, 4, 0, 0);
+        Assert.Equal(new DateTime(2026, 10, 16, 4, 0, 0), view.NextRun(now));
+
+        view.LastRun = new DateTime(2026, 10, 15, 3, 0, 0);
+        Assert.Equal(new DateTime(2026, 10, 15, 4, 0, 0), view.NextRun(now));
+
+        (view.Schedule, view.Day) = ("weekly", DayOfWeek.Monday);
+        Assert.Equal(new DateTime(2026, 10, 19, 4, 0, 0), view.NextRun(now));
+
+        view.Schedule = string.Empty;
+        Assert.Null(view.NextRun(now));
+        view.CheckDaily = true;
+        Assert.Equal("daily", view.Runs());
+    }
 }

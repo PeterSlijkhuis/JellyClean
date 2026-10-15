@@ -531,14 +531,16 @@
                     var box = $('jcViews');
                     box.textContent = '';
                     (config.Views || []).forEach(function (v) {
-                        var open = el('button', { type: 'button', textContent: v.Name, title: 'Show this view' }, v.CheckDaily ? el('small', { textContent: 'daily' }) : null);
+                        var runs = v.Schedule || (v.CheckDaily ? 'daily' : '');
+                        var open = el('button', { type: 'button', textContent: v.Name, title: 'Show this view' }, runs ? el('small', { textContent: runs }) : null);
                         open.dataset.view = v.Name;
                         var del = el('button', { type: 'button', textContent: '×', title: 'Delete this view', ariaLabel: 'Delete ' + v.Name });
                         del.dataset.deleteView = v.Name;
                         box.append(el('span', { className: 'jc-view' }, open, del));
                     });
                     var save = el('button', { type: 'button', className: 'jc-preset', id: 'jcSaveView', textContent: '+ Save this view' });
-                    box.append(save);
+                    var schedule = el('button', { type: 'button', className: 'jc-preset', id: 'jcScheduleView', textContent: '+ Schedule for Leaving soon', title: 'Every day, put what this filter finds on the Leaving soon list' });
+                    box.append(save, schedule);
                 }
 
                 function applyView(name) {
@@ -598,7 +600,7 @@
                             box.append(el('div', { className: 'jc-leave-row' },
                                 el('div', {},
                                     el('b', { textContent: l.Title }), ' ', el('span', { textContent: bytes(l.Size) }),
-                                    el('small', { textContent: (l.Source === 'you' ? 'Added by you' : 'From view ' + l.Source) + ' on ' + date(l.Added) }),
+                                    el('small', { textContent: (l.Source === 'you' ? 'Added by you' : 'From view ' + l.Source) + ' on ' + date(l.Added) + (l.AutoRemove ? '. Goes on its own when due.' : '. Waits for you when due.') }),
                                     l.Protected ? el('small', { textContent: 'Will stay: ' + l.Protected }) : null),
                                 el('span', { className: l.IsDue ? 'jc-due' : '', textContent: l.IsDue ? 'Due' : 'Due ' + date(l.Due) }),
                                 cancel));
@@ -1063,6 +1065,16 @@
                     } else if (b.dataset.deleteView) {
                         if (window.confirm('Delete the view "' + b.dataset.deleteView + '"?')) {
                             call('DELETE', 'Views?name=' + encodeURIComponent(b.dataset.deleteView)).then(loadConfig);
+                        }
+                    } else if (b.id === 'jcScheduleView') {
+                        var rule = window.prompt('Every day at 04:00 this filter puts what it finds on the Leaving soon list. They are due after ' + (config.NoticeDays || 0) + ' days and then wait for you. Change the schedule, notice days and automatic removal in Settings.\n\nName for this rule, like "Unwatched for a year"');
+                        if (rule && rule.trim()) {
+                            var rf = filter(0);
+                            delete rf.Offset;
+                            delete rf.Limit;
+                            call('POST', 'Views', { Name: rule.trim(), Filter: JSON.stringify(rf), Schedule: 'daily', Hour: 4 }).then(loadConfig).catch(function (err) {
+                                window.alert('Could not schedule it: ' + err.message);
+                            });
                         }
                     } else if (b.id === 'jcSaveView') {
                         var name = window.prompt('Name for this view, like "Old horror"');
