@@ -1,0 +1,191 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+using Jellyfin.Plugin.JellyClean.Configuration;
+
+namespace Jellyfin.Plugin.JellyClean.Library;
+
+/// <summary>
+/// Removes items from Radarr and Sonarr, so they are not downloaded again after the files are deleted.
+/// </summary>
+public class ArrClient
+{
+    private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ArrClient"/> class.
+    /// </summary>
+    /// <param name="httpClientFactory">HTTP client factory.</param>
+    public ArrClient(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
+    /// <summary>
+    /// Checks the address and API key.
+    /// </summary>
+    /// <param name="server">The server.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The app name and version, like "Radarr 5.26.2".</returns>
+    public async Task<string> TestAsync(ArrServer server, CancellationToken cancellationToken)
+    {
+        var status = await GetAsync<ArrEntry>(server, "system/status", cancellationToken).ConfigureAwait(false);
+        return $"{status.AppName} {status.Version}".Trim();
+    }
+
+    /// <summary>
+    /// Works out what to do in each Radarr and Sonarr for the items in a plan, and adds it to each item.
+    /// Only reads from Radarr and Sonarr. An item a server can't be asked about gets a step with an error, so it is skipped.
+    /// </summary>
+    /// <param name="items">Items that will be removed.</param>
+    /// <param name="servers">Radarr and Sonarr servers.</param>
+    /// <param name="providerIds">TMDb, IMDb and TVDb ids of a movie or series by Jellyfin id.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    public async Task ResolveAsync(IReadOnlyList<PlannedItem> items, IEnumerable<ArrServer> servers, Func<Guid, IReadOnlyDictionary<string, string>> providerIds, CancellationToken cancellationToken)
+    {
+        foreach (var server in servers.Where(s => !string.IsNullOrWhiteSpace(s.Url)))
+        {
+            var relevant = items.Where(p => server.IsSonarr ? p.Item.Type != "Movie" : p.Item.Type == "Movie").ToList();
+            if (relevant.Count == 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                var library = await GetAsync<List<ArrEntry>>(server, server.IsSonarr ? "series" : "movie", cancellationToken).ConfigureAwait(false);
+                var episodes = new Dictionary<int, List<ArrEntry>>();
+
+                foreach (var planned in relevant)
+                {
+                    var item = planned.Item;
+                    var ids = providerIds(item.SeriesId ?? item.Id);
+                    var match = library.FirstOrDefault(e => e.Matches(ids));
+                    if (match is null)
+                    {
+                        continue;
+                    }
+
+                    if (item.Type is "Movie" or "Series")
+                    {
+                        var what = item.Type == "Movie" ? "movie" : "series";
+                        planned.Arr.Add(new ArrStep(server, $"Remove the {what} from {server.Label}", match.Id, []));
+                        continue;
+                    }
+
+                    if (!episodes.TryGetValue(match.Id, out var list))
+                    {
+                        list = await GetAsync<List<ArrEntry>>(server, "episode?seriesId=" + match.Id, cancellationToken).ConfigureAwait(false);
+                        episodes[match.Id] = list;
+                    }
+
+                    var first = item.Episode ?? int.MinValue;
+                    var last = item.EpisodeEnd ?? item.Episode ?? int.MaxValue;
+                    var episodeIds = list
+                        .Where(e => e.SeasonNumber == item.Season && (item.Type == "Season" || (e.EpisodeNumber >= first && e.EpisodeNumber <= last)))
+                        .Select(e => e.Id)
+                        .ToArray();
+                    if (episodeIds.Length > 0)
+                    {
+                        planned.Arr.Add(new ArrStep(server, $"Stop monitoring {episodeIds.Length} {(episodeIds.Length == 1 ? "episode" : "episodes")} in {server.Label}", match.Id, episodeIds));
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or NotSupportedException)
+            {
+                foreach (var planned in relevant)
+                {
+                    planned.Arr.Add(new ArrStep(server, $"Could not reach {server.Label}: {ex.Message}", 0, []) { Failed = true });
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Does one step in Radarr or Sonarr. Throws when it fails, so the files stay.
+    /// </summary>
+    /// <param name="step">The step.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    public async Task ApplyAsync(ArrStep step, CancellationToken cancellationToken)
+    {
+        var server = step.Server;
+        var exclusion = server.AddExclusion ? "true" : "false";
+        using var request = step.EpisodeIds.Length > 0
+            ? new HttpRequestMessage(HttpMethod.Put, Url(server, "episode/monitor")) { Content = JsonContent.Create(new { episodeIds = step.EpisodeIds, monitored = false }) }
+            : server.IsSonarr
+                ? new HttpRequestMessage(HttpMethod.Delete, Url(server, $"series/{step.ArrId}?deleteFiles=false&addImportListExclusion={exclusion}"))
+                : new HttpRequestMessage(HttpMethod.Delete, Url(server, $"movie/{step.ArrId}?deleteFiles=false&addImportExclusion={exclusion}"));
+        using var response = await SendAsync(server, request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static Uri Url(ArrServer server, string path) => new(server.Url.Trim().TrimEnd('/') + "/api/v3/" + path);
+
+    private async Task<T> GetAsync<T>(ArrServer server, string path, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, Url(server, path));
+        using var response = await SendAsync(server, request, cancellationToken).ConfigureAwait(false);
+        return await response.Content.ReadFromJsonAsync<T>(_json, cancellationToken).ConfigureAwait(false)
+            ?? throw new JsonException("Empty answer");
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(ArrServer server, HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        request.Headers.Add("X-Api-Key", server.ApiKey.Trim());
+        var client = _httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(30);
+        var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            response.Dispose();
+            throw new HttpRequestException($"{(int)response.StatusCode} {response.ReasonPhrase}", null, response.StatusCode);
+        }
+
+        return response;
+    }
+
+    private sealed class ArrEntry
+    {
+        public int Id { get; set; }
+
+        public int TmdbId { get; set; }
+
+        public int TvdbId { get; set; }
+
+        public string? ImdbId { get; set; }
+
+        public int SeasonNumber { get; set; }
+
+        public int EpisodeNumber { get; set; }
+
+        public string? AppName { get; set; }
+
+        public string? Version { get; set; }
+
+        public bool Matches(IReadOnlyDictionary<string, string> ids)
+            => (TvdbId > 0 && ids.GetValueOrDefault("Tvdb") == TvdbId.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                || (TmdbId > 0 && ids.GetValueOrDefault("Tmdb") == TmdbId.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                || (!string.IsNullOrEmpty(ImdbId) && string.Equals(ids.GetValueOrDefault("Imdb"), ImdbId, StringComparison.OrdinalIgnoreCase));
+    }
+}
+
+/// <summary>
+/// One thing to do in Radarr or Sonarr for an item.
+/// </summary>
+/// <param name="Server">The server.</param>
+/// <param name="Description">What happens, for the preview and the log.</param>
+/// <param name="ArrId">The movie or series id in Radarr or Sonarr.</param>
+/// <param name="EpisodeIds">Episodes to stop monitoring; empty to remove the whole movie or series.</param>
+public record ArrStep([property: JsonIgnore] ArrServer Server, string Description, int ArrId, int[] EpisodeIds)
+{
+    /// <summary>Gets a value indicating whether the server could not be asked, so the item must stay.</summary>
+    public bool Failed { get; init; }
+}
