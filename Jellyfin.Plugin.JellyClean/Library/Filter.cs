@@ -36,13 +36,25 @@ public class Filter
     /// <summary>Gets or sets the smallest size in bytes.</summary>
     public long? MinSize { get; set; }
 
+    /// <summary>Gets or sets resolutions: 4K, 1080p, 720p, SD.</summary>
+    public string[]? Resolutions { get; set; }
+
+    /// <summary>Gets or sets the video codec, like H.264.</summary>
+    public string? Codec { get; set; }
+
+    /// <summary>Gets or sets "hdr" for any HDR format, "sdr" for none, or one format like Dolby Vision.</summary>
+    public string? Hdr { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to show only movies and series that are in Jellyfin more than once.</summary>
+    public bool CopiesOnly { get; set; }
+
     /// <summary>Gets or sets text to look for in the title or path.</summary>
     public string? Search { get; set; }
 
     /// <summary>Gets or sets a value indicating whether to leave out items marked keep and favorites.</summary>
     public bool HideProtected { get; set; }
 
-    /// <summary>Gets or sets the sort: added, name, size, watched, year or rating.</summary>
+    /// <summary>Gets or sets the sort: added, name, size, watched, year, rating or quality.</summary>
     public string Sort { get; set; } = "added";
 
     /// <summary>Gets or sets a value indicating whether to sort high to low (newest, biggest first).</summary>
@@ -79,6 +91,16 @@ public class Filter
             && (AddedAfter is null || i.Added > AddedAfter)
             && (NotWatchedSince is null || i.LastWatched is null || i.LastWatched < NotWatchedSince)
             && (MinSize is null || i.Size >= MinSize)
+            && (Resolutions is not { Length: > 0 } || Resolutions.Contains(i.Resolution))
+            && (string.IsNullOrEmpty(Codec) || i.Codec == Codec)
+            && (Hdr switch
+            {
+                null or "" => true,
+                "hdr" => i.Hdr.Length > 0,
+                "sdr" => i.Hdr.Length == 0,
+                _ => i.Hdr == Hdr,
+            })
+            && (!CopiesOnly || i.CopiesIn.Length > 0)
             && (string.IsNullOrWhiteSpace(Search)
                 || i.Title.Contains(Search.Trim(), StringComparison.OrdinalIgnoreCase)
                 || i.Path.Contains(Search.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -91,6 +113,7 @@ public class Filter
             "watched" => i => i.LastWatched,
             "year" => i => i.Year,
             "rating" => i => i.Rating,
+            "quality" => i => Array.IndexOf(["SD", "720p", "1080p", "4K"], i.Resolution),
             _ => i => i.Added,
         };
 

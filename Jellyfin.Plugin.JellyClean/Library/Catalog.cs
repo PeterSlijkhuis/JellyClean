@@ -24,8 +24,8 @@ public class Catalog
     private readonly ILogger<Catalog> _logger;
     private readonly object _gate = new();
 
-    // Walking folders for sizes is the slow part, so sizes are kept until the item changes.
-    private readonly ConcurrentDictionary<Guid, (DateTime Modified, long Size)> _sizes = new();
+    // Walking folders and reading streams is the slow part, so both are kept until the item changes.
+    private readonly ConcurrentDictionary<Guid, (DateTime Modified, long Size, Quality Quality)> _files = new();
 
     private IReadOnlyDictionary<Guid, CatalogItem> _items = new Dictionary<Guid, CatalogItem>();
     private DateTime _builtAt = DateTime.MinValue;
@@ -95,6 +95,7 @@ public class Catalog
             folder.AnyPlayed = children.Any(e => e.AnyPlayed);
             folder.LastWatched = children.Max(e => e.LastWatched);
             folder.WatchedBy = children.Count == 0 ? [] : children.Select(e => (IEnumerable<Guid>)e.WatchedBy).Aggregate((a, b) => a.Intersect(b)).ToArray();
+            (folder.Resolution, folder.Codec, folder.Hdr) = Quality.MostCommon(children);
         }
 
         foreach (var row in rows.Where(r => r.Genres.Length == 0 && r.SeriesId is not null))
@@ -102,6 +103,28 @@ public class Catalog
             row.Genres = series.TryGetValue(row.SeriesId!.Value, out var s) ? s.Genres : [];
         }
     }
+
+    /// <summary>
+    /// Finds movies and series that are in Jellyfin more than once, for example in a 1080p and a 4K library.
+    /// </summary>
+    /// <param name="rows">Movies and series with the key they are matched on: a TMDb, TVDb or IMDb id.</param>
+    internal static void FindCopies(IEnumerable<(CatalogItem Item, string? Key)> rows)
+    {
+        foreach (var group in rows.Where(r => r.Key is not null).GroupBy(r => (r.Item.Type, r.Key)).Where(g => g.Count() > 1))
+        {
+            foreach (var (item, _) in group)
+            {
+                item.CopiesIn = group.Where(g => g.Item != item).Select(g => g.Item.Library).ToArray();
+            }
+        }
+    }
+
+    private static string? CopyKey(BaseItem item)
+        => item is not (MediaBrowser.Controller.Entities.Movies.Movie or Series) ? null
+            : item.ProviderIds.TryGetValue("Tmdb", out var tmdb) && tmdb.Length > 0 ? "tmdb" + tmdb
+            : item.ProviderIds.TryGetValue("Tvdb", out var tvdb) && tvdb.Length > 0 ? "tvdb" + tvdb
+            : item.ProviderIds.TryGetValue("Imdb", out var imdb) && imdb.Length > 0 ? "imdb" + imdb
+            : null;
 
     private Dictionary<Guid, CatalogItem> Build()
     {
@@ -118,6 +141,7 @@ public class Catalog
             .OrderByDescending(l => l.Location.Length)
             .ToList();
 
+        var keys = new List<(CatalogItem, string?)>();
         var rows = items.Select(item =>
         {
             var row = new CatalogItem
@@ -147,9 +171,11 @@ public class Catalog
             var data = userData.Select(u => (u.Id, Data: u.Data.GetValueOrDefault(item.Id))).Where(u => u.Data is not null).ToList();
             row.Favorite = data.Any(u => u.Data!.IsFavorite);
 
+            keys.Add((row, CopyKey(item)));
             if (item is not Folder)
             {
-                row.Size = SizeOf(item);
+                (row.Size, var quality) = Measure(item);
+                (row.Resolution, row.Codec, row.Hdr) = quality;
                 row.WatchedBy = data.Where(u => u.Data!.Played).Select(u => u.Id).ToArray();
                 row.AnyPlayed = row.WatchedBy.Length > 0 || data.Any(u => u.Data!.PlayCount > 0 || u.Data.PlaybackPositionTicks > 0);
                 row.LastWatched = data.Max(u => u.Data!.LastPlayedDate);
@@ -159,6 +185,7 @@ public class Catalog
         }).ToList();
 
         AddUpFolders(rows);
+        FindCopies(keys);
         return rows.ToDictionary(r => r.Id);
     }
 
@@ -166,12 +193,12 @@ public class Catalog
         => path is not null && path.StartsWith(folder, StringComparison.Ordinal)
             && (path.Length == folder.Length || path[folder.Length] is '/' or '\\');
 
-    // What Jellyfin's own delete removes: the movie's folder when it has one, else the file and its sidecar files.
-    private long SizeOf(BaseItem item)
+    // Size is what Jellyfin's own delete removes: the movie's folder when it has one, else the file and its sidecar files.
+    private (long Size, Quality Quality) Measure(BaseItem item)
     {
-        if (_sizes.TryGetValue(item.Id, out var cached) && cached.Modified == item.DateModified)
+        if (_files.TryGetValue(item.Id, out var cached) && cached.Modified == item.DateModified)
         {
-            return cached.Size;
+            return (cached.Size, cached.Quality);
         }
 
         long size = 0;
@@ -191,7 +218,8 @@ public class Catalog
             size = item.Size ?? 0;
         }
 
-        _sizes[item.Id] = (item.DateModified, size);
-        return size;
+        var quality = item is Video video ? Quality.Of(video.GetDefaultVideoStream()) : Quality.None;
+        _files[item.Id] = (item.DateModified, size, quality);
+        return (size, quality);
     }
 }

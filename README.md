@@ -6,7 +6,7 @@
   <a href="https://github.com/PeterSlijkhuis/JellyClean/releases/latest"><img src="https://img.shields.io/github/v/release/PeterSlijkhuis/JellyClean?style=flat-square&label=release&color=aa5cc3" alt="Latest release" /></a>
   <img src="https://img.shields.io/badge/Jellyfin-12.1%2B-00a4dc?style=flat-square" alt="Jellyfin 12.1 or newer" />
   <a href="https://github.com/PeterSlijkhuis/JellyClean/actions/workflows/build.yaml"><img src="https://img.shields.io/github/actions/workflow/status/PeterSlijkhuis/JellyClean/build.yaml?style=flat-square&label=build" alt="Build" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-555?style=flat-square" alt="MIT" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-555?style=flat-square" alt="GPL-3.0" /></a>
 </p>
 
 <p align="center"><b>See what is in your libraries, find what nobody watches, and free up space in bulk.</b></p>
@@ -27,9 +27,11 @@ Nothing changes until you remove something. Browsing and filtering only read.
 
 ## What you get
 
-- **Everything in one list.** Title, library, year, genres, date added, who watched it, when it was last played, rating and size on disk.
-- **Filters that add up.** Type (movies, series, seasons, episodes), library, genres, watched state (never played, watched by someone, by everyone, or by one user), added before or after, nobody played it in a while, size, and search on title or path.
-- **One-click suggestions.** *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone* and *Series nobody played in 2 years*.
+- **Everything in one list.** Title, library, year, genres, date added, who watched it, when it was last played, rating, size on disk and video quality (resolution, codec and HDR).
+- **Filters that add up.** Type (movies, series, seasons, episodes), library, genres, watched state (never played, watched by someone, by everyone, or by one user), added before or after, nobody played it in a while, size, resolution, codec, HDR, and search on title or path.
+- **One-click suggestions.** *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone*, *Series nobody played in 2 years*, *Movies you have twice* and *Old H.264 below 1080p*.
+- **Copies.** Spots movies and series that are in Jellyfin more than once, like a 1080p copy next to a 4K one, so you can drop the one you don't need.
+- **Export.** Download the current list as a spreadsheet (CSV).
 - **Real sizes.** The size is what removing frees: the movie's folder with its extras and artwork, or the episode file with its subtitles. Series and seasons add up their episodes.
 - **Preview first.** See exactly which files and folders go, what happens in Radarr and Sonarr, and what stays and why. Removing 20 or more items asks you to type the number.
 - **Keep what matters.** Mark anything **keep** with the lock button and it is never removed, nor the season or series it is in. Favorites and anything being played are left alone too.
@@ -84,6 +86,9 @@ These always stay:
 **Does JellyClean change my libraries while I browse?**
 No. It only reads. Its own settings and the list of items marked keep are stored in the plugin's settings, never on your items or in your media folders.
 
+**Does it use Jellyfin's connection to Radarr and Sonarr?**
+Jellyfin has no connection to Radarr or Sonarr of its own, so JellyClean needs the address and API key of each one. Add them under **Settings**. Without them, removing still works, but Radarr and Sonarr may download the items again.
+
 **Do I need the File Transformation plugin?**
 No. JellyClean lives in its own dashboard page and does not change the Jellyfin web app.
 
@@ -109,4 +114,4 @@ dotnet publish Jellyfin.Plugin.JellyClean -c Release -o out
 
 ## License
 
-JellyClean is licensed under the [MIT License](LICENSE).
+JellyClean is licensed under the [GNU General Public License v3.0](LICENSE), the same as Jellyfin.

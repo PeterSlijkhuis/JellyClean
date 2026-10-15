@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyClean.Configuration;
@@ -57,6 +59,8 @@ public class JellyCleanController : ControllerBase
         {
             Libraries = items.Select(i => i.Library).Where(l => l.Length > 0).Distinct().Order(),
             Genres = items.SelectMany(i => i.Genres).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase),
+            Codecs = files.Select(i => i.Codec).Where(c => c.Length > 0).Distinct().Order(),
+            Copies = items.Count(i => i.CopiesIn.Length > 0 && i.Type == "Movie"),
             Users = _userManager.GetUsers().Select(u => new { u.Id, Name = u.Username }).OrderBy(u => u.Name),
             Movies = items.Count(i => i.Type == "Movie"),
             Series = items.Count(i => i.Type == "Series"),
@@ -75,15 +79,7 @@ public class JellyCleanController : ControllerBase
     [HttpPost("Items")]
     public ActionResult Items([FromBody] Filter filter, [FromQuery] bool allIds = false)
     {
-        var kept = Plugin.Instance!.Configuration.KeptIds.ToHashSet();
-        var items = _catalog.Get().Values.Select(i =>
-        {
-            var copy = i.Copy();
-            copy.Kept = kept.Contains(i.Id);
-            return copy;
-        });
-
-        var matches = filter.Apply(items, _userManager.GetUsers().Count()).ToList();
+        var matches = Matches(filter);
         return Ok(new
         {
             Total = matches.Count,
@@ -91,6 +87,33 @@ public class JellyCleanController : ControllerBase
             Items = matches.Skip(Math.Max(0, filter.Offset)).Take(Math.Clamp(filter.Limit, 1, 500)),
             Ids = allIds ? matches.Select(i => new { i.Id, i.Size }) : null,
         });
+    }
+
+    /// <summary>
+    /// Every item that matches a filter, as a spreadsheet.
+    /// </summary>
+    /// <param name="filter">The filter.</param>
+    /// <returns>A CSV file.</returns>
+    [HttpPost("Export")]
+    public ActionResult Export([FromBody] Filter filter)
+    {
+        var users = _userManager.GetUsers().ToDictionary(u => u.Id, u => u.Username);
+        var csv = new StringBuilder("Title,Type,Library,Year,Genres,Added,Watched by,Last played,Size (GB),Resolution,Codec,HDR,Also in,Keep,Favorite,Path\n");
+        foreach (var i in Matches(filter))
+        {
+            string[] cells =
+            [
+                i.Title, i.Type, i.Library, i.Year?.ToString(CultureInfo.InvariantCulture) ?? string.Empty, string.Join("; ", i.Genres),
+                i.Added.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                string.Join("; ", i.WatchedBy.Select(u => users.GetValueOrDefault(u, "?"))),
+                i.LastWatched?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty,
+                (i.Size / 1e9).ToString("0.00", CultureInfo.InvariantCulture), i.Resolution, i.Codec, i.Hdr, string.Join("; ", i.CopiesIn),
+                i.Kept ? "yes" : string.Empty, i.Favorite ? "yes" : string.Empty, i.Path,
+            ];
+            csv.AppendJoin(',', cells.Select(Cell)).Append('\n');
+        }
+
+        return File(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray(), "text/csv", $"jellyclean-{DateTime.Now:yyyy-MM-dd}.csv");
     }
 
     /// <summary>
@@ -172,6 +195,30 @@ public class JellyCleanController : ControllerBase
     {
         Activity.Clear();
         return NoContent();
+    }
+
+    // Quotes a CSV cell, and keeps spreadsheet apps from running a title that starts with = as a formula.
+    private static string Cell(string value)
+    {
+        if (value.Length > 0 && value[0] is '=' or '+' or '-' or '@')
+        {
+            value = "'" + value;
+        }
+
+        return value.IndexOfAny([',', '"', '\n', '\r']) >= 0 ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"" : value;
+    }
+
+    private List<CatalogItem> Matches(Filter filter)
+    {
+        var kept = Plugin.Instance!.Configuration.KeptIds.ToHashSet();
+        var items = _catalog.Get().Values.Select(i =>
+        {
+            var copy = i.Copy();
+            copy.Kept = kept.Contains(i.Id);
+            return copy;
+        });
+
+        return filter.Apply(items, _userManager.GetUsers().Count()).ToList();
     }
 
     private static object Describe(RemovalPlan plan) => new

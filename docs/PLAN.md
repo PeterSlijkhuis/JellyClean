@@ -5,14 +5,14 @@ A Jellyfin plugin that gives admins one dashboard page to see everything in thei
 ## Goals
 
 - **Read only by default.** Browsing, filtering and sorting never write to a library, a metadata file or the database. The plugin keeps its own index and its own settings, nothing more.
-- **See what matters per item:** title, type, library, genres, year, date added, watched or not (and by whom, and when last), file size, file path, video quality.
+- **See what matters per item:** title, type, library, genres, year, date added, watched or not (and by whom, and when last), file size, file path, video quality (resolution, codec, HDR), and other copies of the same movie or series.
 - **Filter and combine:** type (movie, series, season, episode), library, genre, watched state, added before or after, last watched before, size, rating, year.
 - **Bulk remove** the result of a filter, for example *unwatched horror movies added more than 2 years ago*, behind a preview and a confirmation. Removing deletes the files from disk and removes the item from Jellyfin, Radarr and Sonarr, so it doesn't come back.
 - **Same look as JellyBadge and JellyTheme.**
 
 ## Not in scope (for now)
 
-- Automatic, scheduled deletion by rules. That is what [media-cleaner](https://github.com/shemanaev/jellyfin-plugin-media-cleaner) does well. JellyClean is a manual tool you look at. A rule runner can come later on top of the same filters (see phase 5).
+- Automatic, scheduled deletion by rules. That is what [media-cleaner](https://github.com/shemanaev/jellyfin-plugin-media-cleaner) does well. JellyClean is a manual tool you look at. A rule runner can come later on top of the same filters (see phase 6).
 - Anything in the normal Jellyfin home screen or item pages for regular users.
 - Moving, renaming or transcoding files.
 
@@ -35,7 +35,7 @@ Ideas, not code.
 
 ### Stack
 
-Same as JellyBadge: `net10.0`, `Jellyfin.Controller` and `Jellyfin.Model` 12.1.0 with runtime assets excluded, `TreatWarningsAsErrors`, nullable on, an `.slnx`, a test project, a GitHub Actions build that runs `dotnet test`, and a release workflow with a `manifest.json` repository like JellyTheme's.
+Same as JellyBadge: GPL-3.0 like Jellyfin itself, `net10.0`, `Jellyfin.Controller` and `Jellyfin.Model` 12.1.0 with runtime assets excluded, `TreatWarningsAsErrors`, nullable on, an `.slnx`, a test project, a GitHub Actions build that runs `dotnet test`, and a release workflow with a `manifest.json` repository like JellyTheme's.
 
 ```
 JellyClean.slnx
@@ -121,7 +121,8 @@ Layout:
 2. **Browse.** Catalog, filters, sorting, totals, the Library tab. Read only. Shippable on its own.
 3. **Remove.** Selection, preview, confirmation, delete from disk, keep marks, favorites protection, the Activity tab.
 4. **Radarr and Sonarr.** Connection settings, matching, removal and unmonitoring as described above.
-5. **Later, if wanted.** Saved filters, a scheduled task that runs a saved filter as a dry run and reports, then optionally deletes. A "Keep" button on item pages (this is the only part that might need File Transformation).
+5. **Quality, copies and export.** Resolution, codec and HDR per item with filters, copies of the same movie or series across libraries, and CSV export.
+6. **Later, if wanted.** Saved filters, a scheduled task that runs a saved filter as a dry run and reports, then optionally deletes. A "Keep" button on item pages (this is the only part that might need File Transformation).
 
 ## Tests
 

@@ -108,6 +108,8 @@
             #JellyCleanLibraryPage .jc-tag { font-size: 0.78em; padding: 0.1em 0.6em; border-radius: 999px; border: 1px solid var(--jc-line); white-space: nowrap; }
             #JellyCleanLibraryPage .jc-tag.never { border-color: rgba(240, 180, 41, 0.6); color: #f0b429; }
             #JellyCleanLibraryPage .jc-tag.watched { border-color: rgba(76, 175, 80, 0.6); color: #66bb6a; }
+            #JellyCleanLibraryPage .jc-tag.quality { border-color: rgba(0, 164, 220, 0.6); color: #4fc3f7; }
+            #JellyCleanLibraryPage .jc-tag.copy { border-color: rgba(240, 120, 60, 0.6); color: #ff9a5c; }
             #JellyCleanLibraryPage .jc-tag.protected { border-color: rgba(170, 92, 195, 0.7); color: #c58ad8; }
             #JellyCleanLibraryPage .jc-size { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 5em; text-align: right; }
             #JellyCleanLibraryPage .jc-keep {
@@ -182,6 +184,8 @@
                         <button type="button" class="jc-preset" data-preset="biggest">Biggest movies</button>
                         <button type="button" class="jc-preset" data-preset="everyone">Watched by everyone</button>
                         <button type="button" class="jc-preset" data-preset="forgotten">Series nobody played in 2 years</button>
+                        <button type="button" class="jc-preset" data-preset="copies">Movies you have twice</button>
+                        <button type="button" class="jc-preset" data-preset="lowres">Old H.264 below 1080p</button>
                         <button type="button" class="jc-preset" data-preset="reset">Clear filters</button>
                     </div>
                     <div class="jc-fields">
@@ -244,6 +248,32 @@
                             </select>
                         </div>
                         <div class="jc-field">
+                            <label for="jcResolution">Resolution</label>
+                            <select id="jcResolution">
+                                <option value="">Any resolution</option>
+                                <option value="4K">4K</option>
+                                <option value="1080p">1080p</option>
+                                <option value="720p">720p</option>
+                                <option value="SD">SD</option>
+                                <option value="720p,SD">Below 1080p</option>
+                            </select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcHdr">HDR</label>
+                            <select id="jcHdr">
+                                <option value="">HDR or not</option>
+                                <option value="hdr">Any HDR</option>
+                                <option value="Dolby Vision">Dolby Vision</option>
+                                <option value="HDR10+">HDR10+</option>
+                                <option value="HDR10">HDR10</option>
+                                <option value="sdr">No HDR</option>
+                            </select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcCodec">Codec</label>
+                            <select id="jcCodec"><option value="">Any codec</option></select>
+                        </div>
+                        <div class="jc-field">
                             <label for="jcSort">Sort by</label>
                             <select id="jcSort">
                                 <option value="added|0">Added, oldest first</option>
@@ -251,6 +281,7 @@
                                 <option value="size|1">Size, biggest first</option>
                                 <option value="watched|0">Last played, longest ago first</option>
                                 <option value="rating|0">Rating, lowest first</option>
+                                <option value="quality|0">Resolution, lowest first</option>
                                 <option value="year|0">Year, oldest first</option>
                                 <option value="name|0">Name</option>
                             </select>
@@ -261,6 +292,10 @@
                         </div>
                     </div>
                     <div class="jc-genres" id="jcGenres" role="group" aria-label="Genres"></div>
+                    <button type="button" class="jc-toggle" role="switch" id="jcCopies" aria-checked="false">
+                        <span class="jc-switch" aria-hidden="true"></span>
+                        <span>Only movies and series that are in Jellyfin more than once, like a 1080p and a 4K copy</span>
+                    </button>
                     <button type="button" class="jc-toggle" role="switch" id="jcHideProtected" aria-checked="false">
                         <span class="jc-switch" aria-hidden="true"></span>
                         <span>Hide items marked keep and favorites</span>
@@ -272,6 +307,7 @@
                         <span class="jc-count" id="jcCount" aria-live="polite">Loading...</span>
                         <div class="jc-actions">
                             <button type="button" class="jc-btn" id="jcSelectAll">Select all</button>
+                            <button type="button" class="jc-btn" id="jcExport" title="Download this list as a spreadsheet">Export</button>
                             <button type="button" class="jc-btn" id="jcRefresh" title="Read the library again">Refresh</button>
                         </div>
                     </div>
@@ -381,6 +417,10 @@
                         AddedAfter: added < 0 ? daysAgo(-added) : null,
                         NotWatchedSince: idle > 0 ? daysAgo(idle) : null,
                         MinSize: size > 0 ? size * 1e9 : null,
+                        Resolutions: $('jcResolution').value ? $('jcResolution').value.split(',') : null,
+                        Hdr: $('jcHdr').value || null,
+                        Codec: $('jcCodec').value || null,
+                        CopiesOnly: $('jcCopies').getAttribute('aria-checked') === 'true',
                         Search: $('jcSearch').value || null,
                         HideProtected: $('jcHideProtected').getAttribute('aria-checked') === 'true',
                         Sort: sort[0],
@@ -420,6 +460,8 @@
                         watchedTag(item),
                         item.LastWatched ? el('span', { className: 'jc-tag', textContent: 'Last played ' + date(item.LastWatched) }) : null,
                         item.Rating ? el('span', { className: 'jc-tag', textContent: '★ ' + item.Rating.toFixed(1) }) : null,
+                        item.Resolution ? el('span', { className: 'jc-tag quality', textContent: [item.Resolution, item.Codec, item.Hdr].filter(Boolean).join(' · ') }) : null,
+                        item.CopiesIn.length ? el('span', { className: 'jc-tag copy', textContent: 'Also in ' + item.CopiesIn.join(', ') }) : null,
                         item.Kept ? el('span', { className: 'jc-tag protected', textContent: 'Keep' }) : null,
                         item.Favorite ? el('span', { className: 'jc-tag protected', textContent: 'Favorite' }) : null);
 
@@ -503,6 +545,12 @@
                         watched.value = w;
                         if (watched.selectedIndex < 0) { watched.value = ''; }
 
+                        var codec = $('jcCodec');
+                        var c = codec.value;
+                        codec.length = 1;
+                        o.Codecs.forEach(function (name) { codec.append(el('option', { value: name, textContent: name })); });
+                        codec.value = o.Codecs.indexOf(c) >= 0 ? c : '';
+
                         var box = $('jcGenres');
                         box.textContent = '';
                         box.append(el('span', { className: 'jc-genres-label', textContent: 'Genres' }));
@@ -522,10 +570,14 @@
                         stale: { jcType: 'Movie,Series', jcWatched: 'none', jcAdded: '365', jcSort: 'size|1' },
                         biggest: { jcType: 'Movie', jcSort: 'size|1' },
                         everyone: { jcType: 'Movie', jcWatched: 'all', jcSort: 'watched|0' },
-                        forgotten: { jcType: 'Series', jcIdle: '730', jcSort: 'size|1' }
+                        forgotten: { jcType: 'Series', jcIdle: '730', jcSort: 'size|1' },
+                        copies: { jcType: 'Movie', jcSort: 'name|0', copies: true },
+                        lowres: { jcType: 'Movie,Series', jcResolution: '720p,SD', jcCodec: 'H.264', jcSort: 'size|1' }
                     }[name];
-                    var defaults = { jcType: 'Movie', jcLibrary: '', jcWatched: '', jcAdded: '', jcIdle: '', jcSize: '', jcSort: 'added|0', jcSearch: '' };
+                    var defaults = { jcType: 'Movie', jcLibrary: '', jcWatched: '', jcAdded: '', jcIdle: '', jcSize: '', jcResolution: '', jcHdr: '', jcCodec: '', jcSort: 'added|0', jcSearch: '' };
                     Object.keys(defaults).forEach(function (id) { $(id).value = values[id] !== undefined ? values[id] : defaults[id]; });
+                    if ($('jcCodec').selectedIndex < 0) { $('jcCodec').value = ''; }
+                    $('jcCopies').setAttribute('aria-checked', String(!!values.copies));
                     genres.clear();
                     page.querySelectorAll('.jc-genre').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
                     load(false);
@@ -618,7 +670,7 @@
 
                 // Events
 
-                ['jcType', 'jcLibrary', 'jcWatched', 'jcAdded', 'jcIdle', 'jcSize', 'jcSort'].forEach(function (id) {
+                ['jcType', 'jcLibrary', 'jcWatched', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
                     $(id).addEventListener('change', function () { load(false); });
                 });
                 $('jcSearch').addEventListener('input', reload);
@@ -640,7 +692,7 @@
                         if (on) { genres.add(b.dataset.genre); } else { genres.delete(b.dataset.genre); }
                         b.setAttribute('aria-pressed', String(on));
                         load(false);
-                    } else if (b.id === 'jcHideProtected') {
+                    } else if (b.id === 'jcHideProtected' || b.id === 'jcCopies') {
                         b.setAttribute('aria-checked', String(b.getAttribute('aria-checked') !== 'true'));
                         load(false);
                     } else if (b.classList.contains('jc-check')) {
@@ -666,6 +718,24 @@
                             result.Ids.forEach(function (i) { setSelected(i.Id, i.Size, true); });
                             page.querySelectorAll('.jc-check').forEach(function (c) { c.setAttribute('aria-checked', 'true'); c.closest('.jc-row').classList.add('selected'); });
                             updateBar();
+                        }).finally(function () { b.disabled = false; });
+                    } else if (b.id === 'jcExport') {
+                        b.disabled = true;
+                        fetch(ApiClient.getUrl('JellyClean/Export'), {
+                            method: 'POST',
+                            headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"', 'Content-Type': 'application/json' },
+                            body: JSON.stringify(filter(0))
+                        }).then(function (r) {
+                            if (!r.ok) { throw new Error(r.status + ' ' + r.statusText); }
+                            return r.blob();
+                        }).then(function (blob) {
+                            var a = el('a', { href: URL.createObjectURL(blob), download: 'jellyclean-' + new Date().toISOString().slice(0, 10) + '.csv' });
+                            page.append(a);
+                            a.click();
+                            a.remove();
+                            setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+                        }).catch(function (err) {
+                            window.alert('Could not export: ' + err.message);
                         }).finally(function () { b.disabled = false; });
                     } else if (b.id === 'jcClear') {
                         selected.clear();

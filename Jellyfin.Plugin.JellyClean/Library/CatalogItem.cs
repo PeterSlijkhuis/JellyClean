@@ -52,6 +52,18 @@ public sealed class CatalogItem
     /// <summary>Gets or sets the file or folder path.</summary>
     public string Path { get; set; } = string.Empty;
 
+    /// <summary>Gets or sets the resolution: 4K, 1080p, 720p or SD. Series and seasons show their most common one.</summary>
+    public string Resolution { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the video codec, like HEVC.</summary>
+    public string Codec { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the HDR format, like Dolby Vision, or empty for SDR.</summary>
+    public string Hdr { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the libraries of other copies of the same movie or series, found by TMDb, TVDb or IMDb id.</summary>
+    public string[] CopiesIn { get; set; } = [];
+
     /// <summary>Gets or sets the community rating.</summary>
     public float? Rating { get; set; }
 
