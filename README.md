@@ -64,9 +64,9 @@ The other tools are good at what they do and you can check their own pages for d
 
 ## Screenshots
 
-**Library.** Where the space goes, per library, with what nobody ever played striped.
+**Library.** Every library at a glance: watch status by size or count, favorites, never played, quality and top genres. Hover any part for the numbers, click a part of a bar to list those items.
 
-<img src="docs/screenshots/library-top.png" alt="Library tab with storage per library, the Leaving soon and Recycle bin summary and the filters" width="100%" />
+<img src="docs/screenshots/library-top.png" alt="Library tab with totals and a watch status breakdown per library" width="100%" />
 
 **The list.** Poster, who watched it, last played, rating, quality, copies, favorites and size. Tick what goes, or press **Free up GB**.
 
@@ -96,11 +96,11 @@ The other tools are good at what they do and you can check their own pages for d
 
 ## What you get
 
-- **See where the space goes.** A bar per library shows how much space it takes and how much of that nobody ever played. Click a library to filter on it. JellyClean also counts how much it has freed so far.
+- **See what is in every library.** Each library gets a bar split by watch status: favorite or keep, being watched, watched by everyone, watched by some and never played. Switch between size and count. Hover any part for how many movies or series it is, how much space, and its share. Click a part to list exactly those items. Under each bar: favorites, keep marks, never played, added in the last 30 days, not played in a year, ended series, HDR, copies, empty items, the biggest item, a quality split and the genres taking the most space. On a phone the details fold away under each library. JellyClean also counts how much it has freed so far, and what is waiting in the recycle bin.
 - **Everything in one list.** Title, library, year, genres, date added, who watched it, when it was last played, rating, size on disk and video quality (resolution, codec and HDR).
 - **Filters that add up, in groups.** Type, library, sort and search are always there; the rest sits in groups you open (Watching, Added and size, Quality, Genres, More), and a closed group shows how many of its filters are on. Type (movies, series, seasons, episodes), library, genres, watched status (unwatched, watched by someone, by everyone, or by one user), added before or after, last played (never, or over a while ago), size, resolution, codec, HDR, and search on title or path.
 - **Start with what is empty.** The Library page opens on movies and series that take 0 B: usually series Sonarr added but that have no episodes yet, or whose episodes are all gone. Jellyfin only sees a download once Radarr or Sonarr moves it into the library, so anything still downloading is checked in Radarr and Sonarr and left alone. Removing them is the safest first clean-up. If a whole library folder can't be reached, like a network drive that is offline, its items are left alone, because they only look empty.
-- **One-click suggestions.** *Empty movies and series*, *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone*, *Finished series everyone watched*, *Series nobody played in 2 years*, *Movies you have twice* and *Old H.264 below 1080p*.
+- **One-click suggestions**, folded away under *Quick filters and saved views*. *Empty movies and series*, *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone*, *Finished series everyone watched*, *Series nobody played in 2 years*, *Movies you have twice* and *Old H.264 below 1080p*.
 - **Free up a set amount.** Type how many GB you need and press **Free up GB**: JellyClean selects from the top of the current list, in its sort order, skipping keep, favorites and Continue Watching, until that much is selected. Then check it in the preview.
 - **Finished series.** Filter on series that have ended, so no new episodes are coming. *Finished series everyone watched* finds the ones every user watched to the end.
 - **Copies.** Spots movies and series that are in Jellyfin more than once, like a 1080p copy next to a 4K one, so you can drop the one you don't need.
@@ -109,7 +109,7 @@ The other tools are good at what they do and you can check their own pages for d
 - **Preview first.** See exactly which files and folders go, what happens in Radarr and Sonarr, and what stays and why. Removing 20 or more items asks you to type the number.
 - **Keep what matters.** Mark anything **keep** with the lock button and it is never removed, nor the season or series it is in. Each favorite shows whose it is, and the × next to a name takes that person's favorite off, without opening the item. Safeguards you choose in **Settings** keep favorites, Continue Watching, Next Up, recently added and recently played items, items with a tag like `keep`, and whole libraries. One removal is capped at 200 items unless you change it.
 - **Saved views.** Save any filter under a name and open it with one click. Days are relative, so *added over 2 years ago* still means that next year.
-- **Leaving soon.** Instead of deleting right away, put items on a list with a notice period (14 days by default). Users can see the list as a Jellyfin collection if you like. When items are due you review and remove them; safeguards are checked again at that moment.
+- **Leaving soon.** A tab of its own, with the rules on top (the whole section and each rule fold up) and the list below. Instead of deleting right away, put items on a list with a notice period (14 days by default). Users can see the list as a Jellyfin collection if you like. When items are due you review and remove them; safeguards are checked again at that moment.
 - **Scheduled Leaving soon.** Turn any filter into a rule with **Schedule for Leaving soon**. Each rule runs every day or every week at the hour you pick, with its own notice period, and puts what it finds on the Leaving soon list. Once due, items wait for you, or are removed on their own if you switch that on for the rule.
 - **Recycle bin and Recover tab.** Set a number of days under **Settings** and removed files move to a hidden `.jellyclean-trash` folder in their library folder instead of being deleted. While they are there, Radarr and Sonarr only stop monitoring them, so nothing is downloaded again. The **Recover** tab lists everything that can come back: **Recover** puts the files back, Jellyfin scans them in, Radarr and Sonarr monitor them again, and the item is marked keep so a Leaving soon rule does not take it again. Space counts as freed once the bin is emptied. When the days are over, the files are deleted for good and the movie or series is removed from Radarr and Sonarr. Whatever Leaving soon removes on its own always goes through the recycle bin (7 days by default), even when it is off for removals by hand.
 - **Radarr and Sonarr.** Removed movies leave Radarr, removed series leave Sonarr, and removed seasons or episodes stop being monitored, so new episodes still come in. Several of each are fine, like a separate 4K one.
@@ -140,7 +140,7 @@ JellyClean needs **Jellyfin 12.2 or newer**. No other plugins are needed.
 1. Open **JellyClean** in the dashboard menu.
 2. Under **Settings**, set **Recycle bin: keep removed files** to a few days, for example 7. Removals by hand then go to the recycle bin first and can be recovered. 0 deletes right away.
 3. If you use Radarr or Sonarr, go to **Settings**, click **Add Radarr** or **Add Sonarr**, fill in the address and API key (in Radarr or Sonarr under **Settings > General**), and press **Test connection**. Settings save on their own as you change them.
-4. Back on **Library**, start with the empty movies and series it opens on, then pick another suggestion or set your filters.
+4. Back on **Library**, look at the overview: click a part of a bar, like *Never played* in Movies, to list those items. Or open *Quick filters and saved views*, or set your own filters.
 5. Tick what you want gone (hold Shift to tick a whole range), or press **Select all**, then **Preview removal**.
 6. Check the preview and press **Delete from disk** (or **Move to recycle bin**). Press **Close, keep removing** if you don't want to wait; it carries on in the background and the bar comes back when you return.
 
