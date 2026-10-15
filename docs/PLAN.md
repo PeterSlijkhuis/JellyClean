@@ -12,7 +12,7 @@ A Jellyfin plugin that gives admins one dashboard page to see everything in thei
 
 ## Not in scope (for now)
 
-- Automatic, scheduled deletion by rules. That is what [media-cleaner](https://github.com/shemanaev/jellyfin-plugin-media-cleaner) does well. JellyClean is a manual tool you look at. A rule runner can come later on top of the same filters (see phase 6).
+- Deleting by rules without a notice period or a way back. Rules only fill the Leaving soon list, and anything removed on its own goes through the recycle bin first (see phase 8 and 9).
 - Anything in the normal Jellyfin home screen or item pages for regular users.
 - Moving, renaming or transcoding files.
 
@@ -125,7 +125,8 @@ Layout:
 6. **Safeguards.** Continue Watching, recently added, recently played, a keep tag, protected libraries and a limit per removal, each a setting. A protected item also protects its season and series, and a kept series its episodes.
 7. **Saved views and Leaving soon.** Named filters with relative days. A Leaving soon list with a notice period, an optional collection for users, and a daily task that adds matches from views marked *Check daily*. It only deletes due items when that is switched on; otherwise they wait for review.
 8. **Recycle bin, targets and rules.** Removed files can wait in a hidden folder for a set number of days. "Free up X GB" selects from the top of the list. A filter for ended series. Saved views become rules with a daily or weekly schedule, their own notice period and optional removal when due, run by an hourly task. Favorites show whose they are and can be cleared per person.
-9. **Later, if wanted.** A "Keep" button on item pages (this is the only part that might need File Transformation). Notifications when items become due.
+9. **Leaving soon and Recover tabs.** Leaving soon gets its own tab with posters, full details, Cancel per item and the rules. Recover lists the recycle bin. While files are in the bin Radarr and Sonarr only stop monitoring; the movie or series is removed there when the bin is emptied, and Recover monitors it again. The Leaving soon list drops items that become protected or no longer match their rule.
+10. **Later, if wanted.** A "Keep" button on item pages (this is the only part that might need File Transformation). Notifications when items become due.
 
 ## Tests
 
