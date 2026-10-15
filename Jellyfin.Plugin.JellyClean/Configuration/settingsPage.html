@@ -43,12 +43,16 @@
             #JellyCleanSettingsPage .jc-kind.Sonarr { background: #2c8fd6; }
             #JellyCleanSettingsPage .jc-server-head span:last-of-type { flex: 1; }
             #JellyCleanSettingsPage .jc-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.9em; }
-            #JellyCleanSettingsPage .jc-field label { display: block; margin-bottom: 0.35em; font-weight: 600; font-size: 0.9em; opacity: 0.85; }
+            /* Labels of different lengths still line their boxes up: the box sits at the bottom of each cell. */
+            #JellyCleanSettingsPage .jc-field { display: flex; }
+            #JellyCleanSettingsPage .jc-field label { display: flex; flex-direction: column; gap: 0.35em; flex: 1; font-weight: 600; font-size: 0.9em; }
+            #JellyCleanSettingsPage .jc-field label input { margin-top: auto; font-weight: 400; font-size: 1.1em; }
             #JellyCleanSettingsPage .jc-field input {
                 width: 100%; box-sizing: border-box; padding: 0.65em 0.8em; border-radius: 10px; font: inherit;
                 border: 1px solid var(--jc-line); background: rgba(128, 128, 128, 0.1); color: inherit;
             }
-            #JellyCleanSettingsPage .jc-field input:focus { outline: none; border-color: var(--jc-accent); }
+            #JellyCleanSettingsPage .jc-field input:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 1px; border-color: var(--jc-accent); }
+            #JellyCleanSettingsPage .jc-field input { min-height: 44px; }
             #JellyCleanSettingsPage .jc-row { display: flex; gap: 0.6em; align-items: center; flex-wrap: wrap; margin-top: 0.8em; }
             #JellyCleanSettingsPage .jc-test { font-size: 0.9em; }
             #JellyCleanSettingsPage .jc-test.ok { color: #66bb6a; }
@@ -70,6 +74,7 @@
             #JellyCleanSettingsPage .jc-chips { display: flex; gap: 0.45em; flex-wrap: wrap; }
             #JellyCleanSettingsPage .jc-chip { padding: 0.4em 0.9em; border-radius: 999px; border: 1px solid var(--jc-line); background: transparent; color: inherit; font: inherit; cursor: pointer; }
             #JellyCleanSettingsPage .jc-chip[aria-pressed="true"] { border-color: #e05a5a; background: rgba(224, 90, 90, 0.14); }
+            #JellyCleanSettingsPage .jc-link { border: 0; background: none; padding: 0; font: inherit; color: var(--jc-accent); text-decoration: underline; cursor: pointer; }
             #JellyCleanSettingsPage .jc-sub { margin: 1.1em 0 0.5em; font-weight: 600; font-size: 0.95em; }
             #JellyCleanSettingsPage .jc-warn { border-color: rgba(224, 90, 90, 0.6); }
             #JellyCleanSettingsPage .jc-view { display: flex; align-items: flex-end; gap: 0.7em; flex-wrap: wrap; padding: 0.9em 0; border-top: 1px solid var(--jc-line); }
@@ -88,6 +93,7 @@
             <div class="content-primary">
                 <nav class="jc-tabs" aria-label="JellyClean">
                     <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanLeaving">Leaving soon</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
                     <button type="button" class="jc-tab" aria-current="page">Settings</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
@@ -140,13 +146,7 @@
                             <span class="jc-switch" aria-hidden="true"></span>
                         </button>
                     </div>
-                    <div class="jc-sub">Scheduled views</div>
-                    <p class="jc-hint">Save a filter as a view on the Library page, then give it a schedule here. At its time it puts its matches on the Leaving soon list, with its own notice period. Once due they wait for you, or go on their own when you switch that on for the view. Safeguards are checked at every step. Run now uses the saved settings.</p>
-                    <div id="jcViews"></div>
-                    <div class="jc-row">
-                        <button type="button" class="jc-btn" id="jcRun">Run all scheduled views now</button>
-                        <span class="jc-test" id="jcRunResult"></span>
-                    </div>
+                    <p class="jc-hint" style="margin-top:0.8em;">Rules that fill the list on a schedule are on the <button type="button" class="jc-link" data-page="JellyCleanLeaving">Leaving soon tab</button>.</p>
                 </section>
 
                 <section class="jc-card">
@@ -274,86 +274,6 @@
                     });
                 }
 
-                var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-                function when(d) { return new Date(d).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
-
-                function select(options, value, onChange) {
-                    var s = el('select', {});
-                    options.forEach(function (o) { s.append(el('option', { value: o[0], textContent: o[1] })); });
-                    s.value = value;
-                    s.addEventListener('change', function () { onChange(s.value); dirty(); });
-                    return s;
-                }
-
-                function renderViews() {
-                    var box = $('jcViews');
-                    box.textContent = '';
-                    if (!config.Views.length) {
-                        box.append(el('div', { className: 'jc-empty', textContent: 'No saved views yet. Set a filter on the Library page and choose Save this view.' }));
-                    }
-                    config.Views.forEach(function (view, index) {
-                        // Older versions only had "check daily"; the first change here moves it to a schedule.
-                        if (!view.Schedule && view.CheckDaily) { view.Schedule = 'daily'; }
-                        view.CheckDaily = false;
-                        if (typeof view.Day === 'number') { view.Day = DAYS[view.Day]; }
-                        view.Day = view.Day || 'Monday';
-
-                        var day = select(DAYS.map(function (d) { return [d, d]; }), view.Day, function (v) { view.Day = v; });
-                        var dayLabel = el('label', {}, 'Day', day);
-                        dayLabel.hidden = view.Schedule !== 'weekly';
-                        var schedule = select([['', 'Not scheduled'], ['daily', 'Every day'], ['weekly', 'Every week']], view.Schedule || '', function (v) {
-                            view.Schedule = v;
-                            dayLabel.hidden = v !== 'weekly';
-                        });
-                        var hours = [];
-                        for (var h = 0; h < 24; h++) { hours.push([String(h), (h < 10 ? '0' : '') + h + ':00']); }
-                        var hour = select(hours, String(view.Hour == null ? 4 : view.Hour), function (v) { view.Hour = Number(v); });
-                        var notice = el('input', { type: 'number', min: '0', value: view.NoticeDays || '', placeholder: String(config.NoticeDays) });
-                        notice.addEventListener('input', function () { view.NoticeDays = Number(notice.value) || 0; dirty(); });
-
-                        var auto = el('button', { type: 'button', className: 'jc-tile jc-warn' },
-                            el('span', { className: 'jc-tile-text' },
-                                el('b', { textContent: 'Remove when due, without asking' }),
-                                el('small', { textContent: 'Off: due items wait for you on the Library page.' })),
-                            el('span', { className: 'jc-switch', ariaHidden: 'true' }));
-                        auto.setAttribute('role', 'switch');
-                        auto.setAttribute('aria-checked', String(!!view.AutoRemove));
-                        auto.addEventListener('click', function () {
-                            if (!view.AutoRemove && !window.confirm('Items from "' + view.Name + '" will be removed on their own once due. Continue?')) { return; }
-                            view.AutoRemove = !view.AutoRemove;
-                            auto.setAttribute('aria-checked', String(view.AutoRemove));
-                            dirty();
-                        });
-
-                        var run = el('button', { type: 'button', className: 'jc-btn', textContent: 'Run now' });
-                        run.addEventListener('click', function () {
-                            run.disabled = true;
-                            post('JellyClean/LeavingSoon/Run?view=' + encodeURIComponent(view.Name)).then(function () {
-                                return ApiClient.getPluginConfiguration(pluginId);
-                            }).then(function (latest) {
-                                var fresh = (latest.Views || []).filter(function (v) { return v.Name === view.Name; })[0];
-                                if (fresh) { view.LastRun = fresh.LastRun; view.LastAdded = fresh.LastAdded; }
-                                renderViews();
-                            }).catch(function (err) { window.alert(err.message); run.disabled = false; });
-                        });
-                        var remove = el('button', { type: 'button', className: 'jc-btn danger', textContent: 'Delete' });
-                        remove.addEventListener('click', function () {
-                            deletedViews.push(view.Name);
-                            config.Views.splice(index, 1);
-                            renderViews();
-                            dirty();
-                        });
-
-                        var last = view.LastRun ? 'Last run ' + when(view.LastRun) + ', ' + view.LastAdded + ' added.' : 'Not run yet.';
-                        box.append(el('div', { className: 'jc-view' },
-                            el('div', { className: 'jc-view-name' }, el('b', { textContent: view.Name }), el('small', { textContent: last })),
-                            el('label', {}, 'Schedule', schedule), dayLabel, el('label', {}, 'At', hour),
-                            el('label', {}, 'Notice days', notice),
-                            auto, run, remove));
-                    });
-                }
-
                 function render() {
                     page.querySelectorAll('[data-flag]').forEach(function (b) { b.setAttribute('aria-checked', String(!!config[b.dataset.flag])); });
                     page.querySelectorAll('[data-num]').forEach(function (i) { i.value = config[i.dataset.num] || 0; });
@@ -362,7 +282,6 @@
                     $('jcKeptCount').textContent = kept ? kept + (kept === 1 ? ' item is' : ' items are') + ' marked keep on the Library page.' : 'No items are marked keep.';
                     $('jcClearKept').hidden = !kept;
                     renderLibraries();
-                    renderViews();
                     renderServers();
                     $('jcDirty').textContent = '';
                 }
@@ -381,7 +300,7 @@
                 page.addEventListener('click', function (e) {
                     var b = e.target.closest('button');
                     if (!b || !page.contains(b)) { return; }
-                    if (b.classList.contains('jc-tab') && b.dataset.page) {
+                    if (b.dataset.page) {
                         Dashboard.navigate(Dashboard.getPluginUrl(b.dataset.page));
                     } else if (b.dataset.flag) {
                         var on = !config[b.dataset.flag];
@@ -403,17 +322,6 @@
                             render();
                             dirty();
                         }
-                    } else if (b.id === 'jcRun') {
-                        b.disabled = true;
-                        $('jcRunResult').className = 'jc-test';
-                        $('jcRunResult').textContent = 'Checking...';
-                        post('JellyClean/LeavingSoon/Run').then(function () {
-                            $('jcRunResult').className = 'jc-test ok';
-                            $('jcRunResult').textContent = 'Done. See the Library page for the list.';
-                        }).catch(function (err) {
-                            $('jcRunResult').className = 'jc-test bad';
-                            $('jcRunResult').textContent = err.message;
-                        }).finally(function () { b.disabled = false; });
                     } else if (b.dataset.add) {
                         config.Servers.push({ Kind: b.dataset.add, Name: '', Url: '', ApiKey: '', AddExclusion: true });
                         renderServers();
@@ -428,14 +336,7 @@
                             config.FreedBytes = latest.FreedBytes;
                             config.RemovedCount = latest.RemovedCount;
                             config.Recycled = latest.Recycled || [];
-                            // Schedules come from this page; the filter, last run and new views come from the latest.
-                            var mine = {};
-                            config.Views.forEach(function (v) { mine[v.Name] = v; });
-                            config.Views = (latest.Views || []).filter(function (v) { return deletedViews.indexOf(v.Name) < 0; }).map(function (v) {
-                                var m = mine[v.Name];
-                                if (m) { ['CheckDaily', 'Schedule', 'Day', 'Hour', 'NoticeDays', 'AutoRemove'].forEach(function (k) { v[k] = m[k]; }); }
-                                return v;
-                            });
+                            config.Views = latest.Views || [];
                             return ApiClient.updatePluginConfiguration(pluginId, config);
                         }).then(function (result) {
                             deletedViews = [];

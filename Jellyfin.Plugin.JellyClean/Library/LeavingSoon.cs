@@ -214,6 +214,7 @@ public class LeavingSoon
                 l.Id,
                 Title = items.GetValueOrDefault(l.Id)?.Title ?? l.Title,
                 items.GetValueOrDefault(l.Id)?.Type,
+                items.GetValueOrDefault(l.Id)?.SeriesId,
                 Size = items.GetValueOrDefault(l.Id)?.Size ?? 0,
                 l.Added,
                 l.Due,
@@ -221,6 +222,7 @@ public class LeavingSoon
                 IsDue = l.Due <= DateTime.UtcNow,
                 AutoRemove = RemovesOnItsOwn(l),
                 Protected = reasons.GetValueOrDefault(l.Id),
+                Item = items.GetValueOrDefault(l.Id),
             });
     }
 
