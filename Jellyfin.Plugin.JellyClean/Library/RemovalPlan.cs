@@ -91,6 +91,9 @@ public class Safeguards
     /// <summary>Gets or sets a value indicating whether items someone is in the middle of (Continue Watching) stay.</summary>
     public bool InProgress { get; set; } = true;
 
+    /// <summary>Gets or sets a value indicating whether episodes someone has yet to see in a series they are watching (Next Up) stay.</summary>
+    public bool NextUp { get; set; } = true;
+
     /// <summary>Gets or sets a date: items added after it stay.</summary>
     public DateTime? AddedAfter { get; set; }
 
@@ -116,6 +119,7 @@ public class Safeguards
         => CheckParent(item, who)
             ?? (Playing.Contains(item.Id) ? who + "is being played right now."
             : InProgress && item.InProgress ? who + "is in someone's Continue Watching."
+            : NextUp && item.NextUp ? who + "is in someone's Next Up: they are watching the series and have not seen it yet."
             : AddedAfter is { } added && item.Added > added && item.Type != "Series" ? who + $"was added in the last {Days(added)} days."
             : PlayedAfter is { } played && item.LastWatched > played ? who + $"was played in the last {Days(played)} days."
             : null);

@@ -75,7 +75,18 @@
             #JellyCleanLibraryPage .jc-field select option { color: #000; }
             #JellyCleanLibraryPage .jc-field select:focus-visible, #JellyCleanLibraryPage .jc-field input:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 1px; border-color: var(--jc-accent); }
             #JellyCleanLibraryPage .jc-genres { display: flex; gap: 0.4em; flex-wrap: wrap; margin-top: 1em; }
-            #JellyCleanLibraryPage .jc-genres-label { width: 100%; font-weight: 600; font-size: 0.9em; opacity: 0.85; }
+            #JellyCleanLibraryPage .jc-groups { margin-top: 1.1em; border-top: 1px solid var(--jc-line); }
+            #JellyCleanLibraryPage .jc-group { border-bottom: 1px solid var(--jc-line); }
+            #JellyCleanLibraryPage .jc-group > summary { display: flex; align-items: center; gap: 0.6em; min-height: 44px; padding: 0.3em 0.2em; font-weight: 600; cursor: pointer; list-style: none; }
+            #JellyCleanLibraryPage .jc-group > summary::-webkit-details-marker { display: none; }
+            #JellyCleanLibraryPage .jc-group > summary::after { content: ""; margin-left: auto; width: 0.5em; height: 0.5em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-25%) rotate(45deg); opacity: 0.7; transition: transform 0.15s; }
+            #JellyCleanLibraryPage .jc-group[open] > summary::after { transform: translateY(25%) rotate(-135deg); }
+            #JellyCleanLibraryPage .jc-group > summary:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 2px; border-radius: 6px; }
+            #JellyCleanLibraryPage .jc-group[open] { padding-bottom: 1em; }
+            #JellyCleanLibraryPage .jc-group .jc-genres { margin-top: 0; }
+            #JellyCleanLibraryPage .jc-group .jc-toggle:first-of-type { margin-top: 0.2em; }
+            #JellyCleanLibraryPage .jc-badge { font-size: 0.78em; font-weight: 600; padding: 0.1em 0.6em; border-radius: 999px; background: var(--jc-accent); color: #fff; }
+            @media (prefers-reduced-motion: reduce) { #JellyCleanLibraryPage .jc-group > summary::after { transition: none; } }
             #JellyCleanLibraryPage .jc-toggle { display: flex; align-items: center; gap: 0.7em; margin-top: 1em; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
 
             /* Switch */
@@ -300,79 +311,6 @@
                             <select id="jcLibrary"><option value="">All libraries</option></select>
                         </div>
                         <div class="jc-field">
-                            <label for="jcWatched">Watched</label>
-                            <select id="jcWatched">
-                                <option value="">Any watch status</option>
-                                <option value="none">Unwatched by everyone</option>
-                                <option value="any">Watched by someone</option>
-                                <option value="all">Watched by everyone</option>
-                            </select>
-                        </div>
-                        <div class="jc-field">
-                            <label for="jcAdded">Added</label>
-                            <select id="jcAdded">
-                                <option value="">Any time</option>
-                                <option value="-30">In the last month</option>
-                                <option value="30">Over a month ago</option>
-                                <option value="91">Over 3 months ago</option>
-                                <option value="182">Over 6 months ago</option>
-                                <option value="365">Over a year ago</option>
-                                <option value="730">Over 2 years ago</option>
-                                <option value="1826">Over 5 years ago</option>
-                            </select>
-                        </div>
-                        <div class="jc-field">
-                            <label for="jcIdle">Last played</label>
-                            <select id="jcIdle">
-                                <option value="">Any time</option>
-                                <option value="never">Never</option>
-                                <option value="91">Over 3 months ago, or never</option>
-                                <option value="182">Over 6 months ago, or never</option>
-                                <option value="365">Over a year ago, or never</option>
-                                <option value="730">Over 2 years ago, or never</option>
-                            </select>
-                        </div>
-                        <div class="jc-field">
-                            <label for="jcSize">Size</label>
-                            <select id="jcSize">
-                                <option value="">Any size</option>
-                                <option value="empty">Empty (0 B)</option>
-                                <option value="1">1 GB or more</option>
-                                <option value="5">5 GB or more</option>
-                                <option value="10">10 GB or more</option>
-                                <option value="25">25 GB or more</option>
-                                <option value="50">50 GB or more</option>
-                                <option value="100">100 GB or more</option>
-                            </select>
-                        </div>
-                        <div class="jc-field">
-                            <label for="jcResolution">Resolution</label>
-                            <select id="jcResolution">
-                                <option value="">Any resolution</option>
-                                <option value="4K">4K</option>
-                                <option value="1080p">1080p</option>
-                                <option value="720p">720p</option>
-                                <option value="SD">SD</option>
-                                <option value="720p,SD">Below 1080p</option>
-                            </select>
-                        </div>
-                        <div class="jc-field">
-                            <label for="jcHdr">Dynamic range</label>
-                            <select id="jcHdr">
-                                <option value="">Any dynamic range</option>
-                                <option value="hdr">HDR (any kind)</option>
-                                <option value="Dolby Vision">Dolby Vision</option>
-                                <option value="HDR10+">HDR10+</option>
-                                <option value="HDR10">HDR10</option>
-                                <option value="HLG">HLG</option>
-                                <option value="sdr">SDR</option>
-                            </select>
-                        </div>
-                        <div class="jc-field">
-                            <label for="jcCodec">Codec</label>
-                            <select id="jcCodec"><option value="">Any codec</option></select>
-                        </div>
-                        <div class="jc-field">
                             <label for="jcSort">Sort by</label>
                             <select id="jcSort">
                                 <option value="added|0">Added, oldest first</option>
@@ -390,19 +328,115 @@
                             <input id="jcSearch" type="search" autocomplete="off" placeholder="Title or path">
                         </div>
                     </div>
-                    <div class="jc-genres" id="jcGenres" role="group" aria-label="Genres"></div>
-                    <button type="button" class="jc-toggle" role="switch" id="jcCopies" aria-checked="false">
-                        <span class="jc-switch" aria-hidden="true"></span>
-                        <span>Only movies and series that are in Jellyfin more than once, like a 1080p and a 4K copy</span>
-                    </button>
-                    <button type="button" class="jc-toggle" role="switch" id="jcEnded" aria-checked="false">
-                        <span class="jc-switch" aria-hidden="true"></span>
-                        <span>Only series that have ended, so no new episodes are coming</span>
-                    </button>
-                    <button type="button" class="jc-toggle" role="switch" id="jcHideProtected" aria-checked="false">
-                        <span class="jc-switch" aria-hidden="true"></span>
-                        <span>Hide items marked keep and favorites</span>
-                    </button>
+                    <div class="jc-groups">
+                        <details class="jc-group" data-group="watching">
+                            <summary>Watching <span class="jc-badge" hidden></span></summary>
+                            <div class="jc-fields">
+                                <div class="jc-field">
+                                    <label for="jcWatched">Watched</label>
+                                    <select id="jcWatched">
+                                        <option value="">Any watch status</option>
+                                        <option value="none">Unwatched by everyone</option>
+                                        <option value="any">Watched by someone</option>
+                                        <option value="all">Watched by everyone</option>
+                                    </select>
+                                </div>
+                                <div class="jc-field">
+                                    <label for="jcIdle">Last played</label>
+                                    <select id="jcIdle">
+                                        <option value="">Any time</option>
+                                        <option value="never">Never</option>
+                                        <option value="91">Over 3 months ago, or never</option>
+                                        <option value="182">Over 6 months ago, or never</option>
+                                        <option value="365">Over a year ago, or never</option>
+                                        <option value="730">Over 2 years ago, or never</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </details>
+                        <details class="jc-group" data-group="added">
+                            <summary>Added and size <span class="jc-badge" hidden></span></summary>
+                            <div class="jc-fields">
+                                <div class="jc-field">
+                                    <label for="jcAdded">Added</label>
+                                    <select id="jcAdded">
+                                        <option value="">Any time</option>
+                                        <option value="-30">In the last month</option>
+                                        <option value="30">Over a month ago</option>
+                                        <option value="91">Over 3 months ago</option>
+                                        <option value="182">Over 6 months ago</option>
+                                        <option value="365">Over a year ago</option>
+                                        <option value="730">Over 2 years ago</option>
+                                        <option value="1826">Over 5 years ago</option>
+                                    </select>
+                                </div>
+                                <div class="jc-field">
+                                    <label for="jcSize">Size</label>
+                                    <select id="jcSize">
+                                        <option value="">Any size</option>
+                                        <option value="empty">Empty (0 B)</option>
+                                        <option value="1">1 GB or more</option>
+                                        <option value="5">5 GB or more</option>
+                                        <option value="10">10 GB or more</option>
+                                        <option value="25">25 GB or more</option>
+                                        <option value="50">50 GB or more</option>
+                                        <option value="100">100 GB or more</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </details>
+                        <details class="jc-group" data-group="quality">
+                            <summary>Quality <span class="jc-badge" hidden></span></summary>
+                            <div class="jc-fields">
+                                <div class="jc-field">
+                                    <label for="jcResolution">Resolution</label>
+                                    <select id="jcResolution">
+                                        <option value="">Any resolution</option>
+                                        <option value="4K">4K</option>
+                                        <option value="1080p">1080p</option>
+                                        <option value="720p">720p</option>
+                                        <option value="SD">SD</option>
+                                        <option value="720p,SD">Below 1080p</option>
+                                    </select>
+                                </div>
+                                <div class="jc-field">
+                                    <label for="jcHdr">Dynamic range</label>
+                                    <select id="jcHdr">
+                                        <option value="">Any dynamic range</option>
+                                        <option value="hdr">HDR (any kind)</option>
+                                        <option value="Dolby Vision">Dolby Vision</option>
+                                        <option value="HDR10+">HDR10+</option>
+                                        <option value="HDR10">HDR10</option>
+                                        <option value="HLG">HLG</option>
+                                        <option value="sdr">SDR</option>
+                                    </select>
+                                </div>
+                                <div class="jc-field">
+                                    <label for="jcCodec">Codec</label>
+                                    <select id="jcCodec"><option value="">Any codec</option></select>
+                                </div>
+                            </div>
+                        </details>
+                        <details class="jc-group" data-group="genres">
+                            <summary>Genres <span class="jc-badge" hidden></span></summary>
+                            <div class="jc-genres" id="jcGenres" role="group" aria-label="Genres"></div>
+                        </details>
+                        <details class="jc-group" data-group="more">
+                            <summary>More <span class="jc-badge" hidden></span></summary>
+                            <button type="button" class="jc-toggle" role="switch" id="jcCopies" aria-checked="false">
+                                <span class="jc-switch" aria-hidden="true"></span>
+                                <span>Only movies and series that are in Jellyfin more than once, like a 1080p and a 4K copy</span>
+                            </button>
+                            <button type="button" class="jc-toggle" role="switch" id="jcEnded" aria-checked="false">
+                                <span class="jc-switch" aria-hidden="true"></span>
+                                <span>Only series that have ended, so no new episodes are coming</span>
+                            </button>
+                            <button type="button" class="jc-toggle" role="switch" id="jcHideProtected" aria-checked="false">
+                                <span class="jc-switch" aria-hidden="true"></span>
+                                <span>Hide items marked keep and favorites</span>
+                            </button>
+                        </details>
+                    </div>
                 </section>
 
                 <section class="jc-card">
@@ -411,7 +445,7 @@
                         <div class="jc-actions">
                             <span class="jc-target">
                                 <input type="number" id="jcTarget" min="1" step="any" placeholder="500" aria-label="Space to free up, in GB">
-                                <button type="button" class="jc-btn" id="jcFreeUp" title="Selects matches from the top of this list, skipping keep, favorites and Continue Watching, until they add up to this many GB">Free up GB</button>
+                                <button type="button" class="jc-btn" id="jcFreeUp" title="Selects matches from the top of this list, skipping keep, favorites, Continue Watching and Next Up, until they add up to this many GB">Free up GB</button>
                             </span>
                             <button type="button" class="jc-btn" id="jcSelectAll">Select all</button>
                             <button type="button" class="jc-btn" id="jcExport" title="Download this list as a spreadsheet">Export</button>
@@ -725,7 +759,19 @@
                     $('jcMore').hidden = shown.length >= total;
                 }
 
+                // Shows how many filters are set in each group, so a closed group still says it filters.
+                function markGroups() {
+                    page.querySelectorAll('.jc-group').forEach(function (g) {
+                        var n = Array.prototype.filter.call(g.querySelectorAll('select'), function (x) { return x.value; }).length
+                            + g.querySelectorAll('[aria-checked="true"], [aria-pressed="true"]').length;
+                        var badge = g.querySelector('.jc-badge');
+                        badge.hidden = !n;
+                        badge.textContent = n + ' on';
+                    });
+                }
+
                 function load(append) {
+                    markGroups();
                     var mine = ++request;
                     var f = filter(append ? shown.length : 0);
                     if (!append) { $('jcCount').textContent = 'Loading...'; }
@@ -818,14 +864,13 @@
 
                         var box = $('jcGenres');
                         box.textContent = '';
-                        box.append(el('span', { className: 'jc-genres-label', textContent: 'Genres' }));
                         o.Genres.forEach(function (g) {
                             var b = el('button', { type: 'button', className: 'jc-genre', textContent: g });
                             b.dataset.genre = g;
                             b.setAttribute('aria-pressed', String(genres.has(g)));
                             box.append(b);
                         });
-                        box.hidden = !o.Genres.length;
+                        box.closest('details').hidden = !o.Genres.length;
                     });
                 }
 
@@ -1110,7 +1155,7 @@
                         call('POST', 'Items?allIds=true', tf).then(function (result) {
                             // Top of the list first, in the sort order shown. A season or episode of a series already picked adds nothing.
                             selected.clear();
-                            // ponytail: only keep, favorites and Continue Watching are skipped here; the preview applies the other safeguards.
+                            // ponytail: only keep, favorites, Continue Watching and Next Up are skipped here; the preview applies the other safeguards.
                             var picked = new Set();
                             var parents = new Set();
                             var sum = 0;

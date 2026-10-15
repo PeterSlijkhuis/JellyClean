@@ -99,7 +99,7 @@ public class JellyCleanController : ControllerBase
             Total = matches.Count,
             TotalSize = matches.Sum(i => i.Size),
             Items = matches.Skip(Math.Max(0, filter.Offset)).Take(Math.Clamp(filter.Limit, 1, 500)),
-            Ids = allIds ? matches.Select(i => new { i.Id, i.Size, i.SeriesId, i.SeasonId, Protected = i.Kept || i.Favorite || i.InProgress }) : null,
+            Ids = allIds ? matches.Select(i => new { i.Id, i.Size, i.SeriesId, i.SeasonId, Protected = i.Kept || i.Favorite || i.InProgress || i.NextUp }) : null,
         });
     }
 

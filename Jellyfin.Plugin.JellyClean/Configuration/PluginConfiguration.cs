@@ -19,6 +19,11 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool ProtectInProgress { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets a value indicating whether episodes someone has yet to see in a series they are watching (Next Up) are never removed.
+    /// </summary>
+    public bool ProtectNextUp { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets how many days new items are left alone, or 0 for none.
     /// </summary>
     public int ProtectAddedDays { get; set; } = 30;

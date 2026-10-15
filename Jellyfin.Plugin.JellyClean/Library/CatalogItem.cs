@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Jellyfin.Plugin.JellyClean.Library;
 
@@ -75,6 +76,12 @@ public sealed class CatalogItem
 
     /// <summary>Gets or sets a value indicating whether someone stopped halfway, so it is in their Continue Watching.</summary>
     public bool InProgress { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether someone is watching the series and has not seen this yet, so it is in their Next Up or comes after it.</summary>
+    public bool NextUp { get; set; }
+
+    /// <summary>Gets or sets when each user last played it. Only used to build the catalog.</summary>
+    internal Dictionary<Guid, DateTime> PlayedOn { get; set; } = [];
 
     /// <summary>Gets or sets the Jellyfin tags.</summary>
     public string[] Tags { get; set; } = [];

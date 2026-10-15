@@ -170,6 +170,31 @@ public class Catalog
         // ponytail: the next Get() rebuilds while the caller waits; fine after a removal, which already took a while.
     }
 
+    // Jellyfin drops a series from Next Up a year after it was last played (its default).
+    private const int NextUpDays = 365;
+
+    /// <summary>
+    /// Marks the episodes someone has yet to see in a series they are watching: everything after the last episode they watched,
+    /// when they played any of it in the last <paramref name="since"/>. Specials don't count, like in Jellyfin's Next Up.
+    /// </summary>
+    /// <param name="episodes">Every episode.</param>
+    /// <param name="since">Played after this counts as still watching.</param>
+    internal static void MarkNextUp(IEnumerable<CatalogItem> episodes, DateTime since)
+    {
+        foreach (var show in episodes.Where(e => e.Season > 0).GroupBy(e => e.SeriesId))
+        {
+            var order = show.OrderBy(e => e.Season).ThenBy(e => e.Episode).ToList();
+            foreach (var user in order.SelectMany(e => e.WatchedBy).Distinct())
+            {
+                if (order.Any(e => e.PlayedOn.TryGetValue(user, out var at) && at > since))
+                {
+                    var last = order.FindLastIndex(e => e.WatchedBy.Contains(user));
+                    order.Skip(last + 1).ToList().ForEach(e => e.NextUp = true);
+                }
+            }
+        }
+    }
+
     /// <summary>
     /// Fills in series and seasons from their episodes: size, who watched all of it, last played and genres.
     /// </summary>
@@ -177,6 +202,7 @@ public class Catalog
     internal static void AddUpFolders(IReadOnlyCollection<CatalogItem> rows)
     {
         var episodes = rows.Where(r => r.Type == "Episode").ToList();
+        MarkNextUp(episodes, DateTime.UtcNow.AddDays(-NextUpDays));
         var bySeries = episodes.ToLookup(e => e.SeriesId);
         var bySeason = episodes.ToLookup(e => e.SeasonId);
         var series = rows.Where(r => r.Type == "Series").ToDictionary(r => r.Id);
@@ -187,6 +213,7 @@ public class Catalog
             folder.Size = children.Sum(e => e.Size);
             folder.AnyPlayed = children.Any(e => e.AnyPlayed);
             folder.InProgress = children.Any(e => e.InProgress);
+            folder.NextUp = children.Any(e => e.NextUp);
             folder.LastWatched = children.Max(e => e.LastWatched);
             folder.WatchedBy = children.Count == 0 ? [] : children.Select(e => (IEnumerable<Guid>)e.WatchedBy).Aggregate((a, b) => a.Intersect(b)).ToArray();
             (folder.Resolution, folder.Codec, folder.Hdr) = Quality.MostCommon(children);
@@ -290,6 +317,7 @@ public class Catalog
                 row.AnyPlayed = row.WatchedBy.Length > 0 || data.Any(u => u.Data!.PlayCount > 0 || u.Data.PlaybackPositionTicks > 0);
                 row.LastWatched = data.Max(u => u.Data!.LastPlayedDate);
                 row.InProgress = data.Any(u => !u.Data!.Played && u.Data.PlaybackPositionTicks > 0);
+                row.PlayedOn = data.Where(u => u.Data!.LastPlayedDate is not null).ToDictionary(u => u.Id, u => u.Data!.LastPlayedDate!.Value);
             }
 
             return row;

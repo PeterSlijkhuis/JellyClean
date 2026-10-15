@@ -111,6 +111,10 @@
                             <span class="jc-tile-text"><b>Keep Continue Watching</b><small>Anything a user stopped halfway, and the season and series it is in.</small></span>
                             <span class="jc-switch" aria-hidden="true"></span>
                         </button>
+                        <button type="button" class="jc-tile" role="switch" data-flag="ProtectNextUp">
+                            <span class="jc-tile-text"><b>Keep Next Up</b><small>In a series someone is watching, every episode they have not seen yet, and its season and series.</small></span>
+                            <span class="jc-switch" aria-hidden="true"></span>
+                        </button>
                     </div>
                     <div class="jc-fields">
                         <div class="jc-field"><label>Keep items added in the last (days)<input type="number" min="0" data-num="ProtectAddedDays"></label></div>
@@ -160,8 +164,7 @@
                 </section>
 
                 <div class="jc-bar">
-                    <span class="jc-dirty" id="jcDirty"></span>
-                    <button type="button" class="jc-btn primary" id="jcSave">Save</button>
+                    <span class="jc-dirty" id="jcDirty" role="status">Changes save on their own.</span>
                 </div>
             </div>
         </div>
@@ -183,7 +186,38 @@
                     return e;
                 }
 
-                function dirty() { $('jcDirty').textContent = 'Unsaved changes'; }
+                var timer = null;
+                var saving = null;
+                var again = false;
+
+                function dirty() {
+                    $('jcDirty').textContent = 'Saving...';
+                    clearTimeout(timer);
+                    timer = setTimeout(save, 500);
+                }
+
+                function save() {
+                    timer = null;
+                    if (saving) { again = true; return; }
+                    // The Library page, the Leaving soon tab and the hourly task change keep marks, rules and the lists, so take theirs.
+                    saving = ApiClient.getPluginConfiguration(pluginId).then(function (latest) {
+                        if (config.KeptIds.length) { config.KeptIds = latest.KeptIds || []; }
+                        config.LeavingSoon = latest.LeavingSoon || [];
+                        config.CollectionId = latest.CollectionId;
+                        config.FreedBytes = latest.FreedBytes;
+                        config.RemovedCount = latest.RemovedCount;
+                        config.Recycled = latest.Recycled || [];
+                        config.Views = latest.Views || [];
+                        return ApiClient.updatePluginConfiguration(pluginId, config);
+                    }).then(function () {
+                        $('jcDirty').textContent = 'Saved.';
+                    }).catch(function (err) {
+                        $('jcDirty').textContent = 'Not saved: ' + ((err && err.message) || 'the server did not answer') + '. Change something to try again.';
+                    }).finally(function () {
+                        saving = null;
+                        if (again) { again = false; save(); }
+                    });
+                }
 
                 function field(label, value, type, onInput, placeholder) {
                     var input = el('input', { type: type, value: value || '', placeholder: placeholder || '', autocomplete: 'off' });
@@ -251,7 +285,6 @@
                 }
 
                 var libraries = [];
-                var deletedViews = [];
 
                 function post(path) {
                     return fetch(ApiClient.getUrl(path), {
@@ -283,7 +316,7 @@
                     $('jcClearKept').hidden = !kept;
                     renderLibraries();
                     renderServers();
-                    $('jcDirty').textContent = '';
+                    $('jcDirty').textContent = 'Changes save on their own.';
                 }
 
                 page.addEventListener('input', function (e) {
@@ -326,24 +359,11 @@
                         config.Servers.push({ Kind: b.dataset.add, Name: '', Url: '', ApiKey: '', AddExclusion: true });
                         renderServers();
                         dirty();
-                    } else if (b.id === 'jcSave') {
-                        b.disabled = true;
-                        // The Library page and the daily task change keep marks, views and the list, so take theirs.
-                        ApiClient.getPluginConfiguration(pluginId).then(function (latest) {
-                            if (config.KeptIds.length) { config.KeptIds = latest.KeptIds || []; }
-                            config.LeavingSoon = latest.LeavingSoon || [];
-                            config.CollectionId = latest.CollectionId;
-                            config.FreedBytes = latest.FreedBytes;
-                            config.RemovedCount = latest.RemovedCount;
-                            config.Recycled = latest.Recycled || [];
-                            config.Views = latest.Views || [];
-                            return ApiClient.updatePluginConfiguration(pluginId, config);
-                        }).then(function (result) {
-                            deletedViews = [];
-                            Dashboard.processPluginConfigurationUpdateResult(result);
-                            render();
-                        }).finally(function () { b.disabled = false; });
                     }
+                });
+
+                page.addEventListener('pagehide', function () {
+                    if (timer) { clearTimeout(timer); save(); }
                 });
 
                 page.addEventListener('pageshow', function () {
@@ -353,7 +373,6 @@
                         config.KeptIds = config.KeptIds || [];
                         config.Views = config.Views || [];
                         config.ProtectedLibraries = config.ProtectedLibraries || [];
-                        deletedViews = [];
                         render();
                         return ApiClient.getVirtualFolders();
                     }).then(function (folders) {
