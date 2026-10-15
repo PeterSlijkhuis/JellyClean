@@ -126,7 +126,7 @@ What Jellyfin shows as watched for each user. *Never played by anyone* means nob
 A series adds up its episode files. Artwork and extras in the series folder are not counted.
 
 **The list is not up to date.**
-JellyClean reads the library again every few minutes. Press **Refresh** to read it right away.
+When a Jellyfin scan adds or removes movies or episodes, the Library page updates on its own within about a minute. Watched state and sizes are read again every few minutes. Press **Refresh** to read everything right away.
 
 ## For developers
 

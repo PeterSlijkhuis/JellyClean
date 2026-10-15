@@ -34,6 +34,7 @@ public class Catalog
     private IReadOnlyDictionary<Guid, CatalogItem>? _items;
     private DateTime _builtAt = DateTime.MinValue;
     private Task? _rebuilding;
+    private volatile bool _changed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Catalog"/> class.
@@ -48,7 +49,16 @@ public class Catalog
         _userManager = userManager;
         _userDataManager = userDataManager;
         _logger = logger;
+
+        // A scan that finds or drops items makes the list out of date; the next look reads it again.
+        _libraryManager.ItemAdded += OnLibraryChanged;
+        _libraryManager.ItemRemoved += OnLibraryChanged;
     }
+
+    /// <summary>
+    /// Gets a number that goes up whenever items were added or removed, so the page can tell when there is something new to show.
+    /// </summary>
+    public int Version { get; private set; }
 
     /// <summary>
     /// Gets the catalog, rebuilt when it is older than a few minutes or when asked.
@@ -59,7 +69,9 @@ public class Catalog
     {
         lock (_gate)
         {
-            if (_items is not null && !refresh && _builtAt != DateTime.MinValue && DateTime.UtcNow - _builtAt > _maxAge)
+            // After a change, wait a little so a scan that adds many items is read once.
+            var age = DateTime.UtcNow - _builtAt;
+            if (_items is not null && !refresh && _builtAt != DateTime.MinValue && (age > _maxAge || (_changed && age > TimeSpan.FromSeconds(30))))
             {
                 // Old but usable: answer now and read the library again in the background.
                 _rebuilding ??= Task.Run(() =>
@@ -103,9 +115,15 @@ public class Catalog
                 return;
             }
 
+            _changed = false;
             var items = Build();
             lock (_gate)
             {
+                if (_items is null || _items.Count != items.Count || !_items.Keys.All(items.ContainsKey))
+                {
+                    Version++;
+                }
+
                 _items = items;
                 _builtAt = DateTime.UtcNow;
             }
@@ -277,6 +295,14 @@ public class Catalog
     private static bool IsUnder(string? path, string folder)
         => path is not null && path.StartsWith(folder, StringComparison.Ordinal)
             && (path.Length == folder.Length || path[folder.Length] is '/' or '\\');
+
+    private void OnLibraryChanged(object? sender, ItemChangeEventArgs e)
+    {
+        if (e.Item is MediaBrowser.Controller.Entities.Movies.Movie or Series or Season or Episode)
+        {
+            _changed = true;
+        }
+    }
 
     private static string SizesPath => Path.Combine(Plugin.Instance!.DataFolderPath, "sizes.json");
 

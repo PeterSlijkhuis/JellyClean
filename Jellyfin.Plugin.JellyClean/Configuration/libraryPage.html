@@ -403,6 +403,8 @@
                 var selected = new Map(); // id -> size
                 var lastCheck = null;
                 var opened = false;
+                var version = null;
+                var poller = null;
                 var genres = new Set();
                 var timer = null;
                 var request = 0;
@@ -989,7 +991,29 @@
                     }
                 });
 
+                // Every 30 seconds, check whether items were added or removed,
+                // and if so reload quietly, unless a dialog is open or the page is in the background.
+                function poll() {
+                    if (document.hidden || !$('jcDialog').hidden) { return; }
+                    call('GET', 'Status').then(function (s) {
+                        if (version !== null && s.Version !== version) {
+                            loadOverview(false).then(function () { return load(false); });
+                            loadLeaving().catch(function () {});
+                        }
+                        version = s.Version;
+                    }).catch(function () {});
+                }
+
+                page.addEventListener('pagehide', function () {
+                    clearInterval(poller);
+                    poller = null;
+                });
+
                 page.addEventListener('pageshow', function () {
+                    clearInterval(poller);
+                    version = null;
+                    poller = setInterval(poll, 30000);
+                    poll();
                     loadConfig();
                     loadLeaving().catch(function () { $('jcLeaving').hidden = true; });
                     loadOverview(false).then(function () {
