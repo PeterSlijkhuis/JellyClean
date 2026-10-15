@@ -64,6 +64,9 @@ public class ArrClient
                 var library = await GetAsync<List<ArrEntry>>(server, server.IsSonarr ? "series" : "movie", cancellationToken).ConfigureAwait(false);
                 var episodes = new Dictionary<int, List<ArrEntry>>();
 
+                // What is downloading right now: removing it would cancel a download someone is waiting for.
+                var queue = (await GetAsync<ArrQueue>(server, "queue?pageSize=1000", cancellationToken).ConfigureAwait(false)).Records;
+
                 foreach (var planned in relevant)
                 {
                     var item = planned.Item;
@@ -71,6 +74,12 @@ public class ArrClient
                     var match = library.FirstOrDefault(e => e.Matches(ids));
                     if (match is null)
                     {
+                        continue;
+                    }
+
+                    if (item.Type is "Movie" or "Series" && queue.Any(q => (server.IsSonarr ? q.SeriesId : q.MovieId) == match.Id))
+                    {
+                        planned.Arr.Add(new ArrStep(server, $"It is downloading in {server.Label} right now.", match.Id, []) { Failed = true });
                         continue;
                     }
 
@@ -93,7 +102,11 @@ public class ArrClient
                         .Where(e => e.SeasonNumber == item.Season && (item.Type == "Season" || (e.EpisodeNumber >= first && e.EpisodeNumber <= last)))
                         .Select(e => e.Id)
                         .ToArray();
-                    if (episodeIds.Length > 0)
+                    if (queue.Any(q => episodeIds.Contains(q.EpisodeId)))
+                    {
+                        planned.Arr.Add(new ArrStep(server, $"An episode in it is downloading in {server.Label} right now.", match.Id, []) { Failed = true });
+                    }
+                    else if (episodeIds.Length > 0)
                     {
                         planned.Arr.Add(new ArrStep(server, $"Stop monitoring {episodeIds.Length} {(episodeIds.Length == 1 ? "episode" : "episodes")} in {server.Label}", match.Id, episodeIds));
                     }
@@ -150,6 +163,20 @@ public class ArrClient
         }
 
         return response;
+    }
+
+    private sealed class ArrQueue
+    {
+        public List<ArrQueueRecord> Records { get; set; } = [];
+    }
+
+    private sealed class ArrQueueRecord
+    {
+        public int MovieId { get; set; }
+
+        public int SeriesId { get; set; }
+
+        public int EpisodeId { get; set; }
     }
 
     private sealed class ArrEntry

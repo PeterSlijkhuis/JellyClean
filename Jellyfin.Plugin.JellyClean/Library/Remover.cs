@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -81,6 +82,14 @@ public class Remover
 
         await _arr.ResolveAsync(plan.Remove, config.Servers, ProviderIds, cancellationToken).ConfigureAwait(false);
 
+        // An empty item on a drive that is offline only looks empty: leave it, or Radarr and Sonarr would drop it too.
+        var offline = OfflineLibraries();
+        foreach (var planned in plan.Remove.Where(p => p.Item.Size == 0 && offline.Contains(p.Item.Library)).ToList())
+        {
+            plan.Remove.Remove(planned);
+            plan.Skip.Add(planned with { Reason = $"The {planned.Item.Library} folder can't be reached, so it may only look empty." });
+        }
+
         // Radarr or Sonarr could not be asked: the files stay, or they would just be downloaded again.
         foreach (var planned in plan.Remove.Where(p => p.Arr.Any(s => s.Failed)).ToList())
         {
@@ -90,6 +99,13 @@ public class Remover
 
         return plan;
     }
+
+    // Libraries none of whose folders exist or hold anything, like an unmounted network share.
+    private HashSet<string> OfflineLibraries()
+        => _libraryManager.GetVirtualFolders()
+            .Where(f => !f.Locations.Any(l => Directory.Exists(l) && Directory.EnumerateFileSystemEntries(l).Any()))
+            .Select(f => f.Name)
+            .ToHashSet();
 
     /// <summary>
     /// The safeguards as set in the settings, with what is being played right now.
