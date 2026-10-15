@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JellyClean activity</title>
+</head>
+<body>
+    <div id="JellyCleanActivityPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-button">
+        <style>
+            /* Same look as the Library page, scoped to this page. */
+            #JellyCleanActivityPage {
+                --jc-accent: #00a4dc;
+                --jc-accent-2: #aa5cc3;
+                --jc-line: rgba(128, 128, 128, 0.22);
+                --jc-card: rgba(128, 128, 128, 0.07);
+                --jc-radius: 14px;
+            }
+            #JellyCleanActivityPage .content-primary { max-width: 1240px; padding-bottom: 4em; }
+            #JellyCleanActivityPage .jc-tabs { display: flex; gap: 0.4em; margin: 1em 0 1.4em; }
+            #JellyCleanActivityPage .jc-tab { padding: 0.6em 1.2em; border-radius: 999px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: inherit; opacity: 0.75; }
+            #JellyCleanActivityPage .jc-tab[aria-current="page"] { background: linear-gradient(135deg, var(--jc-accent-2), var(--jc-accent)); border-color: transparent; color: #fff; opacity: 1; }
+            #JellyCleanActivityPage .jc-card { background: var(--jc-card); border: 1px solid var(--jc-line); border-radius: var(--jc-radius); padding: 1.3em 1.4em; }
+            #JellyCleanActivityPage .jc-card h2 { margin: 0 0 0.25em; font-size: 1.15em; font-weight: 600; }
+            #JellyCleanActivityPage .jc-hint { margin: 0; opacity: 0.7; font-size: 0.92em; flex: 1 1 300px; }
+            #JellyCleanActivityPage .jc-row { display: flex; gap: 1em; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 0.8em; }
+            #JellyCleanActivityPage .jc-actions { display: flex; gap: 0.5em; flex: 1 1 300px; justify-content: flex-end; }
+            #JellyCleanActivityPage .jc-btn { padding: 0.75em 0.9em; border-radius: 10px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600; cursor: pointer; background: rgba(128, 128, 128, 0.15); color: inherit; white-space: nowrap; }
+            #JellyCleanActivityPage .jc-btn[aria-pressed="true"] { border-color: currentColor; }
+            @media (max-width: 600px) { #JellyCleanActivityPage .jc-actions .jc-btn { flex: 1 1 0; } }
+            #JellyCleanActivityPage button:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 2px; }
+            #JellyCleanActivityPage .jc-log { border: 1px solid var(--jc-line); border-radius: 10px; font-size: 0.88em; }
+            #JellyCleanActivityPage .jc-log-row { display: grid; grid-template-columns: auto 1fr; gap: 0.15em 0.8em; padding: 0.55em 0.8em; border-bottom: 1px solid var(--jc-line); }
+            #JellyCleanActivityPage .jc-log-row:last-child { border-bottom: 0; }
+            #JellyCleanActivityPage .jc-log-time { opacity: 0.6; white-space: nowrap; font-variant-numeric: tabular-nums; }
+            #JellyCleanActivityPage .jc-log-msg { overflow-wrap: anywhere; }
+            #JellyCleanActivityPage .jc-log-row.Warning .jc-log-msg { color: #e0a33a; }
+            #JellyCleanActivityPage .jc-log-row.Error .jc-log-msg { color: #e05a5a; }
+            #JellyCleanActivityPage .jc-log-empty { padding: 1em; opacity: 0.6; }
+            #JellyCleanActivityPage .jc-log.problems .jc-log-row.Info { display: none; }
+            #JellyCleanActivityPage .jc-no-problems { display: none; }
+            #JellyCleanActivityPage .jc-log.problems .jc-no-problems { display: block; }
+            @media (max-width: 600px) { #JellyCleanActivityPage .jc-log-row { grid-template-columns: 1fr; } }
+        </style>
+
+        <div data-role="content">
+            <div class="content-primary">
+                <nav class="jc-tabs" aria-label="JellyClean">
+                    <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanSettings">Settings</button>
+                    <button type="button" class="jc-tab" aria-current="page">Activity</button>
+                </nav>
+
+                <section class="jc-card">
+                    <h2>Activity</h2>
+                    <div class="jc-row">
+                        <p class="jc-hint">What JellyClean removed and kept, and why, newest first.</p>
+                        <div class="jc-actions">
+                            <button type="button" class="jc-btn" id="jcProblems" aria-pressed="false">Only problems</button>
+                            <button type="button" class="jc-btn" id="jcActivityRefresh">Refresh</button>
+                            <button type="button" class="jc-btn" id="jcActivityClear">Clear</button>
+                        </div>
+                    </div>
+                    <div class="jc-log" id="jcActivity" aria-live="polite"><div class="jc-log-empty">Loading...</div></div>
+                </section>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            (function () {
+                var page = document.querySelector('#JellyCleanActivityPage');
+
+                function $(id) { return page.querySelector('#' + id); }
+
+                function esc(text) {
+                    var div = document.createElement('div');
+                    div.textContent = text == null ? '' : String(text);
+                    return div.innerHTML;
+                }
+
+                function loadActivity() {
+                    ApiClient.getJSON(ApiClient.getUrl('JellyClean/Activity')).then(function (lines) {
+                        $('jcActivity').innerHTML = lines.length ? lines.map(function (line) {
+                            var parts = line.split('\t');
+                            return '<div class="jc-log-row ' + esc(parts[1]) + '"><span class="jc-log-time">' + esc(parts[0]) +
+                                '</span><span class="jc-log-msg">' + esc(parts.slice(2).join(' ')) + '</span></div>';
+                        }).join('') + (lines.some(function (line) { return /\t(Warning|Error)\t/.test(line); }) ? '' : '<div class="jc-log-empty jc-no-problems">No warnings or errors.</div>')
+                            : '<div class="jc-log-empty">Nothing yet. Removals, kept items and errors show up here.</div>';
+                    }).catch(function () {
+                        $('jcActivity').innerHTML = '<div class="jc-log-empty">Could not load the activity.</div>';
+                    });
+                }
+
+                page.addEventListener('click', function (e) {
+                    var el = e.target.closest('button');
+                    if (!el || !page.contains(el)) { return; }
+                    if (el.classList.contains('jc-tab') && el.getAttribute('data-page')) {
+                        Dashboard.navigate(Dashboard.getPluginUrl(el.getAttribute('data-page')));
+                        return;
+                    }
+                    if (el.id === 'jcActivityRefresh') { loadActivity(); return; }
+                    if (el.id === 'jcProblems') {
+                        var on = el.getAttribute('aria-pressed') !== 'true';
+                        el.setAttribute('aria-pressed', String(on));
+                        $('jcActivity').classList.toggle('problems', on);
+                        return;
+                    }
+                    if (el.id === 'jcActivityClear') {
+                        if (!window.confirm('Clear the activity list?')) { return; }
+                        fetch(ApiClient.getUrl('JellyClean/Activity'), {
+                            method: 'DELETE',
+                            headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"' }
+                        }).then(loadActivity);
+                    }
+                });
+
+                page.addEventListener('pageshow', loadActivity);
+            })();
+        </script>
+    </div>
+</body>
+</html>

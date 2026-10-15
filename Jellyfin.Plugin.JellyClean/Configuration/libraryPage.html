@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JellyClean</title>
+</head>
+<body>
+    <div id="JellyCleanLibraryPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-button">
+        <style>
+            /* Same look as JellyBadge, scoped to this page so nothing leaks into the rest of the dashboard. */
+            #JellyCleanLibraryPage {
+                --jc-accent: #00a4dc;
+                --jc-accent-2: #aa5cc3;
+                --jc-danger: #e05a5a;
+                --jc-line: rgba(128, 128, 128, 0.22);
+                --jc-card: rgba(128, 128, 128, 0.07);
+                --jc-radius: 14px;
+            }
+            #JellyCleanLibraryPage .content-primary { max-width: 1240px; padding-bottom: 8em; }
+            #JellyCleanLibraryPage [hidden] { display: none !important; }
+            #JellyCleanLibraryPage button:focus-visible, #JellyCleanLibraryPage a:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 2px; }
+
+            #JellyCleanLibraryPage .jc-tabs { display: flex; gap: 0.4em; margin: 1em 0 0; flex-wrap: wrap; }
+            #JellyCleanLibraryPage .jc-tab { padding: 0.6em 1.2em; border-radius: 999px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: inherit; opacity: 0.75; }
+            #JellyCleanLibraryPage .jc-tab[aria-current="page"] { background: linear-gradient(135deg, var(--jc-accent-2), var(--jc-accent)); border-color: transparent; color: #fff; opacity: 1; }
+
+            #JellyCleanLibraryPage .jc-hero {
+                display: flex; align-items: center; gap: 1.2em; flex-wrap: wrap;
+                padding: 1.4em 1.6em; margin: 1em 0 1.4em; border-radius: var(--jc-radius);
+                background: linear-gradient(120deg, rgba(170, 92, 195, 0.28), rgba(0, 164, 220, 0.22));
+                border: 1px solid var(--jc-line);
+            }
+            #JellyCleanLibraryPage .jc-logo {
+                width: 54px; height: 54px; border-radius: 14px; flex: none; display: grid; place-items: center; color: #fff;
+                background: linear-gradient(135deg, var(--jc-accent-2), var(--jc-accent)); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+            }
+            #JellyCleanLibraryPage .jc-hero h1 { margin: 0; font-size: 1.7em; font-weight: 600; }
+            #JellyCleanLibraryPage .jc-hero p { margin: 0.2em 0 0; opacity: 0.8; }
+            #JellyCleanLibraryPage .jc-hero-text { flex: 1 1 260px; }
+            #JellyCleanLibraryPage .jc-stats { display: flex; gap: 0.6em; flex-wrap: wrap; }
+            #JellyCleanLibraryPage .jc-stat { padding: 0.55em 0.9em; border-radius: 12px; background: rgba(0, 0, 0, 0.18); border: 1px solid var(--jc-line); min-width: 6.5em; }
+            #JellyCleanLibraryPage .jc-stat b { display: block; font-size: 1.15em; font-variant-numeric: tabular-nums; }
+            #JellyCleanLibraryPage .jc-stat small { opacity: 0.7; }
+
+            #JellyCleanLibraryPage .jc-card {
+                background: var(--jc-card); border: 1px solid var(--jc-line); border-radius: var(--jc-radius);
+                padding: 1.3em 1.4em; margin-bottom: 1.2em;
+            }
+            #JellyCleanLibraryPage .jc-card h2 { margin: 0 0 0.25em; font-size: 1.15em; font-weight: 600; }
+            #JellyCleanLibraryPage .jc-hint { margin: 0 0 1em; opacity: 0.7; font-size: 0.92em; }
+
+            /* Filters */
+            #JellyCleanLibraryPage .jc-presets { display: flex; gap: 0.5em; flex-wrap: wrap; margin-bottom: 1em; }
+            #JellyCleanLibraryPage .jc-preset, #JellyCleanLibraryPage .jc-genre {
+                padding: 0.45em 0.95em; border-radius: 999px; border: 1px solid var(--jc-line); background: transparent;
+                color: inherit; font: inherit; font-size: 0.92em; cursor: pointer;
+            }
+            #JellyCleanLibraryPage .jc-preset:hover, #JellyCleanLibraryPage .jc-genre:hover { border-color: rgba(0, 164, 220, 0.6); }
+            #JellyCleanLibraryPage .jc-genre[aria-pressed="true"] { background: var(--jc-accent); border-color: var(--jc-accent); color: #fff; }
+            #JellyCleanLibraryPage .jc-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.9em; }
+            #JellyCleanLibraryPage .jc-field label { display: block; margin-bottom: 0.35em; font-weight: 600; font-size: 0.9em; opacity: 0.85; }
+            #JellyCleanLibraryPage .jc-field select, #JellyCleanLibraryPage .jc-field input {
+                width: 100%; box-sizing: border-box; padding: 0.65em 0.8em; border-radius: 10px; font: inherit;
+                border: 1px solid var(--jc-line); background: rgba(128, 128, 128, 0.1); color: inherit;
+            }
+            #JellyCleanLibraryPage .jc-field select option { color: #000; }
+            #JellyCleanLibraryPage .jc-field select:focus, #JellyCleanLibraryPage .jc-field input:focus { outline: none; border-color: var(--jc-accent); }
+            #JellyCleanLibraryPage .jc-genres { display: flex; gap: 0.4em; flex-wrap: wrap; margin-top: 1em; }
+            #JellyCleanLibraryPage .jc-genres-label { width: 100%; font-weight: 600; font-size: 0.9em; opacity: 0.85; }
+            #JellyCleanLibraryPage .jc-toggle { display: flex; align-items: center; gap: 0.7em; margin-top: 1em; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+
+            /* Switch */
+            #JellyCleanLibraryPage .jc-switch { position: relative; width: 46px; height: 26px; flex: none; border-radius: 999px; background: rgba(128, 128, 128, 0.45); transition: background 0.2s; }
+            #JellyCleanLibraryPage .jc-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+            #JellyCleanLibraryPage [aria-checked="true"] > .jc-switch { background: var(--jc-accent); }
+            #JellyCleanLibraryPage [aria-checked="true"] > .jc-switch::after { transform: translateX(20px); }
+
+            /* Results */
+            #JellyCleanLibraryPage .jc-head { display: flex; gap: 0.8em; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 0.8em; }
+            #JellyCleanLibraryPage .jc-count { font-weight: 600; }
+            #JellyCleanLibraryPage .jc-actions { display: flex; gap: 0.5em; flex-wrap: wrap; }
+            #JellyCleanLibraryPage .jc-btn {
+                padding: 0.65em 1.1em; border-radius: 10px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600;
+                cursor: pointer; background: rgba(128, 128, 128, 0.15); color: inherit; white-space: nowrap;
+            }
+            #JellyCleanLibraryPage .jc-btn.primary { background: linear-gradient(135deg, var(--jc-accent-2), var(--jc-accent)); border-color: transparent; color: #fff; }
+            #JellyCleanLibraryPage .jc-btn.danger { background: #c94848; border-color: transparent; color: #fff; }
+            #JellyCleanLibraryPage .jc-btn:disabled { opacity: 0.5; cursor: default; }
+            #JellyCleanLibraryPage .jc-list { border: 1px solid var(--jc-line); border-radius: 12px; overflow: hidden; }
+            #JellyCleanLibraryPage .jc-row { display: flex; gap: 0.9em; align-items: center; padding: 0.6em 0.8em; border-bottom: 1px solid var(--jc-line); }
+            #JellyCleanLibraryPage .jc-row:last-child { border-bottom: 0; }
+            #JellyCleanLibraryPage .jc-row.selected { background: rgba(0, 164, 220, 0.1); }
+            #JellyCleanLibraryPage .jc-check {
+                width: 22px; height: 22px; flex: none; border-radius: 6px; border: 2px solid rgba(128, 128, 128, 0.7);
+                background: transparent; cursor: pointer; padding: 0; display: grid; place-items: center; color: #fff;
+            }
+            #JellyCleanLibraryPage .jc-check[aria-checked="true"] { background: var(--jc-accent); border-color: var(--jc-accent); }
+            #JellyCleanLibraryPage .jc-check[aria-checked="true"]::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
+            #JellyCleanLibraryPage .jc-check:disabled { opacity: 0.35; cursor: default; }
+            #JellyCleanLibraryPage .jc-poster { width: 44px; height: 66px; flex: none; border-radius: 6px; object-fit: cover; background: rgba(128, 128, 128, 0.2); }
+            #JellyCleanLibraryPage .jc-poster.wide { width: 88px; height: 50px; }
+            #JellyCleanLibraryPage .jc-body { flex: 1; min-width: 0; }
+            #JellyCleanLibraryPage .jc-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            #JellyCleanLibraryPage .jc-title a { color: inherit; text-decoration: none; }
+            #JellyCleanLibraryPage .jc-title a:hover { text-decoration: underline; }
+            #JellyCleanLibraryPage .jc-meta { font-size: 0.86em; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            #JellyCleanLibraryPage .jc-tags { display: flex; gap: 0.35em; flex-wrap: wrap; margin-top: 0.3em; }
+            #JellyCleanLibraryPage .jc-tag { font-size: 0.78em; padding: 0.1em 0.6em; border-radius: 999px; border: 1px solid var(--jc-line); white-space: nowrap; }
+            #JellyCleanLibraryPage .jc-tag.never { border-color: rgba(240, 180, 41, 0.6); color: #f0b429; }
+            #JellyCleanLibraryPage .jc-tag.watched { border-color: rgba(76, 175, 80, 0.6); color: #66bb6a; }
+            #JellyCleanLibraryPage .jc-tag.quality { border-color: rgba(0, 164, 220, 0.6); color: #4fc3f7; }
+            #JellyCleanLibraryPage .jc-tag.copy { border-color: rgba(240, 120, 60, 0.6); color: #ff9a5c; }
+            #JellyCleanLibraryPage .jc-tag.protected { border-color: rgba(170, 92, 195, 0.7); color: #c58ad8; }
+            #JellyCleanLibraryPage .jc-size { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 5em; text-align: right; }
+            #JellyCleanLibraryPage .jc-keep {
+                flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--jc-line); background: transparent;
+                color: inherit; cursor: pointer; display: grid; place-items: center; opacity: 0.55;
+            }
+            #JellyCleanLibraryPage .jc-keep[aria-pressed="true"] { opacity: 1; color: #fff; background: var(--jc-accent-2); border-color: transparent; }
+            #JellyCleanLibraryPage .jc-empty { padding: 1.5em; text-align: center; opacity: 0.7; }
+            #JellyCleanLibraryPage .jc-more { display: block; margin: 1em auto 0; }
+
+            /* Selection bar */
+            #JellyCleanLibraryPage .jc-bar {
+                position: sticky; bottom: 1em; z-index: 4; display: flex; gap: 0.7em; align-items: center; justify-content: flex-end; flex-wrap: wrap;
+                padding: 0.8em 1em; border-radius: var(--jc-radius); border: 1px solid var(--jc-line);
+                background: rgba(20, 20, 22, 0.92); color: #fff; backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+            }
+            #JellyCleanLibraryPage .jc-bar-text { margin-right: auto; }
+
+            /* Preview dialog */
+            #JellyCleanLibraryPage .jc-dialog {
+                position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1em;
+                background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px);
+            }
+            #JellyCleanLibraryPage .jc-sheet {
+                width: min(760px, 100%); max-height: calc(100vh - 2em); display: flex; flex-direction: column;
+                border-radius: var(--jc-radius); border: 1px solid var(--jc-line); background: #1c1c1e; color: #fff; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            }
+            #JellyCleanLibraryPage .jc-sheet-head { padding: 1.2em 1.4em 0.6em; }
+            #JellyCleanLibraryPage .jc-sheet-head h2 { margin: 0; font-size: 1.3em; }
+            #JellyCleanLibraryPage .jc-sheet-body { padding: 0 1.4em; overflow: auto; flex: 1; }
+            #JellyCleanLibraryPage .jc-sheet-foot { padding: 1em 1.4em 1.2em; display: flex; gap: 0.6em; justify-content: flex-end; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--jc-line); }
+            #JellyCleanLibraryPage .jc-sheet-foot input { flex: 1 1 12em; padding: 0.65em 0.8em; border-radius: 10px; font: inherit; border: 1px solid var(--jc-line); background: rgba(128, 128, 128, 0.15); color: inherit; }
+            #JellyCleanLibraryPage .jc-warn { padding: 0.7em 0.9em; border-radius: 10px; border: 1px solid rgba(240, 180, 41, 0.5); background: rgba(240, 180, 41, 0.08); margin: 0.6em 0; font-size: 0.92em; }
+            #JellyCleanLibraryPage .jc-section { margin: 1em 0 0.4em; font-weight: 600; opacity: 0.85; }
+            #JellyCleanLibraryPage .jc-plan { border: 1px solid var(--jc-line); border-radius: 10px; font-size: 0.9em; }
+            #JellyCleanLibraryPage .jc-plan > div { padding: 0.5em 0.8em; border-bottom: 1px solid var(--jc-line); }
+            #JellyCleanLibraryPage .jc-plan > div:last-child { border-bottom: 0; }
+            #JellyCleanLibraryPage .jc-plan small { display: block; opacity: 0.65; overflow-wrap: anywhere; }
+            #JellyCleanLibraryPage .jc-plan .jc-arr { opacity: 0.9; color: #7fd3f0; }
+
+            @media (max-width: 600px) {
+                #JellyCleanLibraryPage .jc-poster { display: none; }
+                #JellyCleanLibraryPage .jc-row { flex-wrap: wrap; }
+                #JellyCleanLibraryPage .jc-body { flex-basis: calc(100% - 3em); }
+                #JellyCleanLibraryPage .jc-size { margin-left: 2.1em; text-align: left; min-width: 0; flex: 1; }
+                #JellyCleanLibraryPage .jc-bar .jc-btn { flex: 1 1 0; }
+            }
+        </style>
+
+        <div data-role="content">
+            <div class="content-primary">
+                <nav class="jc-tabs" aria-label="JellyClean">
+                    <button type="button" class="jc-tab" aria-current="page">Library</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanSettings">Settings</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
+                </nav>
+
+                <div class="jc-hero">
+                    <div class="jc-logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M16 11h-1V3c0-1.1-.9-2-2-2h-2c-1.1 0-2 .9-2 2v8H8c-2.76 0-5 2.24-5 5v7h18v-7c0-2.76-2.24-5-5-5zm3 10h-2v-3c0-.55-.45-1-1-1s-1 .45-1 1v3h-2v-3c0-.55-.45-1-1-1s-1 .45-1 1v3H9v-3c0-.55-.45-1-1-1s-1 .45-1 1v3H5v-5c0-1.65 1.35-3 3-3h8c1.65 0 3 1.35 3 3v5z"/></svg></div>
+                    <div class="jc-hero-text">
+                        <h1>JellyClean</h1>
+                        <p>Find what nobody watches and free up space. Nothing changes until you remove something.</p>
+                    </div>
+                    <div class="jc-stats" id="jcStats" aria-live="polite"></div>
+                </div>
+
+                <section class="jc-card">
+                    <h2>Filter</h2>
+                    <p class="jc-hint">Start from a suggestion or set your own filters. The list updates as you go.</p>
+                    <div class="jc-presets">
+                        <button type="button" class="jc-preset" data-preset="stale">Never played, added over a year ago</button>
+                        <button type="button" class="jc-preset" data-preset="biggest">Biggest movies</button>
+                        <button type="button" class="jc-preset" data-preset="everyone">Watched by everyone</button>
+                        <button type="button" class="jc-preset" data-preset="forgotten">Series nobody played in 2 years</button>
+                        <button type="button" class="jc-preset" data-preset="copies">Movies you have twice</button>
+                        <button type="button" class="jc-preset" data-preset="lowres">Old H.264 below 1080p</button>
+                        <button type="button" class="jc-preset" data-preset="reset">Clear filters</button>
+                    </div>
+                    <div class="jc-fields">
+                        <div class="jc-field">
+                            <label for="jcType">Show</label>
+                            <select id="jcType">
+                                <option value="Movie">Movies</option>
+                                <option value="Series">Series</option>
+                                <option value="Season">Seasons</option>
+                                <option value="Episode">Episodes</option>
+                                <option value="Movie,Series">Movies and series</option>
+                            </select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcLibrary">Library</label>
+                            <select id="jcLibrary"><option value="">All libraries</option></select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcWatched">Watched</label>
+                            <select id="jcWatched">
+                                <option value="">Watched or not</option>
+                                <option value="none">Never played by anyone</option>
+                                <option value="any">Watched by someone</option>
+                                <option value="all">Watched by everyone</option>
+                            </select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcAdded">Added</label>
+                            <select id="jcAdded">
+                                <option value="">Any time</option>
+                                <option value="30">Over a month ago</option>
+                                <option value="91">Over 3 months ago</option>
+                                <option value="182">Over 6 months ago</option>
+                                <option value="365">Over a year ago</option>
+                                <option value="730">Over 2 years ago</option>
+                                <option value="1826">Over 5 years ago</option>
+                                <option value="-30">In the last month</option>
+                            </select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcIdle">Nobody played it in</label>
+                            <select id="jcIdle">
+                                <option value="">No limit</option>
+                                <option value="91">3 months</option>
+                                <option value="182">6 months</option>
+                                <option value="365">A year</option>
+                                <option value="730">2 years</option>
+                            </select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcSize">Size</label>
+                            <select id="jcSize">
+                                <option value="">Any size</option>
+                                <option value="1">1 GB or more</option>
+                                <option value="5">5 GB or more</option>
+                                <option value="10">10 GB or more</option>
+                                <option value="25">25 GB or more</option>
+                                <option value="50">50 GB or more</option>
+                                <option value="100">100 GB or more</option>
+                            </select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcResolution">Resolution</label>
+                            <select id="jcResolution">
+                                <option value="">Any resolution</option>
+                                <option value="4K">4K</option>
+                                <option value="1080p">1080p</option>
+                                <option value="720p">720p</option>
+                                <option value="SD">SD</option>
+                                <option value="720p,SD">Below 1080p</option>
+                            </select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcHdr">HDR</label>
+                            <select id="jcHdr">
+                                <option value="">HDR or not</option>
+                                <option value="hdr">Any HDR</option>
+                                <option value="Dolby Vision">Dolby Vision</option>
+                                <option value="HDR10+">HDR10+</option>
+                                <option value="HDR10">HDR10</option>
+                                <option value="sdr">No HDR</option>
+                            </select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcCodec">Codec</label>
+                            <select id="jcCodec"><option value="">Any codec</option></select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcSort">Sort by</label>
+                            <select id="jcSort">
+                                <option value="added|0">Added, oldest first</option>
+                                <option value="added|1">Added, newest first</option>
+                                <option value="size|1">Size, biggest first</option>
+                                <option value="watched|0">Last played, longest ago first</option>
+                                <option value="rating|0">Rating, lowest first</option>
+                                <option value="quality|0">Resolution, lowest first</option>
+                                <option value="year|0">Year, oldest first</option>
+                                <option value="name|0">Name</option>
+                            </select>
+                        </div>
+                        <div class="jc-field">
+                            <label for="jcSearch">Search</label>
+                            <input id="jcSearch" type="search" autocomplete="off" placeholder="Title or path">
+                        </div>
+                    </div>
+                    <div class="jc-genres" id="jcGenres" role="group" aria-label="Genres"></div>
+                    <button type="button" class="jc-toggle" role="switch" id="jcCopies" aria-checked="false">
+                        <span class="jc-switch" aria-hidden="true"></span>
+                        <span>Only movies and series that are in Jellyfin more than once, like a 1080p and a 4K copy</span>
+                    </button>
+                    <button type="button" class="jc-toggle" role="switch" id="jcHideProtected" aria-checked="false">
+                        <span class="jc-switch" aria-hidden="true"></span>
+                        <span>Hide items marked keep and favorites</span>
+                    </button>
+                </section>
+
+                <section class="jc-card">
+                    <div class="jc-head">
+                        <span class="jc-count" id="jcCount" aria-live="polite">Loading...</span>
+                        <div class="jc-actions">
+                            <button type="button" class="jc-btn" id="jcSelectAll">Select all</button>
+                            <button type="button" class="jc-btn" id="jcExport" title="Download this list as a spreadsheet">Export</button>
+                            <button type="button" class="jc-btn" id="jcRefresh" title="Read the library again">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="jc-list" id="jcList"></div>
+                    <button type="button" class="jc-btn jc-more" id="jcMore" hidden>Show more</button>
+                </section>
+
+                <div class="jc-bar" id="jcBar" hidden>
+                    <span class="jc-bar-text" id="jcBarText"></span>
+                    <button type="button" class="jc-btn" id="jcClear">Clear selection</button>
+                    <button type="button" class="jc-btn danger" id="jcPreview">Preview removal</button>
+                </div>
+
+                <div class="jc-dialog" id="jcDialog" role="dialog" aria-modal="true" aria-labelledby="jcDialogTitle" hidden>
+                    <div class="jc-sheet">
+                        <div class="jc-sheet-head"><h2 id="jcDialogTitle"></h2></div>
+                        <div class="jc-sheet-body" id="jcDialogBody"></div>
+                        <div class="jc-sheet-foot" id="jcDialogFoot"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            (function () {
+                var page = document.querySelector('#JellyCleanLibraryPage');
+                var PAGE_SIZE = 100;
+                var DAY = 24 * 60 * 60 * 1000;
+                var users = {};
+                var userCount = 0;
+                var servers = 0;
+                var shown = [];
+                var total = 0;
+                var selected = new Map(); // id -> size
+                var genres = new Set();
+                var timer = null;
+                var request = 0;
+
+                function $(id) { return page.querySelector('#' + id); }
+
+                // Builds elements with textContent only, so titles and paths can never inject markup.
+                function el(tag, props) {
+                    var e = document.createElement(tag);
+                    Object.assign(e, props || {});
+                    for (var i = 2; i < arguments.length; i++) {
+                        if (arguments[i] != null) { e.append(arguments[i]); }
+                    }
+                    return e;
+                }
+
+                // Inline icons, so they never depend on the icon font of the web client.
+                var ICONS = {
+                    lock: 'M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z',
+                    lockOpen: 'M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z'
+                };
+
+                function icon(name) {
+                    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    svg.setAttribute('viewBox', '0 0 24 24');
+                    svg.setAttribute('width', '20');
+                    svg.setAttribute('height', '20');
+                    svg.setAttribute('fill', 'currentColor');
+                    svg.setAttribute('aria-hidden', 'true');
+                    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', ICONS[name]);
+                    svg.append(path);
+                    return svg;
+                }
+
+                function bytes(n) {
+                    var units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                    var unit = 0;
+                    while (n >= 1000 && unit < units.length - 1) { n /= 1000; unit++; }
+                    return (n < 10 && unit > 0 ? n.toFixed(1) : Math.round(n)) + ' ' + units[unit];
+                }
+
+                function date(value) {
+                    return value ? new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+                }
+
+                function plural(n, one, many) { return n.toLocaleString() + ' ' + (n === 1 ? one : many); }
+
+                function call(method, path, body) {
+                    return fetch(ApiClient.getUrl('JellyClean/' + path), {
+                        method: method,
+                        headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"', 'Content-Type': 'application/json' },
+                        body: body === undefined ? undefined : JSON.stringify(body)
+                    }).then(function (r) {
+                        if (!r.ok) { throw new Error(r.status + ' ' + r.statusText); }
+                        return r.status === 204 ? null : r.json();
+                    });
+                }
+
+                function daysAgo(days) { return new Date(Date.now() - days * DAY).toISOString(); }
+
+                function filter(offset) {
+                    var added = parseInt($('jcAdded').value, 10);
+                    var idle = parseInt($('jcIdle').value, 10);
+                    var size = parseFloat($('jcSize').value);
+                    var sort = $('jcSort').value.split('|');
+                    return {
+                        Types: $('jcType').value.split(','),
+                        Library: $('jcLibrary').value || null,
+                        Genres: Array.from(genres),
+                        Watched: $('jcWatched').value || null,
+                        AddedBefore: added > 0 ? daysAgo(added) : null,
+                        AddedAfter: added < 0 ? daysAgo(-added) : null,
+                        NotWatchedSince: idle > 0 ? daysAgo(idle) : null,
+                        MinSize: size > 0 ? size * 1e9 : null,
+                        Resolutions: $('jcResolution').value ? $('jcResolution').value.split(',') : null,
+                        Hdr: $('jcHdr').value || null,
+                        Codec: $('jcCodec').value || null,
+                        CopiesOnly: $('jcCopies').getAttribute('aria-checked') === 'true',
+                        Search: $('jcSearch').value || null,
+                        HideProtected: $('jcHideProtected').getAttribute('aria-checked') === 'true',
+                        Sort: sort[0],
+                        Descending: sort[1] === '1',
+                        Offset: offset,
+                        Limit: PAGE_SIZE
+                    };
+                }
+
+                function watchedTag(item) {
+                    if (!item.AnyPlayed) { return el('span', { className: 'jc-tag never', textContent: 'Never played' }); }
+                    var who = item.WatchedBy.map(function (id) { return users[id] || 'someone'; });
+                    var text = !who.length ? 'Partly played'
+                        : who.length >= userCount && userCount > 1 ? 'Watched by everyone'
+                        : 'Watched by ' + who.join(', ');
+                    return el('span', { className: 'jc-tag' + (who.length ? ' watched' : ''), textContent: text });
+                }
+
+                function row(item) {
+                    var isSelected = selected.has(item.Id);
+                    var protectedItem = item.Kept || item.Favorite;
+                    var check = el('button', { type: 'button', className: 'jc-check', ariaLabel: 'Select ' + item.Title });
+                    check.setAttribute('role', 'checkbox');
+                    check.setAttribute('aria-checked', String(isSelected));
+                    check.dataset.id = item.Id;
+                    check.dataset.size = item.Size;
+
+                    var keep = el('button', { type: 'button', className: 'jc-keep', title: item.Kept ? 'Marked keep. Click to allow removing it.' : 'Mark keep, so it is never removed' }, icon(item.Kept ? 'lock' : 'lockOpen'));
+                    keep.setAttribute('aria-pressed', String(item.Kept));
+                    keep.setAttribute('aria-label', 'Keep ' + item.Title);
+                    keep.dataset.keep = item.Id;
+
+                    var meta = [item.Library, item.Type === 'Series' || item.Type === 'Movie' ? item.Year : null, item.Genres.slice(0, 3).join(', ')]
+                        .filter(Boolean).join(' · ');
+                    var tags = el('div', { className: 'jc-tags' },
+                        el('span', { className: 'jc-tag', textContent: 'Added ' + date(item.Added) }),
+                        watchedTag(item),
+                        item.LastWatched ? el('span', { className: 'jc-tag', textContent: 'Last played ' + date(item.LastWatched) }) : null,
+                        item.Rating ? el('span', { className: 'jc-tag', textContent: '★ ' + item.Rating.toFixed(1) }) : null,
+                        item.Resolution ? el('span', { className: 'jc-tag quality', textContent: [item.Resolution, item.Codec, item.Hdr].filter(Boolean).join(' · ') }) : null,
+                        item.CopiesIn.length ? el('span', { className: 'jc-tag copy', textContent: 'Also in ' + item.CopiesIn.join(', ') }) : null,
+                        item.Kept ? el('span', { className: 'jc-tag protected', textContent: 'Keep' }) : null,
+                        item.Favorite ? el('span', { className: 'jc-tag protected', textContent: 'Favorite' }) : null);
+
+                    var img = el('img', {
+                        className: 'jc-poster' + (item.Type === 'Episode' ? ' wide' : ''), alt: '', loading: 'lazy',
+                        src: ApiClient.getImageUrl(item.Id, { type: 'Primary', maxHeight: 132 })
+                    });
+                    img.addEventListener('error', function () { img.style.visibility = 'hidden'; });
+
+                    return el('div', { className: 'jc-row' + (isSelected ? ' selected' : '') + (protectedItem ? ' protected' : '') },
+                        check, img,
+                        el('div', { className: 'jc-body' },
+                            el('div', { className: 'jc-title' }, el('a', { href: '#/details?id=' + item.Id, textContent: item.Title, title: item.Path })),
+                            el('div', { className: 'jc-meta', textContent: meta || item.Path }),
+                            tags),
+                        el('span', { className: 'jc-size', textContent: bytes(item.Size) }),
+                        keep);
+                }
+
+                function render(append, items) {
+                    var list = $('jcList');
+                    if (!append) { list.textContent = ''; }
+                    items.forEach(function (item) { list.append(row(item)); });
+                    if (!shown.length) { list.append(el('div', { className: 'jc-empty', textContent: 'Nothing matches these filters.' })); }
+                    $('jcMore').hidden = shown.length >= total;
+                }
+
+                function load(append) {
+                    var mine = ++request;
+                    var f = filter(append ? shown.length : 0);
+                    if (!append) { $('jcCount').textContent = 'Loading...'; }
+                    return call('POST', 'Items', f).then(function (result) {
+                        if (mine !== request) { return; }
+                        total = result.Total;
+                        shown = append ? shown.concat(result.Items) : result.Items;
+                        $('jcCount').textContent = total ? plural(total, 'item', 'items') + ', ' + bytes(result.TotalSize) : 'No items';
+                        render(append, result.Items);
+                    }).catch(function (err) {
+                        $('jcCount').textContent = 'Could not load the library: ' + err.message;
+                    });
+                }
+
+                function reload() {
+                    clearTimeout(timer);
+                    timer = setTimeout(function () { load(false); }, 250);
+                }
+
+                function updateBar() {
+                    var size = 0;
+                    selected.forEach(function (s) { size += s; });
+                    $('jcBar').hidden = selected.size === 0;
+                    $('jcBarText').textContent = plural(selected.size, 'item', 'items') + ' selected, ' + bytes(size);
+                }
+
+                function setSelected(id, size, on) {
+                    if (on) { selected.set(id, size); } else { selected.delete(id); }
+                }
+
+                function loadOverview(refresh) {
+                    return call('GET', 'Overview' + (refresh ? '?refresh=true' : '')).then(function (o) {
+                        users = {};
+                        o.Users.forEach(function (u) { users[u.Id] = u.Name; });
+                        userCount = o.Users.length;
+
+                        var stats = $('jcStats');
+                        stats.textContent = '';
+                        [[o.Movies.toLocaleString(), 'movies'], [o.Series.toLocaleString(), 'series'], [bytes(o.Size), 'on disk'], [bytes(o.NeverWatchedSize), 'never played']].forEach(function (s) {
+                            stats.append(el('div', { className: 'jc-stat' }, el('b', { textContent: s[0] }), el('small', { textContent: s[1] })));
+                        });
+
+                        var library = $('jcLibrary');
+                        var current = library.value;
+                        library.length = 1;
+                        o.Libraries.forEach(function (name) { library.append(el('option', { value: name, textContent: name })); });
+                        library.value = o.Libraries.indexOf(current) >= 0 ? current : '';
+
+                        var watched = $('jcWatched');
+                        var w = watched.value;
+                        watched.length = 4;
+                        o.Users.forEach(function (u) { watched.append(el('option', { value: u.Id, textContent: 'Watched by ' + u.Name })); });
+                        watched.value = w;
+                        if (watched.selectedIndex < 0) { watched.value = ''; }
+
+                        var codec = $('jcCodec');
+                        var c = codec.value;
+                        codec.length = 1;
+                        o.Codecs.forEach(function (name) { codec.append(el('option', { value: name, textContent: name })); });
+                        codec.value = o.Codecs.indexOf(c) >= 0 ? c : '';
+
+                        var box = $('jcGenres');
+                        box.textContent = '';
+                        box.append(el('span', { className: 'jc-genres-label', textContent: 'Genres' }));
+                        o.Genres.forEach(function (g) {
+                            var b = el('button', { type: 'button', className: 'jc-genre', textContent: g });
+                            b.dataset.genre = g;
+                            b.setAttribute('aria-pressed', String(genres.has(g)));
+                            box.append(b);
+                        });
+                        box.hidden = !o.Genres.length;
+                    });
+                }
+
+                function applyPreset(name) {
+                    var values = {
+                        reset: {},
+                        stale: { jcType: 'Movie,Series', jcWatched: 'none', jcAdded: '365', jcSort: 'size|1' },
+                        biggest: { jcType: 'Movie', jcSort: 'size|1' },
+                        everyone: { jcType: 'Movie', jcWatched: 'all', jcSort: 'watched|0' },
+                        forgotten: { jcType: 'Series', jcIdle: '730', jcSort: 'size|1' },
+                        copies: { jcType: 'Movie', jcSort: 'name|0', copies: true },
+                        lowres: { jcType: 'Movie,Series', jcResolution: '720p,SD', jcCodec: 'H.264', jcSort: 'size|1' }
+                    }[name];
+                    var defaults = { jcType: 'Movie', jcLibrary: '', jcWatched: '', jcAdded: '', jcIdle: '', jcSize: '', jcResolution: '', jcHdr: '', jcCodec: '', jcSort: 'added|0', jcSearch: '' };
+                    Object.keys(defaults).forEach(function (id) { $(id).value = values[id] !== undefined ? values[id] : defaults[id]; });
+                    if ($('jcCodec').selectedIndex < 0) { $('jcCodec').value = ''; }
+                    $('jcCopies').setAttribute('aria-checked', String(!!values.copies));
+                    genres.clear();
+                    page.querySelectorAll('.jc-genre').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+                    load(false);
+                }
+
+                // Preview and removal
+
+                function openDialog(title) {
+                    $('jcDialogTitle').textContent = title;
+                    $('jcDialogBody').textContent = '';
+                    $('jcDialogFoot').textContent = '';
+                    $('jcDialog').hidden = false;
+                }
+
+                function closeDialog() { $('jcDialog').hidden = true; }
+
+                function planList(items, withReason) {
+                    var box = el('div', { className: 'jc-plan' });
+                    items.slice(0, 300).forEach(function (p) {
+                        box.append(el('div', {},
+                            el('b', { textContent: p.Item.Title }), ' ', el('span', { textContent: p.Item.Size ? bytes(p.Item.Size) : '' }),
+                            withReason ? el('small', { textContent: p.Reason }) : null,
+                            p.Paths.length ? el('small', { textContent: p.Paths.join(', ') }) : null,
+                            p.Arr.length ? el('small', { className: 'jc-arr', textContent: p.Arr.map(function (s) { return s.Description; }).join(', ') }) : null));
+                    });
+                    if (items.length > 300) { box.append(el('div', { textContent: 'And ' + (items.length - 300) + ' more.' })); }
+                    return box;
+                }
+
+                function showPlan(plan) {
+                    var count = plan.Remove.length;
+                    openDialog(count ? 'Delete ' + plural(count, 'item', 'items') + ', ' + plan.Size + ', from disk?' : 'Nothing can be removed');
+                    var body = $('jcDialogBody');
+                    if (count) {
+                        body.append(el('p', { className: 'jc-hint', textContent: 'The files are deleted from disk and the items are removed from Jellyfin. This cannot be undone.' }));
+                        if (!servers) {
+                            body.append(el('div', { className: 'jc-warn', textContent: 'No Radarr or Sonarr is set up. If they manage these items, they may download them again. Add them under Settings.' }));
+                        } else if (plan.Remove.some(function (p) { return !p.Arr.length; })) {
+                            body.append(el('div', { className: 'jc-warn', textContent: 'Some items were not found in Radarr or Sonarr. Only Jellyfin and the disk are cleaned for those.' }));
+                        }
+                        body.append(el('div', { className: 'jc-section', textContent: 'Removed' }), planList(plan.Remove, false));
+                    }
+                    if (plan.Skip.length) {
+                        body.append(el('div', { className: 'jc-section', textContent: 'Kept (' + plan.Skip.length + ')' }), planList(plan.Skip, true));
+                    }
+
+                    var foot = $('jcDialogFoot');
+                    var cancel = el('button', { type: 'button', className: 'jc-btn', textContent: count ? 'Cancel' : 'Close' });
+                    cancel.addEventListener('click', closeDialog);
+                    if (!count) { foot.append(cancel); return; }
+
+                    var go = el('button', { type: 'button', className: 'jc-btn danger', textContent: 'Delete from disk' });
+                    // Bigger removals need the number typed, so a stray click can't delete a library.
+                    var typed = count >= 20 ? el('input', { type: 'text', inputMode: 'numeric', placeholder: 'Type ' + count + ' to confirm', ariaLabel: 'Type ' + count + ' to confirm' }) : null;
+                    if (typed) {
+                        go.disabled = true;
+                        typed.addEventListener('input', function () { go.disabled = typed.value.trim() !== String(count); });
+                        foot.append(typed);
+                    }
+                    go.addEventListener('click', function () {
+                        go.disabled = true;
+                        cancel.disabled = true;
+                        go.textContent = 'Removing...';
+                        call('POST', 'Remove', { Ids: plan.Remove.map(function (p) { return p.Item.Id; }) }).then(showResult).catch(function (err) {
+                            showResult(null, err);
+                        });
+                    });
+                    foot.append(cancel, go);
+                }
+
+                function showResult(plan, err) {
+                    openDialog(err ? 'Removal failed' : 'Removed ' + plural(plan.Remove.length, 'item', 'items') + ', ' + plan.Size);
+                    var body = $('jcDialogBody');
+                    if (err) {
+                        body.append(el('p', { textContent: err.message + '. See the Activity tab for what was done.' }));
+                    } else {
+                        plan.Remove.forEach(function (p) { selected.delete(p.Item.Id); });
+                        if (plan.Skip.length) {
+                            body.append(el('div', { className: 'jc-section', textContent: 'Kept (' + plan.Skip.length + ')' }), planList(plan.Skip, true));
+                        } else {
+                            body.append(el('p', { className: 'jc-hint', textContent: 'Everything was removed. Details are on the Activity tab.' }));
+                        }
+                    }
+                    var close = el('button', { type: 'button', className: 'jc-btn primary', textContent: 'Done' });
+                    close.addEventListener('click', closeDialog);
+                    $('jcDialogFoot').append(close);
+                    updateBar();
+                    loadOverview(false).then(function () { load(false); });
+                }
+
+                // Events
+
+                ['jcType', 'jcLibrary', 'jcWatched', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
+                    $(id).addEventListener('change', function () { load(false); });
+                });
+                $('jcSearch').addEventListener('input', reload);
+
+                page.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && !$('jcDialog').hidden && !$('jcDialogFoot').querySelector('button:disabled')) { closeDialog(); }
+                });
+
+                page.addEventListener('click', function (e) {
+                    var b = e.target.closest('button');
+                    if (!b || !page.contains(b)) { return; }
+
+                    if (b.classList.contains('jc-tab') && b.dataset.page) {
+                        Dashboard.navigate(Dashboard.getPluginUrl(b.dataset.page));
+                    } else if (b.dataset.preset) {
+                        applyPreset(b.dataset.preset);
+                    } else if (b.dataset.genre) {
+                        var on = !genres.has(b.dataset.genre);
+                        if (on) { genres.add(b.dataset.genre); } else { genres.delete(b.dataset.genre); }
+                        b.setAttribute('aria-pressed', String(on));
+                        load(false);
+                    } else if (b.id === 'jcHideProtected' || b.id === 'jcCopies') {
+                        b.setAttribute('aria-checked', String(b.getAttribute('aria-checked') !== 'true'));
+                        load(false);
+                    } else if (b.classList.contains('jc-check')) {
+                        var checked = b.getAttribute('aria-checked') !== 'true';
+                        setSelected(b.dataset.id, Number(b.dataset.size), checked);
+                        b.setAttribute('aria-checked', String(checked));
+                        b.closest('.jc-row').classList.toggle('selected', checked);
+                        updateBar();
+                    } else if (b.dataset.keep) {
+                        var keep = b.getAttribute('aria-pressed') !== 'true';
+                        b.disabled = true;
+                        call('POST', 'Keep/' + b.dataset.keep + '?keep=' + keep).then(function () { load(false); });
+                    } else if (b.id === 'jcMore') {
+                        load(true);
+                    } else if (b.id === 'jcRefresh') {
+                        b.disabled = true;
+                        loadOverview(true).then(function () { return load(false); }).finally(function () { b.disabled = false; });
+                    } else if (b.id === 'jcSelectAll') {
+                        b.disabled = true;
+                        var f = filter(0);
+                        f.Limit = 1;
+                        call('POST', 'Items?allIds=true', f).then(function (result) {
+                            result.Ids.forEach(function (i) { setSelected(i.Id, i.Size, true); });
+                            page.querySelectorAll('.jc-check').forEach(function (c) { c.setAttribute('aria-checked', 'true'); c.closest('.jc-row').classList.add('selected'); });
+                            updateBar();
+                        }).finally(function () { b.disabled = false; });
+                    } else if (b.id === 'jcExport') {
+                        b.disabled = true;
+                        fetch(ApiClient.getUrl('JellyClean/Export'), {
+                            method: 'POST',
+                            headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"', 'Content-Type': 'application/json' },
+                            body: JSON.stringify(filter(0))
+                        }).then(function (r) {
+                            if (!r.ok) { throw new Error(r.status + ' ' + r.statusText); }
+                            return r.blob();
+                        }).then(function (blob) {
+                            var a = el('a', { href: URL.createObjectURL(blob), download: 'jellyclean-' + new Date().toISOString().slice(0, 10) + '.csv' });
+                            page.append(a);
+                            a.click();
+                            a.remove();
+                            setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+                        }).catch(function (err) {
+                            window.alert('Could not export: ' + err.message);
+                        }).finally(function () { b.disabled = false; });
+                    } else if (b.id === 'jcClear') {
+                        selected.clear();
+                        page.querySelectorAll('.jc-check').forEach(function (c) { c.setAttribute('aria-checked', 'false'); c.closest('.jc-row').classList.remove('selected'); });
+                        updateBar();
+                    } else if (b.id === 'jcPreview') {
+                        b.disabled = true;
+                        b.textContent = 'Checking...';
+                        call('POST', 'Preview', { Ids: Array.from(selected.keys()) }).then(showPlan).catch(function (err) {
+                            window.alert('Could not prepare the removal: ' + err.message);
+                        }).finally(function () { b.disabled = false; b.textContent = 'Preview removal'; });
+                    }
+                });
+
+                page.addEventListener('pageshow', function () {
+                    ApiClient.getPluginConfiguration('b0be751c-a689-46fd-bb83-4540a41cd649').then(function (config) {
+                        servers = (config.Servers || []).filter(function (s) { return s.Url; }).length;
+                    });
+                    loadOverview(false).then(function () { return load(false); }).catch(function (err) {
+                        $('jcCount').textContent = 'Could not load the library: ' + err.message;
+                    });
+                });
+            })();
+        </script>
+    </div>
+</body>
+</html>

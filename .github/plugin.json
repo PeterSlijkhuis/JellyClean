@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "guid": "b0be751c-a689-46fd-bb83-4540a41cd649",
+  "name": "JellyClean",
+  "overview": "See what is in your libraries, filter it, and clean up in bulk",
+  "description": "A library overview for admins. Shows every movie, series, season and episode with when it was added, who watched it and how much space it takes. Filter by type, library, genre, watched state, age and size, then remove in bulk after a preview. Removed items are deleted from disk and from Jellyfin, and also removed from Radarr and Sonarr so they are not downloaded again. Items marked keep, favorites and anything being played are never removed.",
+  "owner": "PeterSlijkhuis",
+  "category": "General",
+  "targetAbi": "12.1.0.0",
+  "imageUrl": "https://raw.githubusercontent.com/PeterSlijkhuis/JellyClean/main/docs/jellyclean.png"
+}
