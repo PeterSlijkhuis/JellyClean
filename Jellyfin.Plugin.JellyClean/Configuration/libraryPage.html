@@ -121,6 +121,8 @@
             #JellyCleanLibraryPage .jc-tag.copy { border-color: rgba(240, 120, 60, 0.6); color: #ff9a5c; }
             #JellyCleanLibraryPage .jc-tag.protected { border-color: rgba(170, 92, 195, 0.7); color: #c58ad8; }
             #JellyCleanLibraryPage .jc-size { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 5em; text-align: right; }
+            #JellyCleanLibraryPage .jc-target { display: inline-flex; gap: .4em; align-items: center; }
+            #JellyCleanLibraryPage .jc-target input { width: 6em; padding: .45em .6em; border-radius: 8px; border: 1px solid var(--jc-line); background: transparent; color: inherit; font: inherit; }
             #JellyCleanLibraryPage .jc-unfav { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; padding: 0 0 0 .2em; opacity: .7; }
             #JellyCleanLibraryPage .jc-unfav:hover { opacity: 1; }
             #JellyCleanLibraryPage .jc-keep {
@@ -256,6 +258,7 @@
                         <button type="button" class="jc-preset" data-preset="stale">Never played, added over a year ago</button>
                         <button type="button" class="jc-preset" data-preset="biggest">Biggest movies</button>
                         <button type="button" class="jc-preset" data-preset="everyone">Watched by everyone</button>
+                        <button type="button" class="jc-preset" data-preset="finished">Finished series everyone watched</button>
                         <button type="button" class="jc-preset" data-preset="forgotten">Series nobody played in 2 years</button>
                         <button type="button" class="jc-preset" data-preset="copies">Movies you have twice</button>
                         <button type="button" class="jc-preset" data-preset="lowres">Old H.264 below 1080p</button>
@@ -373,6 +376,10 @@
                         <span class="jc-switch" aria-hidden="true"></span>
                         <span>Only movies and series that are in Jellyfin more than once, like a 1080p and a 4K copy</span>
                     </button>
+                    <button type="button" class="jc-toggle" role="switch" id="jcEnded" aria-checked="false">
+                        <span class="jc-switch" aria-hidden="true"></span>
+                        <span>Only series that have ended, so no new episodes are coming</span>
+                    </button>
                     <button type="button" class="jc-toggle" role="switch" id="jcHideProtected" aria-checked="false">
                         <span class="jc-switch" aria-hidden="true"></span>
                         <span>Hide items marked keep and favorites</span>
@@ -383,6 +390,10 @@
                     <div class="jc-head">
                         <span class="jc-count" id="jcCount" aria-live="polite">Reading your library. The very first read can take a few minutes on a big library.</span>
                         <div class="jc-actions">
+                            <span class="jc-target">
+                                <input type="number" id="jcTarget" min="1" step="any" placeholder="500" aria-label="Space to free up, in GB">
+                                <button type="button" class="jc-btn" id="jcFreeUp" title="Selects matches from the top of this list, skipping keep, favorites and Continue Watching, until they add up to this many GB">Free up GB</button>
+                            </span>
                             <button type="button" class="jc-btn" id="jcSelectAll">Select all</button>
                             <button type="button" class="jc-btn" id="jcExport" title="Download this list as a spreadsheet">Export</button>
                             <button type="button" class="jc-btn" id="jcRefresh" title="Read the library again">Refresh</button>
@@ -504,6 +515,7 @@
                         Hdr: $('jcHdr').value || null,
                         Codec: $('jcCodec').value || null,
                         CopiesOnly: $('jcCopies').getAttribute('aria-checked') === 'true',
+                        EndedOnly: $('jcEnded').getAttribute('aria-checked') === 'true',
                         Search: $('jcSearch').value || null,
                         HideProtected: $('jcHideProtected').getAttribute('aria-checked') === 'true',
                         Sort: sort[0],
@@ -545,10 +557,13 @@
                     $('jcSort').value = (f.Sort || 'added') + '|' + (f.Descending ? '1' : '0');
                     $('jcSearch').value = f.Search || '';
                     $('jcCopies').setAttribute('aria-checked', String(!!f.CopiesOnly));
+                    $('jcEnded').setAttribute('aria-checked', String(!!f.EndedOnly));
                     $('jcHideProtected').setAttribute('aria-checked', String(!!f.HideProtected));
                     genres = new Set(f.Genres || []);
                     page.querySelectorAll('.jc-genre').forEach(function (b) { b.setAttribute('aria-pressed', String(genres.has(b.dataset.genre))); });
-                    ['jcType', 'jcLibrary', 'jcWatched', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
+                    $('jcTarget').addEventListener('keydown', function (e) { if (e.key === 'Enter') { $('jcFreeUp').click(); } });
+
+                ['jcType', 'jcLibrary', 'jcWatched', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
                         if ($(id).selectedIndex < 0) { $(id).selectedIndex = 0; }
                     });
                     load(false);
@@ -651,6 +666,7 @@
                         item.LastWatched ? el('span', { className: 'jc-tag', textContent: 'Last played ' + date(item.LastWatched) }) : null,
                         item.Rating ? el('span', { className: 'jc-tag', textContent: '★ ' + item.Rating.toFixed(1) }) : null,
                         item.Resolution ? el('span', { className: 'jc-tag quality', textContent: [item.Resolution, item.Codec, item.Hdr].filter(Boolean).join(' · ') }) : null,
+                        item.Ended && item.Type === 'Series' ? el('span', { className: 'jc-tag', textContent: 'Ended' }) : null,
                         item.CopiesIn.length ? el('span', { className: 'jc-tag copy', textContent: 'Also in ' + item.CopiesIn.join(', ') }) : null,
                         item.Kept ? el('span', { className: 'jc-tag protected', textContent: 'Keep' }) : null,
                         item.Favorite ? favoriteTag(item) : null);
@@ -794,6 +810,7 @@
                         stale: { jcType: 'Movie,Series', jcWatched: 'none', jcAdded: '365', jcSort: 'size|1' },
                         biggest: { jcType: 'Movie', jcSort: 'size|1' },
                         everyone: { jcType: 'Movie', jcWatched: 'all', jcSort: 'watched|0' },
+                        finished: { jcType: 'Series', jcWatched: 'all', jcSort: 'size|1', ended: true },
                         forgotten: { jcType: 'Series', jcIdle: '730', jcSort: 'size|1' },
                         copies: { jcType: 'Movie', jcSort: 'name|0', copies: true },
                         lowres: { jcType: 'Movie,Series', jcResolution: '720p,SD', jcCodec: 'H.264', jcSort: 'size|1' }
@@ -802,6 +819,7 @@
                     Object.keys(defaults).forEach(function (id) { $(id).value = values[id] !== undefined ? values[id] : defaults[id]; });
                     if ($('jcCodec').selectedIndex < 0) { $('jcCodec').value = ''; }
                     $('jcCopies').setAttribute('aria-checked', String(!!values.copies));
+                    $('jcEnded').setAttribute('aria-checked', String(!!values.ended));
                     genres.clear();
                     page.querySelectorAll('.jc-genre').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
                     load(false);
@@ -961,7 +979,7 @@
                         if (on) { genres.add(b.dataset.genre); } else { genres.delete(b.dataset.genre); }
                         b.setAttribute('aria-pressed', String(on));
                         load(false);
-                    } else if (b.id === 'jcHideProtected' || b.id === 'jcCopies') {
+                    } else if (b.id === 'jcHideProtected' || b.id === 'jcCopies' || b.id === 'jcEnded') {
                         b.setAttribute('aria-checked', String(b.getAttribute('aria-checked') !== 'true'));
                         load(false);
                     } else if (b.dataset.storageLibrary) {
@@ -995,6 +1013,36 @@
                     } else if (b.id === 'jcRefresh') {
                         b.disabled = true;
                         loadOverview(true).then(function () { return load(false); }).finally(function () { b.disabled = false; });
+                    } else if (b.id === 'jcFreeUp') {
+                        var target = Number($('jcTarget').value) * 1e9;
+                        if (!(target > 0)) { $('jcTarget').focus(); return; }
+                        b.disabled = true;
+                        var tf = filter(0);
+                        tf.Limit = 1;
+                        call('POST', 'Items?allIds=true', tf).then(function (result) {
+                            // Top of the list first, in the sort order shown. A season or episode of a series already picked adds nothing.
+                            selected.clear();
+                            // ponytail: only keep, favorites and Continue Watching are skipped here; the preview applies the other safeguards.
+                            var picked = new Set();
+                            var parents = new Set();
+                            var sum = 0;
+                            result.Ids.forEach(function (i) {
+                                // Skip what a picked series or season already holds, and a series or season something in it was picked from.
+                                if (sum >= target || i.Protected || !i.Size || picked.has(i.SeriesId) || picked.has(i.SeasonId) || parents.has(i.Id)) { return; }
+                                picked.add(i.Id);
+                                if (i.SeriesId) { parents.add(i.SeriesId); }
+                                if (i.SeasonId) { parents.add(i.SeasonId); }
+                                setSelected(i.Id, i.Size, true);
+                                sum += i.Size;
+                            });
+                            page.querySelectorAll('.jc-check').forEach(function (c) {
+                                var on = selected.has(c.dataset.id);
+                                c.setAttribute('aria-checked', String(on));
+                                c.closest('.jc-row').classList.toggle('selected', on);
+                            });
+                            updateBar();
+                            if (sum < target) { window.alert('This list only adds up to ' + bytes(sum) + ' that can be removed. Widen the filter to free up more.'); }
+                        }).finally(function () { b.disabled = false; });
                     } else if (b.id === 'jcSelectAll') {
                         b.disabled = true;
                         var f = filter(0);

@@ -95,7 +95,7 @@ public class LibraryTests
     [Fact]
     public void Series_and_seasons_add_up_their_episodes()
     {
-        var series = new CatalogItem { Id = Guid.NewGuid(), Name = "Dark", Type = "Series", Genres = ["Drama"] };
+        var series = new CatalogItem { Id = Guid.NewGuid(), Name = "Dark", Type = "Series", Genres = ["Drama"], Ended = true };
         var season = new CatalogItem { Id = Guid.NewGuid(), Name = "Season 1", Type = "Season", SeriesId = series.Id, Season = 1 };
         CatalogItem Episode(int n, Guid[] watchedBy, int? lastDaysAgo) => new()
         {
@@ -115,6 +115,8 @@ public class LibraryTests
         Assert.Equal(_now.AddDays(-10), season.LastWatched);
         Assert.Equal(["Drama"], e1.Genres);
         Assert.Equal("Dark S01E02 E2", e2.Title);
+        Assert.True(e2.Ended);
+        Assert.Equal(2, new Filter { EndedOnly = true, Types = ["Series", "Season"] }.Apply([series, season, e1, new CatalogItem { Name = "Running", Type = "Series" }], 2).Count());
     }
 
     [Fact]

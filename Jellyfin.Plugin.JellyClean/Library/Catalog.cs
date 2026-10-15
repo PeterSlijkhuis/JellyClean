@@ -187,9 +187,14 @@ public class Catalog
             (folder.Resolution, folder.Codec, folder.Hdr) = Quality.MostCommon(children);
         }
 
-        foreach (var row in rows.Where(r => r.Genres.Length == 0 && r.SeriesId is not null))
+        foreach (var row in rows.Where(r => r.SeriesId is not null))
         {
-            row.Genres = series.TryGetValue(row.SeriesId!.Value, out var s) ? s.Genres : [];
+            series.TryGetValue(row.SeriesId!.Value, out var s);
+            row.Ended = s?.Ended ?? false;
+            if (row.Genres.Length == 0)
+            {
+                row.Genres = s?.Genres ?? [];
+            }
         }
     }
 
@@ -260,6 +265,9 @@ public class Catalog
                     break;
                 case Season s:
                     (row.SeriesId, row.SeriesName, row.Season) = (s.SeriesId, s.SeriesName, s.IndexNumber);
+                    break;
+                case Series s:
+                    row.Ended = s.Status == MediaBrowser.Model.Entities.SeriesStatus.Ended;
                     break;
             }
 
