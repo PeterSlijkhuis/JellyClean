@@ -25,6 +25,9 @@ public class RecycleBin
     public const string FolderName = ".jellyclean-trash";
 
     private static readonly object _lock = new();
+
+    // A restore and the hourly emptying never work on the same item at once.
+    private static readonly SemaphoreSlim _busy = new(1, 1);
     private readonly ILibraryManager _libraryManager;
     private readonly ArrClient _arr;
     private readonly ILogger<RecycleBin> _logger;
@@ -71,7 +74,17 @@ public class RecycleBin
 
                 var root = roots.FirstOrDefault(r => IsUnder(path, r))
                     ?? throw new IOException($"{path} is not in a library folder");
-                var to = Path.Combine(root, FolderName, stamp, Path.GetRelativePath(root, path));
+                var bin = Path.Combine(root, FolderName);
+                Directory.CreateDirectory(bin);
+
+                // An .ignore file makes Jellyfin skip the folder when it scans the library.
+                var ignore = Path.Combine(bin, ".ignore");
+                if (!File.Exists(ignore))
+                {
+                    File.WriteAllText(ignore, string.Empty);
+                }
+
+                var to = Path.Combine(bin, stamp, Path.GetRelativePath(root, path));
                 Move(path, to);
                 moved.Add(new RecycledPath { From = path, To = to });
             }
@@ -151,11 +164,26 @@ public class RecycleBin
     /// <returns>Why the files could not go back (Error), or what did not work in Radarr or Sonarr (Warning).</returns>
     public async Task<(string? Error, string? Warning)> RestoreAsync(Guid id, CancellationToken cancellationToken)
     {
-        var item = Config.Recycled.FirstOrDefault(r => r.Id == id);
-        var error = Restore(id);
-        if (error is not null || item is null)
+        await _busy.WaitAsync(cancellationToken).ConfigureAwait(false);
+        RecycledItem? item;
+        try
         {
-            return (error, null);
+            item = Config.Recycled.FirstOrDefault(r => r.Id == id);
+            var error = Restore(id);
+            if (error is not null || item is null)
+            {
+                return (error, null);
+            }
+
+            // Someone wanted it back, so a Leaving soon rule must not take it again. Jellyfin gives the files back the
+            // same item id, so the keep mark applies once it is scanned in; take it off on the Library page.
+            Config.KeptIds = Config.KeptIds.Where(k => k != id).Append(id).ToArray();
+            Plugin.Instance!.SaveConfiguration();
+
+        }
+        finally
+        {
+            _busy.Release();
         }
 
         _libraryManager.QueueLibraryScan();
@@ -190,49 +218,75 @@ public class RecycleBin
         var deleted = 0;
         foreach (var item in Config.Recycled.Where(r => all || DeleteAt(r) < now).ToList())
         {
+            await _busy.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                foreach (var undo in item.Arr)
+                if (await PurgeOneAsync(item, cancellationToken).ConfigureAwait(false))
                 {
-                    await _arr.FinishAsync(undo, Config.Servers, cancellationToken).ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-            {
-                Activity.Log(_logger, LogLevel.Error, ex, "{Title} stays in the recycle bin: Radarr or Sonarr could not remove it yet", item.Title);
-                continue;
-            }
-
-            lock (_lock)
-            {
-                try
-                {
-                    foreach (var p in item.Paths)
-                    {
-                        if (Directory.Exists(p.To))
-                        {
-                            Directory.Delete(p.To, true);
-                        }
-                        else if (File.Exists(p.To))
-                        {
-                            File.Delete(p.To);
-                        }
-
-                        DeleteEmptyParents(p.To);
-                    }
-
-                    Forget(item);
                     deleted++;
-                    Activity.Info(_logger, "Deleted {Title} from the recycle bin for good", item.Title);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    Activity.Log(_logger, LogLevel.Error, ex, "Could not empty {Title} from the recycle bin", item.Title);
-                }
+            }
+            finally
+            {
+                _busy.Release();
             }
         }
 
         return deleted;
+    }
+
+    private async Task<bool> PurgeOneAsync(RecycledItem item, CancellationToken cancellationToken)
+    {
+        // Recovered in the meantime.
+        if (!Config.Recycled.Any(r => r.Id == item.Id))
+        {
+            return false;
+        }
+
+        try
+        {
+            foreach (var undo in item.Arr)
+            {
+                await _arr.FinishAsync(undo, Config.Servers, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            Activity.Log(_logger, LogLevel.Error, ex, "{Title} stays in the recycle bin: Radarr or Sonarr could not remove it yet", item.Title);
+            return false;
+        }
+
+        lock (_lock)
+        {
+            try
+            {
+                foreach (var p in item.Paths)
+                {
+                    if (Directory.Exists(p.To))
+                    {
+                        Directory.Delete(p.To, true);
+                    }
+                    else if (File.Exists(p.To))
+                    {
+                        File.Delete(p.To);
+                    }
+
+                    DeleteEmptyParents(p.To);
+                }
+
+                // Only now is the space really free.
+                Config.FreedBytes += item.Size;
+                Config.RemovedCount++;
+                Forget(item);
+                Activity.Info(_logger, "Deleted {Title} from the recycle bin for good", item.Title);
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Activity.Log(_logger, LogLevel.Error, ex, "Could not empty {Title} from the recycle bin", item.Title);
+                return false;
+            }
+        }
     }
 
     /// <summary>
@@ -244,7 +298,7 @@ public class RecycleBin
 
     private static void Forget(RecycledItem item)
     {
-        Config.Recycled = Config.Recycled.Where(r => r != item).ToArray();
+        Config.Recycled = Config.Recycled.Where(r => r.Id != item.Id).ToArray();
         Plugin.Instance!.SaveConfiguration();
     }
 

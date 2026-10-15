@@ -118,7 +118,8 @@ public class ArrClientTests
         Assert.DoesNotContain(_calls, c => c.Method == HttpMethod.Delete);
 
         await client.UndoAsync(held, [_radarr], CancellationToken.None);
-        Assert.Contains("\"monitored\":true", _calls.Last().Body, StringComparison.Ordinal);
+        Assert.Contains("\"monitored\":true", _calls[^2].Body, StringComparison.Ordinal);
+        Assert.Contains("RefreshMovie", _calls[^1].Body, StringComparison.Ordinal);
 
         await client.FinishAsync(held, [_radarr], CancellationToken.None);
         Assert.Equal("http://radarr:7878/api/v3/movie/7?deleteFiles=false&addImportExclusion=true", _calls.Last().Url);

@@ -225,11 +225,16 @@ public class Remover
                 var config = Plugin.Instance!.Configuration;
                 var gone = plan.Remove.Select(p => p.Item.Id).ToHashSet();
                 config.LeavingSoon = config.LeavingSoon.Where(l => !gone.Contains(l.Id)).ToArray();
-                config.FreedBytes += plan.TotalSize;
-                config.RemovedCount += plan.Remove.Count;
+                if (days == 0)
+                {
+                    // With the recycle bin, the space counts as freed when the bin is emptied.
+                    config.FreedBytes += plan.TotalSize;
+                    config.RemovedCount += plan.Remove.Count;
+                }
                 Plugin.Instance.SaveConfiguration();
 
-                var summary = $"JellyClean removed {plan.Remove.Count} {(plan.Remove.Count == 1 ? "item" : "items")}, {Bytes(plan.TotalSize)}";
+                var what = $"{plan.Remove.Count} {(plan.Remove.Count == 1 ? "item" : "items")}, {Bytes(plan.TotalSize)}";
+                var summary = days > 0 ? $"JellyClean moved {what} to the recycle bin for {days} days" : $"JellyClean removed {what}";
                 Activity.Info(_logger, "{Summary}", summary);
                 await _activityManager.CreateAsync(new ActivityLog(summary, "JellyClean", userId)
                 {

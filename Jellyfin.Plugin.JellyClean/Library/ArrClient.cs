@@ -180,6 +180,12 @@ public class ArrClient
             return;
         }
 
+        // A server that was taken out of the settings has nothing left to remove.
+        if (!servers.Any(s => Same(s, undo)))
+        {
+            return;
+        }
+
         var server = Find(undo, servers);
         var exclusion = undo.Excluded ? "true" : "false";
         using var request = server.IsSonarr
@@ -209,6 +215,11 @@ public class ArrClient
         if (undo.Held || undo.EpisodeIds.Length > 0)
         {
             await MonitorAsync(server, undo.ArrId, undo.EpisodeIds, true, cancellationToken).ConfigureAwait(false);
+
+            // Look at the folder now, so the files that are back count as present right away.
+            object command = server.IsSonarr ? new { name = "RescanSeries", seriesId = undo.ArrId } : new { name = "RefreshMovie", movieIds = new[] { undo.ArrId } };
+            using var rescan = new HttpRequestMessage(HttpMethod.Post, Url(server, "command")) { Content = JsonContent.Create(command) };
+            using var rescanned = await SendAsync(server, rescan, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -241,8 +252,11 @@ public class ArrClient
         using var added = await SendAsync(server, add, cancellationToken).ConfigureAwait(false);
     }
 
+    private static bool Same(ArrServer server, ArrUndo undo)
+        => server.Kind == undo.Kind && server.Url.Trim().TrimEnd('/') == undo.Url.Trim().TrimEnd('/');
+
     private static ArrServer Find(ArrUndo undo, IEnumerable<ArrServer> servers)
-        => servers.FirstOrDefault(s => s.Kind == undo.Kind && s.Url.Trim().TrimEnd('/') == undo.Url.Trim().TrimEnd('/'))
+        => servers.FirstOrDefault(s => Same(s, undo))
             ?? throw new HttpRequestException($"{undo.Kind} at {undo.Url} is no longer set up");
 
     private async Task MonitorAsync(ArrServer server, int arrId, int[] episodeIds, bool monitored, CancellationToken cancellationToken)

@@ -109,7 +109,7 @@ public sealed class RemoverTests : IDisposable
         Assert.Equal(0, await bin.PurgeAsync(all: false, CancellationToken.None));
         Assert.Equal(1, await bin.PurgeAsync(all: true, CancellationToken.None));
         Assert.Empty(_config.Recycled);
-        Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(lib, RecycleBin.FolderName)));
+        Assert.Equal([".ignore"], Directory.EnumerateFileSystemEntries(Path.Combine(lib, RecycleBin.FolderName)).Select(Path.GetFileName));
     }
 
     [Fact]
