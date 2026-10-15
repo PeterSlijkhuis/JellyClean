@@ -152,6 +152,8 @@ public class Remover
                 var config = Plugin.Instance!.Configuration;
                 var gone = plan.Remove.Select(p => p.Item.Id).ToHashSet();
                 config.LeavingSoon = config.LeavingSoon.Where(l => !gone.Contains(l.Id)).ToArray();
+                config.FreedBytes += plan.TotalSize;
+                config.RemovedCount += plan.Remove.Count;
                 Plugin.Instance.SaveConfiguration();
 
                 var summary = $"JellyClean removed {plan.Remove.Count} {(plan.Remove.Count == 1 ? "item" : "items")}, {Bytes(plan.TotalSize)}";
