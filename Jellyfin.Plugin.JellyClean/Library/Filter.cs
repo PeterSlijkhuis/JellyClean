@@ -24,14 +24,16 @@ public class Filter
     /// </summary>
     public string? Watched { get; set; }
 
-    /// <summary>Gets or sets a date: only items added before it.</summary>
-    public DateTime? AddedBefore { get; set; }
+    // Days rather than dates, so a saved view still means "over a year ago" next year.
 
-    /// <summary>Gets or sets a date: only items added after it.</summary>
-    public DateTime? AddedAfter { get; set; }
+    /// <summary>Gets or sets a number of days: only items added longer ago.</summary>
+    public int? AddedMoreThanDays { get; set; }
 
-    /// <summary>Gets or sets a date: only items nobody played since, including items never played.</summary>
-    public DateTime? NotWatchedSince { get; set; }
+    /// <summary>Gets or sets a number of days: only items added within that time.</summary>
+    public int? AddedWithinDays { get; set; }
+
+    /// <summary>Gets or sets a number of days: only items nobody played in that time, including items never played.</summary>
+    public int? NotPlayedForDays { get; set; }
 
     /// <summary>Gets or sets the smallest size in bytes.</summary>
     public long? MinSize { get; set; }
@@ -71,9 +73,15 @@ public class Filter
     /// </summary>
     /// <param name="items">All items, with <see cref="CatalogItem.Kept"/> filled in.</param>
     /// <param name="userCount">How many users there are, for "watched by everyone".</param>
+    /// <param name="now">The time to count days from; now when left out.</param>
     /// <returns>The matches.</returns>
-    public IEnumerable<CatalogItem> Apply(IEnumerable<CatalogItem> items, int userCount)
+    public IEnumerable<CatalogItem> Apply(IEnumerable<CatalogItem> items, int userCount, DateTime? now = null)
     {
+        var today = now ?? DateTime.UtcNow;
+        DateTime? Ago(int? days) => days > 0 ? today.AddDays(-days.Value) : null;
+        var addedBefore = Ago(AddedMoreThanDays);
+        var addedAfter = Ago(AddedWithinDays);
+        var playedBefore = Ago(NotPlayedForDays);
         var watchedBy = Guid.TryParse(Watched, out var user) ? user : (Guid?)null;
         var matches = items.Where(i =>
             (Types is not { Length: > 0 } || Types.Contains(i.Type))
@@ -87,9 +95,9 @@ public class Filter
                 "all" => userCount > 0 && i.WatchedBy.Length >= userCount,
                 _ => watchedBy is not null && i.WatchedBy.Contains(watchedBy.Value),
             })
-            && (AddedBefore is null || i.Added < AddedBefore)
-            && (AddedAfter is null || i.Added > AddedAfter)
-            && (NotWatchedSince is null || i.LastWatched is null || i.LastWatched < NotWatchedSince)
+            && (addedBefore is null || i.Added < addedBefore)
+            && (addedAfter is null || i.Added > addedAfter)
+            && (playedBefore is null || i.LastWatched is null || i.LastWatched < playedBefore)
             && (MinSize is null || i.Size >= MinSize)
             && (Resolutions is not { Length: > 0 } || Resolutions.Contains(i.Resolution))
             && (string.IsNullOrEmpty(Codec) || i.Codec == Codec)

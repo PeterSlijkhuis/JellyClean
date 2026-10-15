@@ -66,6 +66,15 @@
                 padding: 0.8em 1em; border-radius: var(--jc-radius); border: 1px solid var(--jc-line);
                 background: rgba(20, 20, 22, 0.92); color: #fff; backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
             }
+            #JellyCleanSettingsPage .jc-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.7em; margin-bottom: 1em; }
+            #JellyCleanSettingsPage .jc-chips { display: flex; gap: 0.45em; flex-wrap: wrap; }
+            #JellyCleanSettingsPage .jc-chip { padding: 0.4em 0.9em; border-radius: 999px; border: 1px solid var(--jc-line); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+            #JellyCleanSettingsPage .jc-chip[aria-pressed="true"] { border-color: #e05a5a; background: rgba(224, 90, 90, 0.14); }
+            #JellyCleanSettingsPage .jc-sub { margin: 1.1em 0 0.5em; font-weight: 600; font-size: 0.95em; }
+            #JellyCleanSettingsPage .jc-warn { border-color: rgba(224, 90, 90, 0.6); }
+            #JellyCleanSettingsPage .jc-view { display: flex; align-items: center; gap: 0.7em; flex-wrap: wrap; padding: 0.6em 0; border-top: 1px solid var(--jc-line); }
+            #JellyCleanSettingsPage .jc-view > b { flex: 1 1 200px; }
+            #JellyCleanSettingsPage .jc-view .jc-tile { width: auto; flex: 1 1 280px; }
             #JellyCleanSettingsPage .jc-dirty { margin-right: auto; opacity: 0.85; font-size: 0.92em; }
         </style>
 
@@ -78,12 +87,27 @@
                 </nav>
 
                 <section class="jc-card">
-                    <h2>Protection</h2>
-                    <p class="jc-hint">Items marked keep on the Library page are never removed, and neither is the season or series they are in. Items being played are never removed either.</p>
-                    <button type="button" class="jc-tile" role="switch" id="jcFavorites" aria-checked="true">
-                        <span class="jc-tile-text"><b>Keep favorites</b><small>Never remove anything a user marked as a favorite, or a season or series with a favorite episode in it.</small></span>
-                        <span class="jc-switch" aria-hidden="true"></span>
-                    </button>
+                    <h2>Safeguards</h2>
+                    <p class="jc-hint">What is never removed, by hand or from the Leaving soon list. A protected item also keeps the season and series it is in. Items being played right now are always kept. The preview shows what stays and why.</p>
+                    <div class="jc-tiles">
+                        <button type="button" class="jc-tile" role="switch" data-flag="ProtectFavorites">
+                            <span class="jc-tile-text"><b>Keep favorites</b><small>Anything a user marked as a favorite, and a series with a favorite in it.</small></span>
+                            <span class="jc-switch" aria-hidden="true"></span>
+                        </button>
+                        <button type="button" class="jc-tile" role="switch" data-flag="ProtectInProgress">
+                            <span class="jc-tile-text"><b>Keep Continue Watching</b><small>Anything a user stopped halfway, and the season and series it is in.</small></span>
+                            <span class="jc-switch" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <div class="jc-fields">
+                        <div class="jc-field"><label>Keep items added in the last (days)<input type="number" min="0" data-num="ProtectAddedDays"></label></div>
+                        <div class="jc-field"><label>Keep items played in the last (days)<input type="number" min="0" data-num="ProtectPlayedDays"></label></div>
+                        <div class="jc-field"><label>Keep items with the tag<input type="text" data-text="KeepTag" placeholder="keep" autocomplete="off"></label></div>
+                        <div class="jc-field"><label>Most items per removal<input type="number" min="0" data-num="MaxItemsPerRemoval"></label></div>
+                    </div>
+                    <p class="jc-hint" style="margin-top:0.5em;">0 or empty switches a number or the tag off. Add the tag to an item in Jellyfin (Edit metadata, Tags).</p>
+                    <div class="jc-sub">Never remove anything from these libraries</div>
+                    <div class="jc-chips" id="jcLibraries"></div>
                     <div class="jc-row">
                         <span class="jc-hint" style="margin:0;flex:1 1 300px;" id="jcKeptCount"></span>
                         <button type="button" class="jc-btn danger" id="jcClearKept" hidden>Remove all keep marks</button>
@@ -91,8 +115,34 @@
                 </section>
 
                 <section class="jc-card">
+                    <h2>Leaving soon</h2>
+                    <p class="jc-hint">Put items on the Leaving soon list from the preview on the Library page, instead of removing them right away. They are due after the notice period, and then wait for you to review and remove them. Safeguards are checked again at removal, so an item someone started watching in the meantime stays.</p>
+                    <div class="jc-fields">
+                        <div class="jc-field"><label>Notice period (days)<input type="number" min="0" data-num="NoticeDays"></label></div>
+                        <div class="jc-field"><label>Collection name<input type="text" data-text="CollectionName" placeholder="Leaving soon" autocomplete="off"></label></div>
+                    </div>
+                    <div class="jc-tiles" style="margin-top:0.9em;">
+                        <button type="button" class="jc-tile" role="switch" data-flag="UseCollection">
+                            <span class="jc-tile-text"><b>Show it to users as a collection</b><small>So everyone can see what is leaving and mark a favorite to keep it.</small></span>
+                            <span class="jc-switch" aria-hidden="true"></span>
+                        </button>
+                        <button type="button" class="jc-tile jc-warn" role="switch" data-flag="AutoRemoveWhenDue">
+                            <span class="jc-tile-text"><b>Remove due items without asking</b><small>The daily task deletes due items from disk on its own. Off is safer: due items wait for you.</small></span>
+                            <span class="jc-switch" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <div class="jc-sub">Saved views</div>
+                    <p class="jc-hint">Save a view on the Library page. A view checked daily puts its new matches on the Leaving soon list; it never removes anything itself.</p>
+                    <div id="jcViews"></div>
+                    <div class="jc-row">
+                        <button type="button" class="jc-btn" id="jcRun">Check now</button>
+                        <span class="jc-test" id="jcRunResult"></span>
+                    </div>
+                </section>
+
+                <section class="jc-card">
                     <h2>Radarr and Sonarr</h2>
-                    <p class="jc-hint">Without them, a deleted movie or episode is seen as missing and downloaded again. With them, JellyClean removes the movie from Radarr, removes the series from Sonarr when you remove a whole series, and stops monitoring the episodes when you remove seasons or episodes. If Radarr or Sonarr can't be reached, the files stay. Add a second Radarr or Sonarr, like a 4K one, if you have it.</p>
+                    <p class="jc-hint">Without them, a deleted movie or episode is seen as missing and downloaded again. With them, JellyClean removes the movie from Radarr, removes the series from Sonarr when you remove a whole series, and stops monitoring the episodes when you remove seasons or episodes. If Radarr or Sonarr can't be reached, the files stay. Add a second Radarr or Sonarr, like a 4K one, if you have it. Rather not add API keys? Switch on Unmonitor Deleted Movies (Radarr) and Unmonitor Deleted Episodes (Sonarr) under Settings, Media Management instead: they then stop monitoring what disappears from disk, though the movie or series stays listed there.</p>
                     <div id="jcServers"></div>
                     <div class="jc-row">
                         <button type="button" class="jc-btn" data-add="Radarr">Add Radarr</button>
@@ -191,23 +241,102 @@
                     });
                 }
 
+                var libraries = [];
+                var deletedViews = [];
+
+                function post(path) {
+                    return fetch(ApiClient.getUrl(path), {
+                        method: 'POST',
+                        headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"' }
+                    }).then(function (r) {
+                        if (!r.ok) { throw new Error('The server said ' + r.status); }
+                        return r;
+                    });
+                }
+
+                function renderLibraries() {
+                    var box = $('jcLibraries');
+                    box.textContent = '';
+                    libraries.concat(config.ProtectedLibraries.filter(function (n) { return libraries.indexOf(n) < 0; })).forEach(function (name) {
+                        var chip = el('button', { type: 'button', className: 'jc-chip', textContent: name });
+                        chip.dataset.library = name;
+                        chip.setAttribute('aria-pressed', String(config.ProtectedLibraries.indexOf(name) >= 0));
+                        box.append(chip);
+                    });
+                }
+
+                function renderViews() {
+                    var box = $('jcViews');
+                    box.textContent = '';
+                    if (!config.Views.length) {
+                        box.append(el('div', { className: 'jc-empty', textContent: 'No saved views yet.' }));
+                    }
+                    config.Views.forEach(function (view, index) {
+                        var daily = el('button', { type: 'button', className: 'jc-tile' },
+                            el('span', { className: 'jc-tile-text' },
+                                el('b', { textContent: 'Check daily' }),
+                                el('small', { textContent: 'Put new matches on the Leaving soon list.' })),
+                            el('span', { className: 'jc-switch', ariaHidden: 'true' }));
+                        daily.setAttribute('role', 'switch');
+                        daily.setAttribute('aria-checked', String(view.CheckDaily));
+                        daily.addEventListener('click', function () {
+                            view.CheckDaily = !view.CheckDaily;
+                            daily.setAttribute('aria-checked', String(view.CheckDaily));
+                            dirty();
+                        });
+                        var remove = el('button', { type: 'button', className: 'jc-btn danger', textContent: 'Delete' });
+                        remove.addEventListener('click', function () {
+                            deletedViews.push(view.Name);
+                            config.Views.splice(index, 1);
+                            renderViews();
+                            dirty();
+                        });
+                        box.append(el('div', { className: 'jc-view' }, el('b', { textContent: view.Name }), daily, remove));
+                    });
+                }
+
                 function render() {
-                    $('jcFavorites').setAttribute('aria-checked', String(config.ProtectFavorites));
+                    page.querySelectorAll('[data-flag]').forEach(function (b) { b.setAttribute('aria-checked', String(!!config[b.dataset.flag])); });
+                    page.querySelectorAll('[data-num]').forEach(function (i) { i.value = config[i.dataset.num] || 0; });
+                    page.querySelectorAll('[data-text]').forEach(function (i) { i.value = config[i.dataset.text] || ''; });
                     var kept = (config.KeptIds || []).length;
-                    $('jcKeptCount').textContent = kept ? kept + (kept === 1 ? ' item is' : ' items are') + ' marked keep.' : 'No items are marked keep.';
+                    $('jcKeptCount').textContent = kept ? kept + (kept === 1 ? ' item is' : ' items are') + ' marked keep on the Library page.' : 'No items are marked keep.';
                     $('jcClearKept').hidden = !kept;
+                    renderLibraries();
+                    renderViews();
                     renderServers();
                     $('jcDirty').textContent = '';
                 }
+
+                page.addEventListener('input', function (e) {
+                    var i = e.target;
+                    if (i.dataset.num) {
+                        config[i.dataset.num] = Math.max(0, parseInt(i.value, 10) || 0);
+                        dirty();
+                    } else if (i.dataset.text) {
+                        config[i.dataset.text] = i.value;
+                        dirty();
+                    }
+                });
 
                 page.addEventListener('click', function (e) {
                     var b = e.target.closest('button');
                     if (!b || !page.contains(b)) { return; }
                     if (b.classList.contains('jc-tab') && b.dataset.page) {
                         Dashboard.navigate(Dashboard.getPluginUrl(b.dataset.page));
-                    } else if (b.id === 'jcFavorites') {
-                        config.ProtectFavorites = !config.ProtectFavorites;
-                        b.setAttribute('aria-checked', String(config.ProtectFavorites));
+                    } else if (b.dataset.flag) {
+                        var on = !config[b.dataset.flag];
+                        if (on && b.dataset.flag === 'AutoRemoveWhenDue'
+                            && !window.confirm('Due items will then be deleted from disk by the daily task, without asking you first. Switch it on?')) {
+                            return;
+                        }
+                        config[b.dataset.flag] = on;
+                        b.setAttribute('aria-checked', String(on));
+                        dirty();
+                    } else if (b.dataset.library) {
+                        var at = config.ProtectedLibraries.indexOf(b.dataset.library);
+                        if (at >= 0) { config.ProtectedLibraries.splice(at, 1); } else { config.ProtectedLibraries.push(b.dataset.library); }
+                        b.setAttribute('aria-pressed', String(at < 0));
                         dirty();
                     } else if (b.id === 'jcClearKept') {
                         if (window.confirm('Remove every keep mark? Those items can then be removed again.')) {
@@ -215,17 +344,37 @@
                             render();
                             dirty();
                         }
+                    } else if (b.id === 'jcRun') {
+                        b.disabled = true;
+                        $('jcRunResult').className = 'jc-test';
+                        $('jcRunResult').textContent = 'Checking...';
+                        post('JellyClean/LeavingSoon/Run').then(function () {
+                            $('jcRunResult').className = 'jc-test ok';
+                            $('jcRunResult').textContent = 'Done. See the Library page for the list.';
+                        }).catch(function (err) {
+                            $('jcRunResult').className = 'jc-test bad';
+                            $('jcRunResult').textContent = err.message;
+                        }).finally(function () { b.disabled = false; });
                     } else if (b.dataset.add) {
                         config.Servers.push({ Kind: b.dataset.add, Name: '', Url: '', ApiKey: '', AddExclusion: true });
                         renderServers();
                         dirty();
                     } else if (b.id === 'jcSave') {
                         b.disabled = true;
-                        // Keep marks change on the Library page, so take the latest ones unless they were all cleared here.
+                        // The Library page and the daily task change keep marks, views and the list, so take theirs.
                         ApiClient.getPluginConfiguration(pluginId).then(function (latest) {
-                            if (config.KeptIds.length) { config.KeptIds = latest.KeptIds; }
+                            if (config.KeptIds.length) { config.KeptIds = latest.KeptIds || []; }
+                            config.LeavingSoon = latest.LeavingSoon || [];
+                            config.CollectionId = latest.CollectionId;
+                            var daily = {};
+                            config.Views.forEach(function (v) { daily[v.Name] = v.CheckDaily; });
+                            config.Views = (latest.Views || []).filter(function (v) { return deletedViews.indexOf(v.Name) < 0; }).map(function (v) {
+                                if (Object.prototype.hasOwnProperty.call(daily, v.Name)) { v.CheckDaily = daily[v.Name]; }
+                                return v;
+                            });
                             return ApiClient.updatePluginConfiguration(pluginId, config);
                         }).then(function (result) {
+                            deletedViews = [];
                             Dashboard.processPluginConfigurationUpdateResult(result);
                             render();
                         }).finally(function () { b.disabled = false; });
@@ -237,7 +386,14 @@
                         config = c;
                         config.Servers = config.Servers || [];
                         config.KeptIds = config.KeptIds || [];
+                        config.Views = config.Views || [];
+                        config.ProtectedLibraries = config.ProtectedLibraries || [];
+                        deletedViews = [];
                         render();
+                        return ApiClient.getVirtualFolders();
+                    }).then(function (folders) {
+                        libraries = (folders || []).map(function (f) { return f.Name; });
+                        renderLibraries();
                     });
                 });
             })();

@@ -81,5 +81,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<Catalog>();
         serviceCollection.AddSingleton<ArrClient>();
         serviceCollection.AddSingleton<Remover>();
+        serviceCollection.AddSingleton<LeavingSoon>();
     }
 }

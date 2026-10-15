@@ -21,6 +21,7 @@ Nothing changes until you remove something. Browsing and filtering only read.
 - [Install](#install)
 - [Getting started](#getting-started)
 - [How removing works](#how-removing-works)
+- [Leaving soon](#leaving-soon)
 - [FAQ](#faq)
 - [For developers](#for-developers)
 - [License](#license)
@@ -34,7 +35,10 @@ Nothing changes until you remove something. Browsing and filtering only read.
 - **Export.** Download the current list as a spreadsheet (CSV).
 - **Real sizes.** The size is what removing frees: the movie's folder with its extras and artwork, or the episode file with its subtitles. Series and seasons add up their episodes.
 - **Preview first.** See exactly which files and folders go, what happens in Radarr and Sonarr, and what stays and why. Removing 20 or more items asks you to type the number.
-- **Keep what matters.** Mark anything **keep** with the lock button and it is never removed, nor the season or series it is in. Favorites and anything being played are left alone too.
+- **Keep what matters.** Mark anything **keep** with the lock button and it is never removed, nor the season or series it is in. Safeguards you choose in **Settings** keep favorites, Continue Watching, recently added and recently played items, items with a tag like `keep`, and whole libraries. One removal is capped at 200 items unless you change it.
+- **Saved views.** Save any filter under a name and open it with one click. Days are relative, so *added over 2 years ago* still means that next year.
+- **Leaving soon.** Instead of deleting right away, put items on a list with a notice period (14 days by default). Users can see the list as a Jellyfin collection if you like. When items are due you review and remove them; safeguards are checked again at that moment.
+- **Daily checks (optional).** A saved view can be checked every day, putting new matches on the Leaving soon list. Nothing is deleted unless you also switch on *Remove due items without asking*.
 - **Radarr and Sonarr.** Removed movies leave Radarr, removed series leave Sonarr, and removed seasons or episodes stop being monitored, so new episodes still come in. Several of each are fine, like a separate 4K one.
 - **Activity log.** Every removal, every item that was kept and why, and every error.
 
@@ -78,8 +82,25 @@ If Radarr or Sonarr can't be reached, or a step there fails, that item is skippe
 These always stay:
 
 - items marked **keep**, and the seasons and series they are in;
-- favorites of any user, and the seasons and series they are in (switch this off under **Settings** if you like);
 - anything someone is playing right now.
+
+These stay unless you switch them off under **Settings**:
+
+- favorites of any user, and the seasons and series they are in;
+- anything in someone's Continue Watching, and the season and series it is in;
+- items added in the last 30 days, and items anyone played in the last 30 days;
+- items with the tag `keep` (add it in Jellyfin under **Edit metadata**);
+- everything in libraries you mark as protected.
+
+The preview lists every item that stays, with the reason.
+
+## Leaving soon
+
+1. In the preview, press **Leaving soon** instead of **Delete from disk**. Protected items are left off the list.
+2. Optionally switch on **Show it to users as a collection** under **Settings**, so everyone sees what is leaving and can ask to keep it, or mark it a favorite.
+3. When the notice period is over, the Library page shows the due items. Press **Review due items**, check the preview and remove them.
+
+The daily task **Update Leaving soon** (under **Dashboard > Scheduled Tasks**) adds matches from saved views marked *Check daily*, drops items that are gone and keeps the collection up to date. It only deletes when **Remove due items without asking** is on.
 
 ## FAQ
 
@@ -88,6 +109,9 @@ No. It only reads. Its own settings and the list of items marked keep are stored
 
 **Does it use Jellyfin's connection to Radarr and Sonarr?**
 Jellyfin has no connection to Radarr or Sonarr of its own, so JellyClean needs the address and API key of each one. Add them under **Settings**. Without them, removing still works, but Radarr and Sonarr may download the items again.
+
+**Can I skip the API keys?**
+Yes. In Radarr switch on **Unmonitor Deleted Movies**, and in Sonarr **Unmonitor Deleted Episodes**, both under **Settings > Media Management**. They then stop monitoring what disappears from disk, so nothing comes back. The movie or series stays listed in Radarr or Sonarr, and an import list may still add a removed movie again; the API keys with the exclusion list prevent that.
 
 **Do I need the File Transformation plugin?**
 No. JellyClean lives in its own dashboard page and does not change the Jellyfin web app.

@@ -73,13 +73,7 @@ public class Remover
     public async Task<RemovalPlan> PlanAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken)
     {
         var config = Plugin.Instance!.Configuration;
-        var playing = _sessionManager.Sessions
-            .Select(s => s.NowPlayingItem)
-            .Where(i => i is not null)
-            .SelectMany(i => new[] { i!.Id, i.SeriesId ?? Guid.Empty, i.SeasonId ?? Guid.Empty })
-            .ToHashSet();
-
-        var plan = RemovalPlan.Build(ids, _catalog.Get(), config.KeptIds.ToHashSet(), config.ProtectFavorites, playing);
+        var plan = RemovalPlan.Build(ids, _catalog.Get(), Safeguards());
         foreach (var planned in plan.Remove)
         {
             planned.Paths = _libraryManager.GetItemById(planned.Item.Id)?.GetDeletePaths().Select(p => p.FullName).ToArray() ?? [];
@@ -95,6 +89,32 @@ public class Remover
         }
 
         return plan;
+    }
+
+    /// <summary>
+    /// The safeguards as set in the settings, with what is being played right now.
+    /// </summary>
+    /// <returns>The safeguards.</returns>
+    public Safeguards Safeguards()
+    {
+        var config = Plugin.Instance!.Configuration;
+        var now = DateTime.UtcNow;
+        return new Safeguards
+        {
+            Kept = config.KeptIds.ToHashSet(),
+            Playing = _sessionManager.Sessions
+                .Select(s => s.NowPlayingItem)
+                .Where(i => i is not null)
+                .SelectMany(i => new[] { i!.Id, i.SeriesId ?? Guid.Empty, i.SeasonId ?? Guid.Empty })
+                .ToHashSet(),
+            Favorites = config.ProtectFavorites,
+            InProgress = config.ProtectInProgress,
+            AddedAfter = config.ProtectAddedDays > 0 ? now.AddDays(-config.ProtectAddedDays) : null,
+            PlayedAfter = config.ProtectPlayedDays > 0 ? now.AddDays(-config.ProtectPlayedDays) : null,
+            Tag = config.KeepTag,
+            Libraries = config.ProtectedLibraries.ToHashSet(),
+            MaxItems = config.MaxItemsPerRemoval,
+        };
     }
 
     /// <summary>
@@ -128,6 +148,12 @@ public class Remover
             _catalog.Invalidate();
             if (plan.Remove.Count > 0)
             {
+                // Whatever was removed is no longer leaving soon.
+                var config = Plugin.Instance!.Configuration;
+                var gone = plan.Remove.Select(p => p.Item.Id).ToHashSet();
+                config.LeavingSoon = config.LeavingSoon.Where(l => !gone.Contains(l.Id)).ToArray();
+                Plugin.Instance.SaveConfiguration();
+
                 var summary = $"JellyClean removed {plan.Remove.Count} {(plan.Remove.Count == 1 ? "item" : "items")}, {Bytes(plan.TotalSize)}";
                 Activity.Info(_logger, "{Summary}", summary);
                 await _activityManager.CreateAsync(new ActivityLog(summary, "JellyClean", userId)
