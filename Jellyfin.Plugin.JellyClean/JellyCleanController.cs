@@ -259,6 +259,11 @@ public class JellyCleanController : ControllerBase
                 ? new { Ok = true, Message = "Connected to " + version }
                 : new { Ok = false, Message = $"This is {version}, not {expected}." });
         }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The Jellyfin server makes this call, not the browser, so the address has to work from the server.
+            return Ok(new { Ok = false, Message = $"No answer from {server.Url} within 30 seconds. JellyClean connects from the Jellyfin server, not from your browser, so use an address that works on the server itself, like its local IP and port, or the container name if both run in Docker." });
+        }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException or System.Text.Json.JsonException)
         {
             return Ok(new { Ok = false, Message = ex.Message });
