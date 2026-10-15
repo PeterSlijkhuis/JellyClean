@@ -3,20 +3,20 @@ name: Release
 # Run by hand from Actions > Release > Run workflow. Publishes a release with the plugin zip and manifest.json, so Jellyfin can install from:
 #   https://github.com/<owner>/<repo>/releases/latest/download/manifest.json
 #
-# Versioning: fill in "Version" when you run it to release that exact version. Left empty, it uses
-# "version" in .github/plugin.json if no release has that yet, otherwise it counts the last number of the
-# latest release up (1.0.0, 1.0.1, 1.0.2). "Release notes" goes into the release, the manifest and Jellyfin.
+# Versioning: fill in "Version" to release that exact version. Left empty, it counts the last number of the
+# latest release up, including releases made by hand (v0.1.0 becomes 0.1.1). With no release yet it uses
+# "version" in .github/plugin.json. "Release notes" goes into the release, the manifest and Jellyfin.
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version, like 1.1.0. Leave empty to count up from the last release.'
+        description: 'Version, like 0.2.0. Leave empty to count up from the last release.'
         required: false
         default: ''
       notes:
         description: 'Release notes'
         required: true
-        default: 'Bug fixes and improvements.'
+        default: 'Bug fixes and feature updates'
 
 permissions:
   contents: write
@@ -51,12 +51,12 @@ jobs:
               echo "::error::Version $INPUT_VERSION is already released"; exit 1
             fi
             VERSION=$INPUT_VERSION
-          elif [ -z "$LATEST" ] || [ "$(printf '%s\n%s\n' "$BASE" "$LATEST" | sort -V | tail -n1)" = "$BASE" ] && [ "$BASE" != "$LATEST" ]; then
+          elif [ -z "$LATEST" ]; then
             VERSION=$BASE
           else
             VERSION="${LATEST%.*}.$(( ${LATEST##*.} + 1 ))"
           fi
-          echo "Releasing $VERSION (set by hand: $BASE, last release: ${LATEST:-none})"
+          echo "Releasing $VERSION (last release: ${LATEST:-none})"
           echo "TAG=v$VERSION" >> "$GITHUB_ENV"
           echo "VERSION=$VERSION.0" >> "$GITHUB_ENV"
 

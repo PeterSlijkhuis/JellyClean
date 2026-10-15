@@ -134,7 +134,7 @@ dotnet publish Jellyfin.Plugin.JellyClean -c Release -o out
 
 - Targets .NET 10 and Jellyfin 12.2.
 - Filtering (`Library/Filter.cs`), the removal plan (`Library/RemovalPlan.cs`) and the Radarr and Sonarr calls (`Library/ArrClient.cs`) are covered by unit tests. No test touches a real file or server.
-- **Releasing.** Open **Actions > Release > Run workflow**, fill in the version and release notes, and run it. It builds, tests and publishes a release with the plugin zip and `manifest.json`.
+- **Releasing.** Open **Actions > Release > Run workflow** on `main`. Leave the version empty to count up from the last release (0.1.0 becomes 0.1.1), or fill one in. The release notes default to "Bug fixes and feature updates". It builds, tests and publishes a release with the plugin zip and `manifest.json`.
 
 ## License
 
