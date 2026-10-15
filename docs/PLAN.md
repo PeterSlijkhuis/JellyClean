@@ -24,9 +24,9 @@ It would only become relevant if we later want something inside the normal item 
 
 ## What we take from media-cleaner
 
-Ideas, not code. Its license is MIT, ours is GPL-3.0 like the other two plugins.
+Ideas, not code.
 
-- Treat "watched" carefully: a play date earlier than the date added is ambiguous (the file was replaced), and an item marked played without a date has no last-played date to compare.
+- Be clear about what "watched" means. JellyClean uses what Jellyfin shows as watched per user, and *never played* means nobody even started it.
 - Never delete what someone is watching right now.
 - A dry run that goes through the exact same code path as the real delete.
 - Protection always wins over a delete: a "keep" mark on an item stops it from being removed, and for a series also stops the series from being removed.
@@ -82,7 +82,7 @@ Filtering runs on the server, so a library with 20 000 episodes stays fast on a 
 Deleting a file is not enough on its own: Radarr and Sonarr still have the movie or episode as *monitored*, see it as missing, and download it again. So JellyClean tells them as well.
 
 - **Settings:** a card per app with URL and API key, a **Test connection** button, and a switch *Add to the exclusion list* (on by default for Radarr) so a removed movie is never added again by a list.
-- **Matching:** by the TMDb or IMDb id for movies and the TVDb id for series, taken from the Jellyfin item's provider ids. Falls back to the file path. Items that can't be matched are shown in the preview as *not found in Radarr* so you know.
+- **Matching:** by the TMDb, TVDb or IMDb id from the Jellyfin item's provider ids. Paths are not used, because Radarr, Sonarr and Jellyfin often see the same files under different paths. The preview says when items were not found in Radarr or Sonarr.
 - **Movies:** `DELETE /api/v3/movie/{id}?deleteFiles=false&addImportExclusion=true` on Radarr. The movie is gone from Radarr; Jellyfin then deletes the files.
 - **Whole series:** `DELETE /api/v3/series/{id}?deleteFiles=false` on Sonarr, optionally with an import exclusion; Jellyfin then deletes the files.
 - **Seasons or episodes:** Sonarr keeps the series. JellyClean unmonitors those episodes (`PUT /api/v3/episode/monitor`), Jellyfin deletes the files, and Sonarr sees them as unmonitored and missing, so they stay gone while new episodes still come in.
@@ -128,7 +128,7 @@ Layout:
 - Filter matching: every filter on fixture items, including the edge cases (played without a date, played before added, series with partly watched episodes).
 - Size: versions summed, series summed, missing size falls back to the file.
 - Remover: kept items, favorites and items being played are never in the plan; preview and delete use the same plan.
-- Radarr and Sonarr: matching by provider id and by path, and a failed call skips the item instead of deleting it (against a fake HTTP handler).
+- Radarr and Sonarr: matching by provider id, and a failed call skips the item instead of deleting it (against a fake HTTP handler).
 - No test ever deletes a real file: the remover takes the delete action as a dependency.
 
 ## Open questions
