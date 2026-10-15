@@ -22,6 +22,8 @@ public class ArrClientTests
     {
         ["http://radarr:7878/api/v3/movie"] = """[{"id":7,"title":"Alien","tmdbId":348,"imdbId":"tt0078748"},{"id":8,"tmdbId":1}]""",
         ["http://sonarr:8989/api/v3/series"] = """[{"id":3,"title":"Dark","tvdbId":334824}]""",
+        ["http://radarr:7878/api/v3/queue?pageSize=1000"] = """{"records":[{"movieId":8}]}""",
+        ["http://sonarr:8989/api/v3/queue?pageSize=1000"] = """{"records":[{"seriesId":3,"episodeId":40}]}""",
         ["http://sonarr:8989/api/v3/episode?seriesId=3"] = """[{"id":30,"seasonNumber":1,"episodeNumber":1},{"id":31,"seasonNumber":1,"episodeNumber":2},{"id":32,"seasonNumber":1,"episodeNumber":3},{"id":40,"seasonNumber":2,"episodeNumber":1}]""",
     };
 
@@ -68,6 +70,21 @@ public class ArrClientTests
 
         // Sonarr is not asked about movies.
         Assert.DoesNotContain(_calls, c => c.Url.Contains("sonarr", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Something_downloading_right_now_stays()
+    {
+        var movie = Planned("Movie");
+        var series = Planned("Series");
+        var season2 = Planned("Season", Guid.NewGuid(), season: 2);
+        var season1 = Planned("Season", Guid.NewGuid(), season: 1);
+        await Client().ResolveAsync([movie, series, season2, season1], [_radarr, _sonarr], id => id == movie.Item.Id ? new Dictionary<string, string> { ["Tmdb"] = "1" } : new Dictionary<string, string> { ["Tvdb"] = "334824" }, CancellationToken.None);
+
+        Assert.Equal("It is downloading in Radarr right now.", Assert.Single(movie.Arr, s => s.Failed).Description);
+        Assert.Equal("It is downloading in Sonarr right now.", Assert.Single(series.Arr, s => s.Failed).Description);
+        Assert.Equal("An episode in it is downloading in Sonarr right now.", Assert.Single(season2.Arr, s => s.Failed).Description);
+        Assert.False(Assert.Single(season1.Arr).Failed);
     }
 
     [Fact]

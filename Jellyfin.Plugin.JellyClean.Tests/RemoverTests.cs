@@ -126,7 +126,9 @@ public sealed class RemoverTests : IDisposable
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(request.Method == HttpMethod.Get ? """[{"id":7,"tmdbId":348}]""" : string.Empty)
+                Content = new StringContent(request.Method != HttpMethod.Get ? string.Empty
+                    : request.RequestUri.AbsolutePath.EndsWith("/queue", StringComparison.Ordinal) ? """{"records":[]}"""
+                    : """[{"id":7,"tmdbId":348}]""")
             });
         }
     }
