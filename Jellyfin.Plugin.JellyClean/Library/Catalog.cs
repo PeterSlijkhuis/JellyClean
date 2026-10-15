@@ -3,6 +3,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
@@ -23,12 +25,15 @@ public class Catalog
     private readonly IUserDataManager _userDataManager;
     private readonly ILogger<Catalog> _logger;
     private readonly object _gate = new();
+    private readonly object _build = new();
 
-    // Walking folders and reading streams is the slow part, so both are kept until the item changes.
-    private readonly ConcurrentDictionary<Guid, (DateTime Modified, long Size, Quality Quality)> _files = new();
+    // Walking folders and reading streams is the slow part, so both are kept until the item changes,
+    // and saved to disk so a restart doesn't have to walk everything again.
+    private ConcurrentDictionary<Guid, Measured>? _files;
 
-    private IReadOnlyDictionary<Guid, CatalogItem> _items = new Dictionary<Guid, CatalogItem>();
+    private IReadOnlyDictionary<Guid, CatalogItem>? _items;
     private DateTime _builtAt = DateTime.MinValue;
+    private Task? _rebuilding;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Catalog"/> class.
@@ -54,15 +59,59 @@ public class Catalog
     {
         lock (_gate)
         {
-            if (refresh || DateTime.UtcNow - _builtAt > _maxAge)
+            if (_items is not null && !refresh && _builtAt != DateTime.MinValue && DateTime.UtcNow - _builtAt > _maxAge)
             {
-                var started = DateTime.UtcNow;
-                _items = Build();
-                _builtAt = DateTime.UtcNow;
-                _logger.LogInformation("Read {Count} items in {Seconds:0.0} s", _items.Count, (_builtAt - started).TotalSeconds);
+                // Old but usable: answer now and read the library again in the background.
+                _rebuilding ??= Task.Run(() =>
+                {
+                    try
+                    {
+                        Rebuild();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not read the library");
+                    }
+                    finally
+                    {
+                        lock (_gate)
+                        {
+                            _rebuilding = null;
+                        }
+                    }
+                });
+                return _items;
+            }
+        }
+
+        if (_items is null || refresh || _builtAt == DateTime.MinValue)
+        {
+            Rebuild();
+        }
+
+        return _items!;
+    }
+
+    private void Rebuild()
+    {
+        // One build at a time; a second caller waits for it and gets its result.
+        lock (_build)
+        {
+            var started = DateTime.UtcNow;
+            if (_items is not null && _builtAt > started.AddSeconds(-2))
+            {
+                return;
             }
 
-            return _items;
+            var items = Build();
+            lock (_gate)
+            {
+                _items = items;
+                _builtAt = DateTime.UtcNow;
+            }
+
+            _logger.LogInformation("Read {Count} items in {Seconds:0.0} s", items.Count, (DateTime.UtcNow - started).TotalSeconds);
+            SaveSizes();
         }
     }
 
@@ -93,6 +142,8 @@ public class Catalog
         {
             _builtAt = DateTime.MinValue;
         }
+
+        // ponytail: the next Get() rebuilds while the caller waits; fine after a removal, which already took a while.
     }
 
     /// <summary>
@@ -160,6 +211,11 @@ public class Catalog
             .OrderByDescending(l => l.Location.Length)
             .ToList();
 
+        // Measure files in parallel: on a network share most of the time is spent waiting on the disk.
+        var files = Sizes();
+        var measured = new ConcurrentDictionary<Guid, Measured>();
+        Parallel.ForEach(items.Where(i => i is not Folder), new ParallelOptions { MaxDegreeOfParallelism = 8 }, item => measured[item.Id] = Measure(files, item));
+
         var keys = new List<(CatalogItem, string?)>();
         var rows = items.Select(item =>
         {
@@ -194,8 +250,9 @@ public class Catalog
             keys.Add((row, CopyKey(item)));
             if (item is not Folder)
             {
-                (row.Size, var quality) = Measure(item);
-                (row.Resolution, row.Codec, row.Hdr) = quality;
+                var m = measured[item.Id];
+                row.Size = m.Size;
+                (row.Resolution, row.Codec, row.Hdr) = m.Quality;
                 row.WatchedBy = data.Where(u => u.Data!.Played).Select(u => u.Id).ToArray();
                 row.AnyPlayed = row.WatchedBy.Length > 0 || data.Any(u => u.Data!.PlayCount > 0 || u.Data.PlaybackPositionTicks > 0);
                 row.LastWatched = data.Max(u => u.Data!.LastPlayedDate);
@@ -207,6 +264,13 @@ public class Catalog
 
         AddUpFolders(rows);
         FindCopies(keys);
+
+        // Forget items that are gone, so the saved sizes don't grow forever.
+        foreach (var id in files.Keys.Where(id => !measured.ContainsKey(id)))
+        {
+            files.TryRemove(id, out _);
+        }
+
         return rows.ToDictionary(r => r.Id);
     }
 
@@ -214,12 +278,52 @@ public class Catalog
         => path is not null && path.StartsWith(folder, StringComparison.Ordinal)
             && (path.Length == folder.Length || path[folder.Length] is '/' or '\\');
 
-    // Size is what Jellyfin's own delete removes: the movie's folder when it has one, else the file and its sidecar files.
-    private (long Size, Quality Quality) Measure(BaseItem item)
+    private static string SizesPath => Path.Combine(Plugin.Instance!.DataFolderPath, "sizes.json");
+
+    private ConcurrentDictionary<Guid, Measured> Sizes()
     {
-        if (_files.TryGetValue(item.Id, out var cached) && cached.Modified == item.DateModified)
+        if (_files is not null)
         {
-            return (cached.Size, cached.Quality);
+            return _files;
+        }
+
+        try
+        {
+            if (File.Exists(SizesPath))
+            {
+                using var stream = File.OpenRead(SizesPath);
+                _files = JsonSerializer.Deserialize<ConcurrentDictionary<Guid, Measured>>(stream);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Could not read the saved sizes, measuring again");
+        }
+
+        return _files ??= new ConcurrentDictionary<Guid, Measured>();
+    }
+
+    private void SaveSizes()
+    {
+        try
+        {
+            Directory.CreateDirectory(Plugin.Instance!.DataFolderPath);
+            var temp = SizesPath + ".tmp";
+            File.WriteAllText(temp, JsonSerializer.Serialize(_files));
+            File.Move(temp, SizesPath, true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Could not save the sizes");
+        }
+    }
+
+    // Size is what Jellyfin's own delete removes: the movie's folder when it has one, else the file and its sidecar files.
+    private Measured Measure(ConcurrentDictionary<Guid, Measured> files, BaseItem item)
+    {
+        if (files.TryGetValue(item.Id, out var cached) && cached.Modified == item.DateModified)
+        {
+            return cached;
         }
 
         long size = 0;
@@ -240,7 +344,14 @@ public class Catalog
         }
 
         var quality = item is Video video ? Quality.Of(video.GetDefaultVideoStream()) : Quality.None;
-        _files[item.Id] = (item.DateModified, size, quality);
-        return (size, quality);
+        return files[item.Id] = new Measured(item.DateModified, size, quality);
     }
 }
+
+/// <summary>
+/// A measured item: its size and quality, and when the item last changed.
+/// </summary>
+/// <param name="Modified">When the item last changed in Jellyfin.</param>
+/// <param name="Size">Bytes on disk.</param>
+/// <param name="Quality">Video quality.</param>
+public record Measured(DateTime Modified, long Size, Quality Quality);
