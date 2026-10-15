@@ -64,7 +64,35 @@ public sealed class RemoverTests : IDisposable
         sessions.Setup(s => s.Sessions).Returns([]);
 
         _config.Servers = [new ArrServer { Kind = "Radarr", Url = _radarrUrl, ApiKey = "key" }];
-        return new Remover(catalog, new ArrClient(factory.Object), _library.Object, sessions.Object, Mock.Of<IActivityManager>(), NullLogger<Remover>.Instance);
+        return new Remover(catalog, new ArrClient(factory.Object), new RecycleBin(_library.Object, NullLogger<RecycleBin>.Instance), _library.Object, sessions.Object, Mock.Of<IActivityManager>(), NullLogger<Remover>.Instance);
+    }
+
+    [Fact]
+    public void Recycle_bin_moves_restores_and_purges()
+    {
+        var lib = Path.Combine(_root, "movies");
+        var folder = Path.Combine(lib, "Alien (1979)");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "Alien.mkv"), "x");
+        _library.Setup(l => l.GetVirtualFolders()).Returns([new MediaBrowser.Model.Entities.VirtualFolderInfo { Name = "Movies", Locations = [lib] }]);
+        var bin = new RecycleBin(_library.Object, NullLogger<RecycleBin>.Instance);
+        var item = new CatalogItem { Id = _movie.Id, Name = "Alien", Type = "Movie" };
+
+        var recycled = bin.Move(item, [folder]);
+        RecycleBin.Add(recycled);
+        Assert.False(Directory.Exists(folder));
+        Assert.True(File.Exists(Path.Combine(recycled.Paths[0].To, "Alien.mkv")));
+
+        Assert.Null(bin.Restore(item.Id));
+        Assert.True(File.Exists(Path.Combine(folder, "Alien.mkv")));
+        Assert.Empty(_config.Recycled);
+
+        RecycleBin.Add(bin.Move(item, [folder]));
+        _config.RecycleDays = 30;
+        Assert.Equal(0, bin.Purge(all: false));
+        Assert.Equal(1, bin.Purge(all: true));
+        Assert.Empty(_config.Recycled);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(lib, RecycleBin.FolderName)));
     }
 
     [Fact]

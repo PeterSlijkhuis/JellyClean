@@ -53,6 +53,7 @@ public class Catalog
         // A scan that finds or drops items makes the list out of date; the next look reads it again.
         _libraryManager.ItemAdded += OnLibraryChanged;
         _libraryManager.ItemRemoved += OnLibraryChanged;
+        _userDataManager.UserDataSaved += OnUserDataSaved;
     }
 
     /// <summary>
@@ -263,7 +264,8 @@ public class Catalog
             }
 
             var data = userData.Select(u => (u.Id, Data: u.Data.GetValueOrDefault(item.Id))).Where(u => u.Data is not null).ToList();
-            row.Favorite = data.Any(u => u.Data!.IsFavorite);
+            row.FavoriteBy = data.Where(u => u.Data!.IsFavorite).Select(u => u.Id).ToArray();
+            row.Favorite = row.FavoriteBy.Length > 0;
 
             keys.Add((row, CopyKey(item)));
             if (item is not Folder)
@@ -302,6 +304,58 @@ public class Catalog
         {
             _changed = true;
         }
+    }
+
+    private void OnUserDataSaved(object? sender, UserDataSaveEventArgs e)
+    {
+        if (e.Item is not (MediaBrowser.Controller.Entities.Movies.Movie or Series or Season or Episode))
+        {
+            return;
+        }
+
+        // A favorite changes what may be removed, so it shows at once; watched changes come with the next read.
+        _changed = true;
+        lock (_gate)
+        {
+            if (_items is not null && _items.TryGetValue(e.Item.Id, out var row))
+            {
+                var by = FavoriteBy(e.Item);
+                if (!row.FavoriteBy.SequenceEqual(by))
+                {
+                    (row.FavoriteBy, row.Favorite) = (by, by.Length > 0);
+                    Version++;
+                }
+            }
+        }
+    }
+
+    private Guid[] FavoriteBy(BaseItem item)
+        => _userManager.GetUsers().Where(u => _userDataManager.GetUserData(u, item)?.IsFavorite == true).Select(u => u.Id).ToArray();
+
+    /// <summary>
+    /// Takes the favorite mark off an item, for every user who set it.
+    /// </summary>
+    /// <param name="id">The item id.</param>
+    /// <returns>Whether the item was found.</returns>
+    public bool Unfavorite(Guid id)
+    {
+        var item = _libraryManager.GetItemById(id);
+        if (item is null)
+        {
+            return false;
+        }
+
+        foreach (var user in _userManager.GetUsers())
+        {
+            var data = _userDataManager.GetUserData(user, item);
+            if (data?.IsFavorite == true)
+            {
+                data.IsFavorite = false;
+                _userDataManager.SaveUserData(user, item, data, MediaBrowser.Model.Entities.UserDataSaveReason.UpdateUserRating, System.Threading.CancellationToken.None);
+            }
+        }
+
+        return true;
     }
 
     private static string SizesPath => Path.Combine(Plugin.Instance!.DataFolderPath, "sizes.json");

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Plugin.JellyClean.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Activity;
@@ -23,6 +24,7 @@ public class Remover
 
     private readonly Catalog _catalog;
     private readonly ArrClient _arr;
+    private readonly RecycleBin _bin;
     private readonly ILibraryManager _libraryManager;
     private readonly ISessionManager _sessionManager;
     private readonly IActivityManager _activityManager;
@@ -33,14 +35,16 @@ public class Remover
     /// </summary>
     /// <param name="catalog">Catalog.</param>
     /// <param name="arr">Radarr and Sonarr client.</param>
+    /// <param name="bin">Recycle bin.</param>
     /// <param name="libraryManager">Library manager.</param>
     /// <param name="sessionManager">Session manager.</param>
     /// <param name="activityManager">Activity manager.</param>
     /// <param name="logger">Logger.</param>
-    public Remover(Catalog catalog, ArrClient arr, ILibraryManager libraryManager, ISessionManager sessionManager, IActivityManager activityManager, ILogger<Remover> logger)
+    public Remover(Catalog catalog, ArrClient arr, RecycleBin bin, ILibraryManager libraryManager, ISessionManager sessionManager, IActivityManager activityManager, ILogger<Remover> logger)
     {
         _catalog = catalog;
         _arr = arr;
+        _bin = bin;
         _libraryManager = libraryManager;
         _sessionManager = sessionManager;
         _activityManager = activityManager;
@@ -241,6 +245,27 @@ public class Remover
     private async Task<string?> RemoveOneAsync(PlannedItem planned, CancellationToken cancellationToken)
     {
         var title = planned.Item.Title;
+        var item = _libraryManager.GetItemById(planned.Item.Id);
+        if (item is null)
+        {
+            return "No longer in the library.";
+        }
+
+        // With the recycle bin on, the files move first: that can be undone if Radarr or Sonarr then fails.
+        RecycledItem? recycled = null;
+        if (Plugin.Instance!.Configuration.RecycleDays > 0)
+        {
+            try
+            {
+                recycled = _bin.Move(planned.Item, planned.Paths);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Activity.Log(_logger, LogLevel.Error, ex, "{Title}: files kept, because they could not go to the recycle bin", title);
+                return "Could not move it to the recycle bin, so it was kept: " + ex.Message;
+            }
+        }
+
         foreach (var step in planned.Arr)
         {
             try
@@ -251,18 +276,27 @@ public class Remover
             catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException)
             {
                 Activity.Log(_logger, LogLevel.Error, ex, "{Title}: files kept, because this failed: {Step}", title, step.Description);
+                if (recycled is not null)
+                {
+                    RecycleBin.Add(recycled);
+                    _bin.Restore(recycled.Id);
+                }
+
                 return $"Failed: {step.Description}. Files kept.";
             }
         }
 
-        var item = _libraryManager.GetItemById(planned.Item.Id);
-        if (item is null)
-        {
-            return "No longer in the library.";
-        }
-
         try
         {
+            if (recycled is not null)
+            {
+                // The files are in the bin already; Jellyfin only forgets the item. Listed first, so they can always be found.
+                RecycleBin.Add(recycled);
+                _libraryManager.DeleteItem(item, new DeleteOptions { DeleteFileLocation = false });
+                Activity.Info(_logger, "Moved {Title} ({Size}) to the recycle bin: {Paths}", title, Bytes(planned.Item.Size), string.Join(", ", planned.Paths));
+                return null;
+            }
+
             _libraryManager.DeleteItem(item, new DeleteOptions { DeleteFileLocation = true });
             Activity.Info(_logger, "Deleted {Title} ({Size}) from disk: {Paths}", title, Bytes(planned.Item.Size), string.Join(", ", planned.Paths));
             return null;

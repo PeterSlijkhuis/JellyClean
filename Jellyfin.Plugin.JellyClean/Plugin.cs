@@ -80,6 +80,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     {
         serviceCollection.AddSingleton<Catalog>();
         serviceCollection.AddSingleton<ArrClient>();
+        serviceCollection.AddSingleton<RecycleBin>();
         serviceCollection.AddSingleton<Remover>();
         serviceCollection.AddSingleton<LeavingSoon>();
     }

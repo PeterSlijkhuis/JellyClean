@@ -252,6 +252,15 @@ public class JellyCleanController : ControllerBase
     }
 
     /// <summary>
+    /// Takes the favorite mark off an item, for every user.
+    /// </summary>
+    /// <param name="itemId">Item id.</param>
+    /// <returns>No content, or not found.</returns>
+    [HttpPost("Unfavorite/{itemId}")]
+    public ActionResult Unfavorite([FromRoute] Guid itemId)
+        => _catalog.Unfavorite(itemId) ? NoContent() : NotFound();
+
+    /// <summary>
     /// Checks a Radarr or Sonarr address and API key.
     /// </summary>
     /// <param name="server">The server.</param>

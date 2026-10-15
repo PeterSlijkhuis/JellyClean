@@ -121,6 +121,8 @@
             #JellyCleanLibraryPage .jc-tag.copy { border-color: rgba(240, 120, 60, 0.6); color: #ff9a5c; }
             #JellyCleanLibraryPage .jc-tag.protected { border-color: rgba(170, 92, 195, 0.7); color: #c58ad8; }
             #JellyCleanLibraryPage .jc-size { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 5em; text-align: right; }
+            #JellyCleanLibraryPage .jc-unfav { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; padding: 0 0 0 .2em; opacity: .7; }
+            #JellyCleanLibraryPage .jc-unfav:hover { opacity: 1; }
             #JellyCleanLibraryPage .jc-keep {
                 flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--jc-line); background: transparent;
                 color: inherit; cursor: pointer; display: grid; place-items: center; opacity: 0.55;
@@ -573,6 +575,13 @@
                     });
                 }
 
+                function favoriteTag(item) {
+                    var who = item.FavoriteBy.map(function (id) { return users[id] || 'someone'; });
+                    var clear = el('button', { type: 'button', className: 'jc-unfav', textContent: '×', title: 'Take the favorite off, for ' + who.join(', '), ariaLabel: 'Remove favorite' });
+                    clear.dataset.unfavorite = item.Id;
+                    return el('span', { className: 'jc-tag protected', textContent: 'Favorite of ' + who.join(', ') + ' ' }, clear);
+                }
+
                 function watchedTag(item) {
                     if (!item.AnyPlayed) { return el('span', { className: 'jc-tag never', textContent: 'Never played' }); }
                     var who = item.WatchedBy.map(function (id) { return users[id] || 'someone'; });
@@ -606,7 +615,7 @@
                         item.Resolution ? el('span', { className: 'jc-tag quality', textContent: [item.Resolution, item.Codec, item.Hdr].filter(Boolean).join(' · ') }) : null,
                         item.CopiesIn.length ? el('span', { className: 'jc-tag copy', textContent: 'Also in ' + item.CopiesIn.join(', ') }) : null,
                         item.Kept ? el('span', { className: 'jc-tag protected', textContent: 'Keep' }) : null,
-                        item.Favorite ? el('span', { className: 'jc-tag protected', textContent: 'Favorite' }) : null);
+                        item.Favorite ? favoriteTag(item) : null);
 
                     var img = el('img', {
                         className: 'jc-poster' + (item.Type === 'Episode' ? ' wide' : ''), alt: '', loading: 'lazy',
@@ -932,6 +941,9 @@
                         });
                         lastCheck = b;
                         updateBar();
+                    } else if (b.dataset.unfavorite) {
+                        b.disabled = true;
+                        call('POST', 'Unfavorite/' + b.dataset.unfavorite).then(function () { load(false); });
                     } else if (b.dataset.keep) {
                         var keep = b.getAttribute('aria-pressed') !== 'true';
                         b.disabled = true;

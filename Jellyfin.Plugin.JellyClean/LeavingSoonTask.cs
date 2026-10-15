@@ -14,30 +14,37 @@ namespace Jellyfin.Plugin.JellyClean;
 public class LeavingSoonTask : IScheduledTask
 {
     private readonly LeavingSoon _leavingSoon;
+    private readonly RecycleBin _bin;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LeavingSoonTask"/> class.
     /// </summary>
     /// <param name="leavingSoon">Leaving soon list.</param>
-    public LeavingSoonTask(LeavingSoon leavingSoon)
+    /// <param name="bin">Recycle bin.</param>
+    public LeavingSoonTask(LeavingSoon leavingSoon, RecycleBin bin)
     {
         _leavingSoon = leavingSoon;
+        _bin = bin;
     }
 
     /// <inheritdoc />
-    public string Name => "Update Leaving soon";
+    public string Name => "Daily clean-up";
 
     /// <inheritdoc />
     public string Key => "JellyCleanLeavingSoon";
 
     /// <inheritdoc />
-    public string Description => "Adds new matches of saved views marked \"check daily\" to the Leaving soon list. Removes due items only when \"Remove when due\" is on.";
+    public string Description => "Empties what has been in the recycle bin long enough. Adds new matches of saved views marked \"check daily\" to the Leaving soon list. Removes due items only when \"Remove when due\" is on.";
 
     /// <inheritdoc />
     public string Category => "JellyClean";
 
     /// <inheritdoc />
-    public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken) => _leavingSoon.RunAsync(cancellationToken);
+    public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+    {
+        _bin.Purge(all: false);
+        return _leavingSoon.RunAsync(cancellationToken);
+    }
 
     /// <inheritdoc />
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()

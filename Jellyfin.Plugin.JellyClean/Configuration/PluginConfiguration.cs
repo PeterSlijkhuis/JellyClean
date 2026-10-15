@@ -89,6 +89,16 @@ public class PluginConfiguration : BasePluginConfiguration
     public Guid CollectionId { get; set; }
 
     /// <summary>
+    /// Gets or sets how many days removed files stay in the recycle bin, or 0 to delete them right away.
+    /// </summary>
+    public int RecycleDays { get; set; }
+
+    /// <summary>
+    /// Gets or sets the items in the recycle bin.
+    /// </summary>
+    public RecycledItem[] Recycled { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets the bytes JellyClean has freed so far.
     /// </summary>
     public long FreedBytes { get; set; }
@@ -190,4 +200,37 @@ public class LeavingItem
     /// Gets or sets who put it there: "you" or the name of a saved view.
     /// </summary>
     public string Source { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// An item in the recycle bin.
+/// </summary>
+public class RecycledItem
+{
+    /// <summary>Gets or sets the item id it had in Jellyfin.</summary>
+    public Guid Id { get; set; }
+
+    /// <summary>Gets or sets the title.</summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the size in bytes.</summary>
+    public long Size { get; set; }
+
+    /// <summary>Gets or sets when it was removed.</summary>
+    public DateTime Removed { get; set; }
+
+    /// <summary>Gets or sets where each file or folder came from and where it is now.</summary>
+    public RecycledPath[] Paths { get; set; } = [];
+}
+
+/// <summary>
+/// A file or folder in the recycle bin.
+/// </summary>
+public class RecycledPath
+{
+    /// <summary>Gets or sets where it was.</summary>
+    public string From { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets where it is now.</summary>
+    public string To { get; set; } = string.Empty;
 }
