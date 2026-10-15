@@ -90,7 +90,7 @@ public sealed class RemoverTests : IDisposable
         var lib = Path.Combine(_root, "movies");
         var folder = Path.Combine(lib, "Alien (1979)");
         Directory.CreateDirectory(folder);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Alien.mkv"), "x");
+        await File.WriteAllTextAsync(Path.Combine(folder, "Alien.mkv"), "x", TestContext.Current.CancellationToken);
         _library.Setup(l => l.GetVirtualFolders()).Returns([new MediaBrowser.Model.Entities.VirtualFolderInfo { Name = "Movies", Locations = [lib] }]);
         var bin = new RecycleBin(_library.Object, new ArrClient(Mock.Of<IHttpClientFactory>()), NullLogger<RecycleBin>.Instance);
         var item = new CatalogItem { Id = _movie.Id, Name = "Alien", Type = "Movie" };
@@ -129,7 +129,7 @@ public sealed class RemoverTests : IDisposable
         Assert.True(remover.Start([_movie.Id], Guid.Empty));
         for (var i = 0; i < 100 && remover.Progress.Running; i++)
         {
-            await Task.Delay(50);
+            await Task.Delay(50, TestContext.Current.CancellationToken);
         }
 
         Assert.False(remover.Progress.Running);
