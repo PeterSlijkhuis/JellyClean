@@ -8,8 +8,8 @@ using MediaBrowser.Model.Tasks;
 namespace Jellyfin.Plugin.JellyClean;
 
 /// <summary>
-/// Once a day: saved views marked "check daily" add new matches to Leaving soon, and due items are removed
-/// only when "Remove when due" is switched on. Otherwise they wait for you.
+/// Every hour: empties what has been in the recycle bin long enough, runs the saved views whose time has come,
+/// and removes due items that are set to go on their own. Everything else waits for you.
 /// </summary>
 public class LeavingSoonTask : IScheduledTask
 {
@@ -28,13 +28,13 @@ public class LeavingSoonTask : IScheduledTask
     }
 
     /// <inheritdoc />
-    public string Name => "Daily clean-up";
+    public string Name => "Leaving soon and recycle bin";
 
     /// <inheritdoc />
     public string Key => "JellyCleanLeavingSoon";
 
     /// <inheritdoc />
-    public string Description => "Empties what has been in the recycle bin long enough. Adds new matches of saved views marked \"check daily\" to the Leaving soon list. Removes due items only when \"Remove when due\" is on.";
+    public string Description => "Empties what has been in the recycle bin long enough. Runs the scheduled views whose time has come, putting their matches on the Leaving soon list. Removes due items only where that is switched on.";
 
     /// <inheritdoc />
     public string Category => "JellyClean";
@@ -48,5 +48,5 @@ public class LeavingSoonTask : IScheduledTask
 
     /// <inheritdoc />
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
-        => [new TaskTriggerInfo { Type = TaskTriggerInfoType.DailyTrigger, TimeOfDayTicks = TimeSpan.FromHours(4).Ticks }];
+        => [new TaskTriggerInfo { Type = TaskTriggerInfoType.IntervalTrigger, IntervalTicks = TimeSpan.FromHours(1).Ticks }];
 }

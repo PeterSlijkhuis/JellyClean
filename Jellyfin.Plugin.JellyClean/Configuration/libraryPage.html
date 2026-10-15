@@ -606,11 +606,17 @@
                     });
                 }
 
+                // One × per person, so each favorite can be taken off on its own.
                 function favoriteTag(item) {
-                    var who = item.FavoriteBy.map(function (id) { return users[id] || 'someone'; });
-                    var clear = el('button', { type: 'button', className: 'jc-unfav', textContent: '×', title: 'Take the favorite off, for ' + who.join(', '), ariaLabel: 'Remove favorite' });
-                    clear.dataset.unfavorite = item.Id;
-                    return el('span', { className: 'jc-tag protected', textContent: 'Favorite of ' + who.join(', ') + ' ' }, clear);
+                    var tag = el('span', { className: 'jc-tag protected', textContent: 'Favorite of' });
+                    item.FavoriteBy.forEach(function (id, i) {
+                        var name = users[id] || 'someone';
+                        var clear = el('button', { type: 'button', className: 'jc-unfav', textContent: '×', title: 'Take ' + name + "'s favorite off", ariaLabel: 'Remove favorite of ' + name });
+                        clear.dataset.unfavorite = item.Id;
+                        clear.dataset.user = id;
+                        tag.append((i ? ', ' : ' ') + name, clear);
+                    });
+                    return tag;
                 }
 
                 // Recycle bin
@@ -1003,7 +1009,7 @@
                         updateBar();
                     } else if (b.dataset.unfavorite) {
                         b.disabled = true;
-                        call('POST', 'Unfavorite/' + b.dataset.unfavorite).then(function () { load(false); });
+                        call('POST', 'Unfavorite/' + b.dataset.unfavorite + '?userId=' + b.dataset.user).then(function () { load(false); });
                     } else if (b.dataset.keep) {
                         var keep = b.getAttribute('aria-pressed') !== 'true';
                         b.disabled = true;

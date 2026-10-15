@@ -166,9 +166,77 @@ public class SavedView
     public string Filter { get; set; } = "{}";
 
     /// <summary>
-    /// Gets or sets a value indicating whether the daily task puts new matches on the Leaving soon list. Nothing is removed by this.
+    /// Gets or sets a value indicating whether the view was checked daily. Read only for settings saved by older versions: see <see cref="Schedule"/>.
     /// </summary>
     public bool CheckDaily { get; set; }
+
+    /// <summary>
+    /// Gets or sets how often the view puts its matches on the Leaving soon list: empty (never), "daily" or "weekly".
+    /// </summary>
+    public string Schedule { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the day a weekly view runs.
+    /// </summary>
+    public DayOfWeek Day { get; set; } = DayOfWeek.Monday;
+
+    /// <summary>
+    /// Gets or sets the hour of the day it runs, server time.
+    /// </summary>
+    public int Hour { get; set; } = 4;
+
+    /// <summary>
+    /// Gets or sets how many days its items stay on the list before they are due. 0 uses the general notice period.
+    /// </summary>
+    public int NoticeDays { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether its items are removed on their own once due, instead of waiting for you.
+    /// </summary>
+    public bool AutoRemove { get; set; }
+
+    /// <summary>
+    /// Gets or sets when it last ran.
+    /// </summary>
+    public DateTime? LastRun { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many items its last run put on the list.
+    /// </summary>
+    public int LastAdded { get; set; }
+
+    /// <summary>
+    /// Gets how often it runs, counting "check daily" from older versions as daily.
+    /// </summary>
+    /// <returns>Empty, "daily" or "weekly".</returns>
+    public string Runs() => Schedule is "daily" or "weekly" ? Schedule : CheckDaily ? "daily" : string.Empty;
+
+    /// <summary>
+    /// Gets when it runs next: the first time at its hour (and day) after its last run. Never run: right away.
+    /// </summary>
+    /// <param name="now">The current server time.</param>
+    /// <returns>The next run, or null when it has no schedule.</returns>
+    public DateTime? NextRun(DateTime now)
+    {
+        var runs = Runs();
+        if (runs.Length == 0)
+        {
+            return null;
+        }
+
+        if (LastRun is not { } last)
+        {
+            return now;
+        }
+
+        var next = last.Date.AddHours(Math.Clamp(Hour, 0, 23));
+        while (next <= last || (runs == "weekly" && next.DayOfWeek != Day))
+        {
+            next = next.AddDays(1);
+        }
+
+        return next;
+    }
 }
 
 /// <summary>

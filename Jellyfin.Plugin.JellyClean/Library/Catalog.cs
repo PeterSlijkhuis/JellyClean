@@ -341,11 +341,12 @@ public class Catalog
         => _userManager.GetUsers().Where(u => _userDataManager.GetUserData(u, item)?.IsFavorite == true).Select(u => u.Id).ToArray();
 
     /// <summary>
-    /// Takes the favorite mark off an item, for every user who set it.
+    /// Takes one user's favorite mark off an item.
     /// </summary>
     /// <param name="id">The item id.</param>
+    /// <param name="userId">The user.</param>
     /// <returns>Whether the item was found.</returns>
-    public bool Unfavorite(Guid id)
+    public bool Unfavorite(Guid id, Guid userId)
     {
         var item = _libraryManager.GetItemById(id);
         if (item is null)
@@ -353,7 +354,7 @@ public class Catalog
             return false;
         }
 
-        foreach (var user in _userManager.GetUsers())
+        foreach (var user in _userManager.GetUsers().Where(u => u.Id == userId))
         {
             var data = _userDataManager.GetUserData(user, item);
             if (data?.IsFavorite == true)

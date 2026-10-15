@@ -199,9 +199,12 @@ public class JellyCleanController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>No content.</returns>
     [HttpPost("LeavingSoon/Run")]
-    public async Task<ActionResult> RunLeavingSoon(CancellationToken cancellationToken)
+    public async Task<ActionResult> RunLeavingSoon([FromQuery] string? view, CancellationToken cancellationToken)
     {
-        await _leavingSoon.RunAsync(cancellationToken).ConfigureAwait(false);
+        var views = view is null
+            ? Plugin.Instance!.Configuration.Views.Where(v => v.Runs().Length > 0).Select(v => v.Name).ToList()
+            : [view];
+        await _leavingSoon.RunAsync(cancellationToken, views).ConfigureAwait(false);
         return NoContent();
     }
 
@@ -263,7 +266,18 @@ public class JellyCleanController : ControllerBase
         var plugin = Plugin.Instance!;
         view.Name = view.Name.Trim();
         var old = plugin.Configuration.Views.FirstOrDefault(v => v.Name == view.Name);
-        view.CheckDaily = old?.CheckDaily ?? false;
+        if (old is not null && string.IsNullOrEmpty(view.Schedule))
+        {
+            // Saving the filter again keeps its schedule.
+            (view.CheckDaily, view.Schedule, view.Day, view.Hour, view.NoticeDays, view.AutoRemove) = (old.CheckDaily, old.Schedule, old.Day, old.Hour, old.NoticeDays, old.AutoRemove);
+        }
+
+        if (view.Schedule is not ("" or "daily" or "weekly") || view.Hour is < 0 or > 23 || view.NoticeDays < 0)
+        {
+            return BadRequest("The schedule is not valid.");
+        }
+
+        (view.LastRun, view.LastAdded) = (old?.LastRun, old?.LastAdded ?? 0);
         plugin.Configuration.Views = plugin.Configuration.Views.Where(v => v.Name != view.Name).Append(view).ToArray();
         plugin.SaveConfiguration();
         return NoContent();
@@ -300,13 +314,14 @@ public class JellyCleanController : ControllerBase
     }
 
     /// <summary>
-    /// Takes the favorite mark off an item, for every user.
+    /// Takes one user's favorite mark off an item.
     /// </summary>
     /// <param name="itemId">Item id.</param>
+    /// <param name="userId">The user whose favorite it is.</param>
     /// <returns>No content, or not found.</returns>
     [HttpPost("Unfavorite/{itemId}")]
-    public ActionResult Unfavorite([FromRoute] Guid itemId)
-        => _catalog.Unfavorite(itemId) ? NoContent() : NotFound();
+    public ActionResult Unfavorite([FromRoute] Guid itemId, [FromQuery] Guid userId)
+        => _catalog.Unfavorite(itemId, userId) ? NoContent() : NotFound();
 
     /// <summary>
     /// Checks a Radarr or Sonarr address and API key.
