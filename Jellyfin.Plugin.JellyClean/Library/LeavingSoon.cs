@@ -269,7 +269,9 @@ public class LeavingSoon
         if (due.Count > 0)
         {
             Activity.Info(_logger, "Removing {Count} items that are due and set to go on their own", due.Count);
-            await _remover.RemoveAsync(due, Guid.Empty, cancellationToken).ConfigureAwait(false);
+            // Never straight off the disk: automatic removals always wait in the recycle bin, so a mistake can be undone.
+            var days = Math.Max(Math.Max(1, Config.AutoRecycleDays), Config.RecycleDays);
+            await _remover.RemoveAsync(due, Guid.Empty, cancellationToken, days, "Leaving soon").ConfigureAwait(false);
         }
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);

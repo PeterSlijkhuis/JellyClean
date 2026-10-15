@@ -189,9 +189,12 @@ public class Remover
     /// <param name="ids">Selected item ids.</param>
     /// <param name="userId">The admin who asked, for the Jellyfin activity log.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="recycleDays">Days the files stay in the recycle bin; null uses the setting, 0 deletes right away.</param>
+    /// <param name="source">What removed it, for the recycle bin: "you" or "Leaving soon".</param>
     /// <returns>The plan, with the items that failed moved to <see cref="RemovalPlan.Skip"/>.</returns>
-    public async Task<RemovalPlan> RemoveAsync(IEnumerable<Guid> ids, Guid userId, CancellationToken cancellationToken)
+    public async Task<RemovalPlan> RemoveAsync(IEnumerable<Guid> ids, Guid userId, CancellationToken cancellationToken, int? recycleDays = null, string source = "you")
     {
+        var days = Math.Max(0, recycleDays ?? Plugin.Instance!.Configuration.RecycleDays);
         await _oneAtATime.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -201,7 +204,7 @@ public class Remover
             foreach (var planned in plan.Remove.ToList())
             {
                 progress.Current = planned.Item.Title;
-                var error = await RemoveOneAsync(planned, cancellationToken).ConfigureAwait(false);
+                var error = await RemoveOneAsync(planned, days, source, cancellationToken).ConfigureAwait(false);
                 progress.Done++;
                 if (error is not null)
                 {
@@ -242,7 +245,7 @@ public class Remover
         }
     }
 
-    private async Task<string?> RemoveOneAsync(PlannedItem planned, CancellationToken cancellationToken)
+    private async Task<string?> RemoveOneAsync(PlannedItem planned, int days, string source, CancellationToken cancellationToken)
     {
         var title = planned.Item.Title;
         var item = _libraryManager.GetItemById(planned.Item.Id);
@@ -253,11 +256,12 @@ public class Remover
 
         // With the recycle bin on, the files move first: that can be undone if Radarr or Sonarr then fails.
         RecycledItem? recycled = null;
-        if (Plugin.Instance!.Configuration.RecycleDays > 0)
+        if (days > 0)
         {
             try
             {
                 recycled = _bin.Move(planned.Item, planned.Paths);
+                (recycled.Days, recycled.Source, recycled.Type) = (days, source, planned.Item.Type);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -266,16 +270,34 @@ public class Remover
             }
         }
 
+        var undone = new List<ArrUndo>();
         foreach (var step in planned.Arr)
         {
             try
             {
-                await _arr.ApplyAsync(step, cancellationToken).ConfigureAwait(false);
+                // With the recycle bin, Radarr and Sonarr only stop monitoring it until the bin is emptied, so a restore is clean.
+                undone.Add(recycled is not null
+                    ? await _arr.HoldAsync(step, cancellationToken).ConfigureAwait(false)
+                    : await _arr.ApplyAsync(step, cancellationToken).ConfigureAwait(false));
                 Activity.Info(_logger, "{Title}: {Step}", title, step.Description);
             }
             catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException)
             {
                 Activity.Log(_logger, LogLevel.Error, ex, "{Title}: files kept, because this failed: {Step}", title, step.Description);
+
+                // Put back what the other servers already did, so the item is whole again.
+                foreach (var undo in undone)
+                {
+                    try
+                    {
+                        await _arr.UndoAsync(undo, Plugin.Instance!.Configuration.Servers, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception undoEx) when (undoEx is System.Net.Http.HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+                    {
+                        Activity.Log(_logger, LogLevel.Error, undoEx, "{Title}: could not undo the change in {Kind}", title, undo.Kind);
+                    }
+                }
+
                 if (recycled is not null)
                 {
                     RecycleBin.Add(recycled);
@@ -291,6 +313,7 @@ public class Remover
             if (recycled is not null)
             {
                 // The files are in the bin already; Jellyfin only forgets the item. Listed first, so they can always be found.
+                recycled.Arr = undone.ToArray();
                 RecycleBin.Add(recycled);
                 _libraryManager.DeleteItem(item, new DeleteOptions { DeleteFileLocation = false });
                 Activity.Info(_logger, "Moved {Title} ({Size}) to the recycle bin: {Paths}", title, Bytes(planned.Item.Size), string.Join(", ", planned.Paths));

@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyClean.Configuration;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
@@ -22,16 +26,19 @@ public class RecycleBin
 
     private static readonly object _lock = new();
     private readonly ILibraryManager _libraryManager;
+    private readonly ArrClient _arr;
     private readonly ILogger<RecycleBin> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RecycleBin"/> class.
     /// </summary>
     /// <param name="libraryManager">Library manager.</param>
+    /// <param name="arr">Radarr and Sonarr client.</param>
     /// <param name="logger">Logger.</param>
-    public RecycleBin(ILibraryManager libraryManager, ILogger<RecycleBin> logger)
+    public RecycleBin(ILibraryManager libraryManager, ArrClient arr, ILogger<RecycleBin> logger)
     {
         _libraryManager = libraryManager;
+        _arr = arr;
         _logger = logger;
     }
 
@@ -90,7 +97,7 @@ public class RecycleBin
     {
         lock (_lock)
         {
-            Config.Recycled = Config.Recycled.Append(item).ToArray();
+            Config.Recycled = Config.Recycled.Where(r => r.Id != item.Id).Append(item).ToArray();
             Plugin.Instance!.SaveConfiguration();
         }
     }
@@ -136,17 +143,67 @@ public class RecycleBin
     }
 
     /// <summary>
-    /// Deletes items for good: the ones older than the set number of days, or all of them.
+    /// Restores an item completely: the files go back, Jellyfin scans them in, and Radarr and Sonarr get the movie
+    /// or series back (or monitor the episodes again), as they were.
+    /// </summary>
+    /// <param name="id">The item id.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Why the files could not go back (Error), or what did not work in Radarr or Sonarr (Warning).</returns>
+    public async Task<(string? Error, string? Warning)> RestoreAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var item = Config.Recycled.FirstOrDefault(r => r.Id == id);
+        var error = Restore(id);
+        if (error is not null || item is null)
+        {
+            return (error, null);
+        }
+
+        _libraryManager.QueueLibraryScan();
+        var problems = new List<string>();
+        foreach (var undo in item.Arr)
+        {
+            try
+            {
+                await _arr.UndoAsync(undo, Config.Servers, cancellationToken).ConfigureAwait(false);
+                Activity.Info(_logger, "{Title} is back in {Kind}", item.Title, undo.Kind);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
+            {
+                Activity.Log(_logger, LogLevel.Error, ex, "{Title} is back in Jellyfin, but not in {Kind}", item.Title, undo.Kind);
+                problems.Add($"{undo.Kind}: {ex.Message}");
+            }
+        }
+
+        return (null, problems.Count == 0 ? null : "Back in Jellyfin, but add it again by hand in " + string.Join("; ", problems));
+    }
+
+    /// <summary>
+    /// Deletes items for good: the ones whose days are over, or all of them. A held movie or series is removed from
+    /// Radarr or Sonarr first; when that fails the item stays in the bin and is tried again at the next run.
     /// </summary>
     /// <param name="all">Empty the whole bin.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>How many items were deleted.</returns>
-    public int Purge(bool all)
+    public async Task<int> PurgeAsync(bool all, CancellationToken cancellationToken)
     {
-        lock (_lock)
+        var now = DateTime.UtcNow;
+        var deleted = 0;
+        foreach (var item in Config.Recycled.Where(r => all || DeleteAt(r) < now).ToList())
         {
-            var before = DateTime.UtcNow.AddDays(-Math.Max(0, Config.RecycleDays));
-            var due = Config.Recycled.Where(r => all || r.Removed < before).ToList();
-            foreach (var item in due)
+            try
+            {
+                foreach (var undo in item.Arr)
+                {
+                    await _arr.FinishAsync(undo, Config.Servers, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                Activity.Log(_logger, LogLevel.Error, ex, "{Title} stays in the recycle bin: Radarr or Sonarr could not remove it yet", item.Title);
+                continue;
+            }
+
+            lock (_lock)
             {
                 try
                 {
@@ -165,6 +222,7 @@ public class RecycleBin
                     }
 
                     Forget(item);
+                    deleted++;
                     Activity.Info(_logger, "Deleted {Title} from the recycle bin for good", item.Title);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -172,10 +230,17 @@ public class RecycleBin
                     Activity.Log(_logger, LogLevel.Error, ex, "Could not empty {Title} from the recycle bin", item.Title);
                 }
             }
-
-            return due.Count;
         }
+
+        return deleted;
     }
+
+    /// <summary>
+    /// When an item is deleted for good.
+    /// </summary>
+    /// <param name="item">The item.</param>
+    /// <returns>The time.</returns>
+    public static DateTime DeleteAt(RecycledItem item) => item.Removed.AddDays(item.Days > 0 ? item.Days : Math.Max(0, Config.RecycleDays));
 
     private static void Forget(RecycledItem item)
     {

@@ -94,6 +94,12 @@ public class PluginConfiguration : BasePluginConfiguration
     public int RecycleDays { get; set; }
 
     /// <summary>
+    /// Gets or sets how many days items removed on their own from Leaving soon stay in the recycle bin, at least 1,
+    /// even when the recycle bin is off for removals by hand.
+    /// </summary>
+    public int AutoRecycleDays { get; set; } = 7;
+
+    /// <summary>
     /// Gets or sets the items in the recycle bin.
     /// </summary>
     public RecycledItem[] Recycled { get; set; } = [];
@@ -289,6 +295,48 @@ public class RecycledItem
 
     /// <summary>Gets or sets where each file or folder came from and where it is now.</summary>
     public RecycledPath[] Paths { get; set; } = [];
+
+    /// <summary>Gets or sets the type: Movie, Series, Season or Episode.</summary>
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets how many days it stays before it is deleted for good. 0 uses the recycle bin setting.</summary>
+    public int Days { get; set; }
+
+    /// <summary>Gets or sets what removed it: "you", or "Leaving soon" when it went on its own.</summary>
+    public string Source { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets what was done in Radarr and Sonarr, so a restore can undo it.</summary>
+    public ArrUndo[] Arr { get; set; } = [];
+}
+
+/// <summary>
+/// What was done in Radarr or Sonarr for an item, with what is needed to undo it.
+/// </summary>
+public class ArrUndo
+{
+    /// <summary>Gets or sets Radarr or Sonarr.</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the server address, to find the server again.</summary>
+    public string Url { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the movie or series as Radarr or Sonarr had it (JSON), when it was removed there.</summary>
+    public string? Json { get; set; }
+
+    /// <summary>Gets or sets the episodes that were no longer monitored.</summary>
+    public int[] EpisodeIds { get; set; } = [];
+
+    /// <summary>Gets or sets a value indicating whether it was (or will be) added to the exclusion list.</summary>
+    public bool Excluded { get; set; }
+
+    /// <summary>Gets or sets the movie or series id in Radarr or Sonarr.</summary>
+    public int ArrId { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether it is only unmonitored while the files are in the recycle bin.
+    /// The movie or series is removed from Radarr or Sonarr when the bin is emptied.
+    /// </summary>
+    public bool Held { get; set; }
 }
 
 /// <summary>

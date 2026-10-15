@@ -18,7 +18,7 @@
             #JellyCleanSettingsPage .content-primary { max-width: 1240px; padding-bottom: 8em; }
             #JellyCleanSettingsPage [hidden] { display: none !important; }
             #JellyCleanSettingsPage button:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 2px; }
-            #JellyCleanSettingsPage .jc-tabs { display: flex; gap: 0.4em; margin: 1em 0 1.4em; flex-wrap: wrap; }
+            #JellyCleanSettingsPage .jc-tabs { display: flex; gap: 0.4em; flex-wrap: wrap; margin: 1em 0 1.4em; flex-wrap: wrap; }
             #JellyCleanSettingsPage .jc-tab { padding: 0.6em 1.2em; border-radius: 999px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: inherit; opacity: 0.75; }
             #JellyCleanSettingsPage .jc-tab[aria-current="page"] { background: linear-gradient(135deg, var(--jc-accent-2), var(--jc-accent)); border-color: transparent; color: #fff; opacity: 1; }
             #JellyCleanSettingsPage .jc-card { background: var(--jc-card); border: 1px solid var(--jc-line); border-radius: var(--jc-radius); padding: 1.3em 1.4em; margin-bottom: 1.2em; }
@@ -88,6 +88,7 @@
             <div class="content-primary">
                 <nav class="jc-tabs" aria-label="JellyClean">
                     <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
                     <button type="button" class="jc-tab" aria-current="page">Settings</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
                 </nav>
@@ -111,8 +112,9 @@
                         <div class="jc-field"><label>Keep items with the tag<input type="text" data-text="KeepTag" placeholder="keep" autocomplete="off"></label></div>
                         <div class="jc-field"><label>Most items per removal<input type="number" min="0" data-num="MaxItemsPerRemoval"></label></div>
                         <div class="jc-field"><label>Recycle bin: keep removed files (days, 0 deletes right away)<input type="number" min="0" data-num="RecycleDays"></label></div>
+                        <div class="jc-field"><label>Recycle bin for automatic removals (days, at least 1)<input type="number" min="1" data-num="AutoRecycleDays"></label></div>
                     </div>
-                    <p class="jc-hint" style="margin-top:0.5em;">0 or empty switches a number or the tag off. Add the tag to an item in Jellyfin (Edit metadata, Tags). The recycle bin is a hidden .jellyclean-trash folder in each library folder, so moving is instant. The hourly JellyClean task deletes what is older than the set days, and empties the bin when this is 0.</p>
+                    <p class="jc-hint" style="margin-top:0.5em;">0 or empty switches a number or the tag off. Add the tag to an item in Jellyfin (Edit metadata, Tags). The recycle bin is a hidden .jellyclean-trash folder in each library folder, so moving is instant. While an item is in it, Radarr and Sonarr only stop monitoring it, so nothing is downloaded again and Recover puts everything back. When its days are over it is deleted for good and removed from Radarr and Sonarr. Items Leaving soon removes on its own always go to the recycle bin first, even when it is off for removals by hand.</p>
                     <div class="jc-sub">Never remove anything from these libraries</div>
                     <div class="jc-chips" id="jcLibraries"></div>
                     <div class="jc-row">

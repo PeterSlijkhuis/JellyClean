@@ -43,7 +43,7 @@ Nothing changes until you remove something. Browsing and filtering only read.
 - **Saved views.** Save any filter under a name and open it with one click. Days are relative, so *added over 2 years ago* still means that next year.
 - **Leaving soon.** Instead of deleting right away, put items on a list with a notice period (14 days by default). Users can see the list as a Jellyfin collection if you like. When items are due you review and remove them; safeguards are checked again at that moment.
 - **Scheduled Leaving soon.** Turn any filter into a rule with **Schedule for Leaving soon**. Each rule runs every day or every week at the hour you pick, with its own notice period, and puts what it finds on the Leaving soon list. Once due, items wait for you, or are removed on their own if you switch that on for the rule.
-- **Recycle bin (optional).** Set a number of days under **Settings** and removed files are moved to a hidden `.jellyclean-trash` folder in their library folder instead of being deleted. **Restore** puts them back; after the set days they are deleted for good.
+- **Recycle bin and Recover tab.** Set a number of days under **Settings** and removed files move to a hidden `.jellyclean-trash` folder in their library folder instead of being deleted. While they are there, Radarr and Sonarr only stop monitoring them, so nothing is downloaded again. The **Recover** tab lists everything that can come back: **Recover** puts the files back, Jellyfin scans them in and Radarr and Sonarr monitor them again. When the days are over, the files are deleted for good and the movie or series is removed from Radarr and Sonarr. Whatever Leaving soon removes on its own always goes through the recycle bin (7 days by default), even when it is off for removals by hand.
 - **Radarr and Sonarr.** Removed movies leave Radarr, removed series leave Sonarr, and removed seasons or episodes stop being monitored, so new episodes still come in. Several of each are fine, like a separate 4K one.
 - **Activity log.** Every removal, every item that was kept and why, and every error.
 
@@ -80,7 +80,7 @@ JellyClean needs **Jellyfin 12.2 or newer**. No other plugins are needed.
 For each item, in this order:
 
 1. **Radarr or Sonarr.** A movie is removed from Radarr, a whole series from Sonarr, both with *delete files* off and optionally added to the exclusion list. For seasons and episodes, Sonarr keeps the series and only stops monitoring those episodes. Items are found by their TMDb, TVDb or IMDb id.
-2. **Jellyfin and the disk.** Jellyfin's own delete removes the files, the item and its artwork, exactly like the Delete button in the Jellyfin app. With the recycle bin on, the files are moved to the bin first and Jellyfin only forgets the item. If Radarr or Sonarr then fails, the files go straight back.
+2. **Jellyfin and the disk.** Jellyfin's own delete removes the files, the item and its artwork, exactly like the Delete button in the Jellyfin app. With the recycle bin on, the files are moved to the bin first, Radarr and Sonarr only stop monitoring the item, and Jellyfin forgets it. If Radarr or Sonarr fails, the files go straight back and any change already made in another Radarr or Sonarr is undone. Removing the movie or series from Radarr or Sonarr waits until the bin is emptied; if that fails, the item stays in the bin and it is tried again an hour later.
 
 If Radarr or Sonarr can't be reached, or a step there fails, that item is skipped and its files stay, because Radarr or Sonarr would only download it again. The Activity tab says why.
 
@@ -116,7 +116,7 @@ Set a filter on the Library page and press **Schedule for Leaving soon**. Under 
 - **Notice days**: how long its items stay on the list before they are due (empty uses the general notice period);
 - **Remove when due, without asking**: off, due items wait for you; on, they are removed once due, with every safeguard checked again first.
 
-**Run now** runs one rule straight away. The task **Leaving soon and recycle bin** (under **Dashboard > Scheduled Tasks**, every hour) runs the rules whose time has come, removes due items where that is on, drops items that are gone, keeps the collection up to date and empties what has been in the recycle bin long enough. A restored item is back in Jellyfin after the library scan that starts by itself; Radarr and Sonarr no longer track it, so add it there again if you want.
+**Run now** runs one rule straight away. The task **Leaving soon and recycle bin** (under **Dashboard > Scheduled Tasks**, every hour) runs the rules whose time has come, removes due items where that is on, drops items that are gone, keeps the collection up to date and empties what has been in the recycle bin long enough.
 
 ## FAQ
 

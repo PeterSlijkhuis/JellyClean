@@ -40,10 +40,10 @@ public class LeavingSoonTask : IScheduledTask
     public string Category => "JellyClean";
 
     /// <inheritdoc />
-    public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        _bin.Purge(all: false);
-        return _leavingSoon.RunAsync(cancellationToken);
+        await _bin.PurgeAsync(all: false, cancellationToken).ConfigureAwait(false);
+        await _leavingSoon.RunAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

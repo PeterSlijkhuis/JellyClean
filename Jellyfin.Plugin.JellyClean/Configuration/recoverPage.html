@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JellyClean recover</title>
+</head>
+<body>
+    <div id="JellyCleanRecoverPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-button">
+        <style>
+            /* Same look as the Library page, scoped to this page. */
+            #JellyCleanRecoverPage {
+                --jc-accent: #00a4dc;
+                --jc-accent-2: #aa5cc3;
+                --jc-line: rgba(128, 128, 128, 0.22);
+                --jc-card: rgba(128, 128, 128, 0.07);
+                --jc-radius: 14px;
+            }
+            #JellyCleanRecoverPage .content-primary { max-width: 1240px; padding-bottom: 4em; }
+            #JellyCleanRecoverPage .jc-tabs { display: flex; gap: 0.4em; flex-wrap: wrap; margin: 1em 0 1.4em; }
+            #JellyCleanRecoverPage .jc-tab { padding: 0.6em 1.2em; border-radius: 999px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: inherit; opacity: 0.75; }
+            #JellyCleanRecoverPage .jc-tab[aria-current="page"] { background: linear-gradient(135deg, var(--jc-accent-2), var(--jc-accent)); border-color: transparent; color: #fff; opacity: 1; }
+            #JellyCleanRecoverPage .jc-card { background: var(--jc-card); border: 1px solid var(--jc-line); border-radius: var(--jc-radius); padding: 1.3em 1.4em; }
+            #JellyCleanRecoverPage .jc-card h2 { margin: 0 0 0.25em; font-size: 1.15em; font-weight: 600; }
+            #JellyCleanRecoverPage .jc-hint { margin: 0; opacity: 0.7; font-size: 0.92em; flex: 1 1 300px; }
+            #JellyCleanRecoverPage .jc-row { display: flex; gap: 1em; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 0.8em; }
+            #JellyCleanRecoverPage .jc-actions { display: flex; gap: 0.5em; flex: 1 1 300px; justify-content: flex-end; }
+            #JellyCleanRecoverPage .jc-btn { padding: 0.75em 0.9em; border-radius: 10px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600; cursor: pointer; background: rgba(128, 128, 128, 0.15); color: inherit; white-space: nowrap; }
+            #JellyCleanRecoverPage .jc-btn[aria-pressed="true"] { border-color: currentColor; }
+            @media (max-width: 600px) { #JellyCleanRecoverPage .jc-actions .jc-btn { flex: 1 1 0; } }
+            #JellyCleanRecoverPage button:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 2px; }
+            #JellyCleanRecoverPage .jc-item { display: flex; gap: 1em; align-items: center; flex-wrap: wrap; padding: 0.8em 0; border-top: 1px solid var(--jc-line); }
+            #JellyCleanRecoverPage .jc-item-text { flex: 1 1 320px; min-width: 0; }
+            #JellyCleanRecoverPage .jc-item-text b { display: block; }
+            #JellyCleanRecoverPage .jc-item-text small { display: block; opacity: 0.7; }
+            #JellyCleanRecoverPage .jc-size { font-weight: 600; font-variant-numeric: tabular-nums; }
+            #JellyCleanRecoverPage .jc-btn.primary { background: linear-gradient(135deg, var(--jc-accent-2), var(--jc-accent)); border-color: transparent; color: #fff; }
+            #JellyCleanRecoverPage .jc-btn.danger { background: transparent; border-color: rgba(220, 70, 70, 0.7); color: #e05a5a; }
+            #JellyCleanRecoverPage .jc-btn:disabled { opacity: 0.5; cursor: default; }
+            #JellyCleanRecoverPage .jc-empty { padding: 1.2em 0; opacity: 0.7; }
+            #JellyCleanRecoverPage .jc-msg { font-size: 0.9em; flex: 1 1 100%; }
+            #JellyCleanRecoverPage .jc-msg.ok { color: #66bb6a; }
+            #JellyCleanRecoverPage .jc-msg.bad { color: #e0a33a; }
+        </style>
+
+        <div data-role="content">
+            <div class="content-primary">
+                <nav class="jc-tabs" aria-label="JellyClean">
+                    <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
+                    <button type="button" class="jc-tab" aria-current="page">Recover</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanSettings">Settings</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
+                </nav>
+
+                <section class="jc-card">
+                    <h2>Recover</h2>
+                    <div class="jc-row">
+                        <p class="jc-hint" id="jcSummary">Loading...</p>
+                        <div class="jc-actions">
+                            <button type="button" class="jc-btn" id="jcRefresh">Refresh</button>
+                            <button type="button" class="jc-btn danger" id="jcEmpty">Empty now</button>
+                        </div>
+                    </div>
+                    <p class="jc-hint" style="margin-bottom:0.6em;">Everything here is still on disk. Radarr and Sonarr only stopped monitoring it, so nothing is downloaded again. Recover puts the files back, Jellyfin scans them in, and Radarr and Sonarr monitor it again. When its time is up it is deleted for good and removed from Radarr and Sonarr.</p>
+                    <div id="jcList"></div>
+                </section>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            (function () {
+                var page = document.querySelector('#JellyCleanRecoverPage');
+
+                function $(id) { return page.querySelector('#' + id); }
+
+                function el(tag, props) {
+                    var e = document.createElement(tag);
+                    Object.assign(e, props || {});
+                    for (var i = 2; i < arguments.length; i++) {
+                        if (arguments[i] != null) { e.append(arguments[i]); }
+                    }
+                    return e;
+                }
+
+                function bytes(n) {
+                    var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+                    var i = 0;
+                    while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
+                    return (i && n < 10 ? n.toFixed(1) : Math.round(n)) + ' ' + units[i];
+                }
+
+                function date(d) { return new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); }
+
+                function call(method, path) {
+                    return fetch(ApiClient.getUrl('JellyClean/' + path), {
+                        method: method,
+                        headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"' }
+                    }).then(function (r) {
+                        if (!r.ok) { throw new Error('The server said ' + r.status); }
+                        return r.status === 204 ? null : r.json();
+                    });
+                }
+
+                function load() {
+                    return call('GET', 'RecycleBin').then(function (list) {
+                        var size = list.reduce(function (sum, r) { return sum + r.Size; }, 0);
+                        $('jcSummary').textContent = list.length
+                            ? list.length + (list.length === 1 ? ' item, ' : ' items, ') + bytes(size) + ' can be recovered.'
+                            : 'Nothing to recover.';
+                        $('jcEmpty').hidden = !list.length;
+                        var box = $('jcList');
+                        box.textContent = '';
+                        if (!list.length) {
+                            box.append(el('div', { className: 'jc-empty', textContent: 'Removed items show up here while they are in the recycle bin. Set how long under Settings.' }));
+                        }
+                        list.forEach(function (r) {
+                            var days = Math.max(0, Math.ceil((new Date(r.DeleteAt) - Date.now()) / 864e5));
+                            var recover = el('button', { type: 'button', className: 'jc-btn primary', textContent: 'Recover' });
+                            recover.dataset.recover = r.Id;
+                            var by = r.Source === 'Leaving soon' ? 'Removed by Leaving soon' : 'Removed by you';
+                            var arr = r.Arr && r.Arr.length ? ' Unmonitored in ' + r.Arr.join(' and ') + ' until then.' : '';
+                            box.append(el('div', { className: 'jc-item' },
+                                el('div', { className: 'jc-item-text' },
+                                    el('b', { textContent: r.Title }),
+                                    el('small', { textContent: (r.Type ? r.Type + ' · ' : '') + by + ' on ' + date(r.Removed) }),
+                                    el('small', { textContent: (days ? 'Deleted for good in ' + days + (days === 1 ? ' day' : ' days') + ', on ' + date(r.DeleteAt) + '.' : 'Deleted for good at the next run.') + arr })),
+                                el('span', { className: 'jc-size', textContent: bytes(r.Size) }),
+                                recover));
+                        });
+                    }).catch(function (err) {
+                        $('jcSummary').textContent = 'Could not load the recycle bin: ' + err.message;
+                    });
+                }
+
+                page.addEventListener('click', function (e) {
+                    var b = e.target.closest('button');
+                    if (!b || !page.contains(b)) { return; }
+                    if (b.classList.contains('jc-tab') && b.dataset.page) {
+                        Dashboard.navigate(Dashboard.getPluginUrl(b.dataset.page));
+                    } else if (b.id === 'jcRefresh') {
+                        load();
+                    } else if (b.dataset.recover) {
+                        b.disabled = true;
+                        b.textContent = 'Recovering...';
+                        call('POST', 'RecycleBin/Restore/' + b.dataset.recover).then(function (r) {
+                            var row = b.closest('.jc-item');
+                            var ok = !r.Error;
+                            row.append(el('div', { className: 'jc-msg ' + (ok && !r.Warning ? 'ok' : 'bad'),
+                                textContent: r.Error ? 'Could not recover it: ' + r.Error : r.Warning || 'Recovered. It is back in Jellyfin after the scan that just started.' }));
+                            b.textContent = ok ? 'Recovered' : 'Recover';
+                            b.disabled = ok;
+                            if (ok) { setTimeout(load, 4000); }
+                        }).catch(function (err) { window.alert(err.message); b.disabled = false; b.textContent = 'Recover'; });
+                    } else if (b.id === 'jcEmpty') {
+                        if (window.confirm('Delete everything here for good, and remove it from Radarr and Sonarr? This can not be undone.')) {
+                            b.disabled = true;
+                            call('POST', 'RecycleBin/Empty').then(load).finally(function () { b.disabled = false; });
+                        }
+                    }
+                });
+
+                page.addEventListener('pageshow', load);
+            })();
+        </script>
+    </div>
+</body>
+</html>

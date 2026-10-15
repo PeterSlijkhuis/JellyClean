@@ -22,6 +22,8 @@ public class ArrClientTests
     {
         ["http://radarr:7878/api/v3/movie"] = """[{"id":7,"title":"Alien","tmdbId":348,"imdbId":"tt0078748"},{"id":8,"tmdbId":1}]""",
         ["http://sonarr:8989/api/v3/series"] = """[{"id":3,"title":"Dark","tvdbId":334824}]""",
+        ["http://radarr:7878/api/v3/movie/7"] = """{"id":7,"title":"Alien","tmdbId":348}""",
+        ["http://sonarr:8989/api/v3/series/3"] = """{"id":3,"title":"Dark","tvdbId":334824}""",
         ["http://radarr:7878/api/v3/queue?pageSize=1000"] = """{"records":[{"movieId":8}]}""",
         ["http://sonarr:8989/api/v3/queue?pageSize=1000"] = """{"records":[{"seriesId":3,"episodeId":40}]}""",
         ["http://sonarr:8989/api/v3/episode?seriesId=3"] = """[{"id":30,"seasonNumber":1,"episodeNumber":1},{"id":31,"seasonNumber":1,"episodeNumber":2},{"id":32,"seasonNumber":1,"episodeNumber":3},{"id":40,"seasonNumber":2,"episodeNumber":1}]""",
@@ -101,6 +103,25 @@ public class ArrClientTests
         var movie = Planned("Movie");
         await Client().ResolveAsync([movie], [_radarr], _ => new Dictionary<string, string> { ["Tmdb"] = "999" }, CancellationToken.None);
         Assert.Empty(movie.Arr);
+    }
+
+    [Fact]
+    public async Task Recycle_bin_holds_the_movie_until_emptied_and_a_restore_monitors_it_again()
+    {
+        var movie = Planned("Movie");
+        var client = Client();
+        await client.ResolveAsync([movie], [_radarr], _ => new Dictionary<string, string> { ["Tmdb"] = "348" }, CancellationToken.None);
+
+        var held = await client.HoldAsync(Assert.Single(movie.Arr), CancellationToken.None);
+        Assert.Equal((HttpMethod.Put, "http://radarr:7878/api/v3/movie/editor"), (_calls.Last().Method, _calls.Last().Url));
+        Assert.Contains("\"monitored\":false", _calls.Last().Body, StringComparison.Ordinal);
+        Assert.DoesNotContain(_calls, c => c.Method == HttpMethod.Delete);
+
+        await client.UndoAsync(held, [_radarr], CancellationToken.None);
+        Assert.Contains("\"monitored\":true", _calls.Last().Body, StringComparison.Ordinal);
+
+        await client.FinishAsync(held, [_radarr], CancellationToken.None);
+        Assert.Equal("http://radarr:7878/api/v3/movie/7?deleteFiles=false&addImportExclusion=true", _calls.Last().Url);
     }
 
     [Fact]

@@ -221,9 +221,12 @@ public class JellyCleanController : ControllerBase
         {
             r.Id,
             r.Title,
+            r.Type,
             r.Size,
             r.Removed,
-            DaysLeft = Math.Max(0, (int)Math.Ceiling((r.Removed.AddDays(config.RecycleDays) - DateTime.UtcNow).TotalDays)),
+            r.Source,
+            DeleteAt = RecycleBin.DeleteAt(r),
+            Arr = r.Arr.Select(a => a.Kind).Distinct(),
         }));
     }
 
@@ -231,25 +234,23 @@ public class JellyCleanController : ControllerBase
     /// Puts an item from the recycle bin back, and scans the library so Jellyfin shows it again.
     /// </summary>
     /// <param name="itemId">Item id.</param>
-    /// <returns>Why it could not, or null.</returns>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Why it could not (Error), or what did not work in Radarr or Sonarr (Warning).</returns>
     [HttpPost("RecycleBin/Restore/{itemId}")]
-    public ActionResult RestoreRecycled([FromRoute] Guid itemId)
+    public async Task<ActionResult> RestoreRecycled([FromRoute] Guid itemId, CancellationToken cancellationToken)
     {
-        var error = _bin.Restore(itemId);
-        if (error is null)
-        {
-            _libraryManager.QueueLibraryScan();
-        }
-
-        return Ok(new { Error = error });
+        var (error, warning) = await _bin.RestoreAsync(itemId, cancellationToken).ConfigureAwait(false);
+        return Ok(new { Error = error, Warning = warning });
     }
 
     /// <summary>
-    /// Deletes everything in the recycle bin for good.
+    /// Deletes everything in the recycle bin for good, removing held movies and series from Radarr and Sonarr.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>How many items were deleted.</returns>
     [HttpPost("RecycleBin/Empty")]
-    public ActionResult EmptyRecycleBin() => Ok(new { Count = _bin.Purge(all: true) });
+    public async Task<ActionResult> EmptyRecycleBin(CancellationToken cancellationToken)
+        => Ok(new { Count = await _bin.PurgeAsync(all: true, cancellationToken).ConfigureAwait(false) });
 
     /// <summary>
     /// Saves a filter under a name, replacing one with the same name.
