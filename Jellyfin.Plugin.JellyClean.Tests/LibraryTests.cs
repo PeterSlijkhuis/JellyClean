@@ -76,6 +76,7 @@ public class LibraryTests
         var lately = Movie("Lately", played: true, lastPlayedDaysAgo: 5);
 
         Assert.Equal(["Long ago", "Never"], Names(new Filter { NotPlayedForDays = 365, Sort = "name" }, never, longAgo, lately));
+        Assert.Equal(["Never"], Names(new Filter { NeverPlayed = true }, never, longAgo, lately));
     }
 
     [Fact]

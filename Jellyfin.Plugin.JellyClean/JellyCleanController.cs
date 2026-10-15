@@ -266,6 +266,18 @@ public class JellyCleanController : ControllerBase
     }
 
     /// <summary>
+    /// A number that goes up when items are added or removed. Asking also starts a new read in the background
+    /// when Jellyfin reported a change, so the page can poll this and reload when the number moves on.
+    /// </summary>
+    /// <returns>The version.</returns>
+    [HttpGet("Status")]
+    public ActionResult Status()
+    {
+        _catalog.Get();
+        return Ok(new { _catalog.Version });
+    }
+
+    /// <summary>
     /// What JellyClean did recently, newest first.
     /// </summary>
     /// <returns>Tab separated lines: time, kind, message.</returns>

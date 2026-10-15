@@ -30,7 +30,7 @@ Nothing changes until you remove something. Browsing and filtering only read.
 
 - **See where the space goes.** A bar per library shows how much space it takes and how much of that nobody ever played. Click a library to filter on it. JellyClean also counts how much it has freed so far.
 - **Everything in one list.** Title, library, year, genres, date added, who watched it, when it was last played, rating, size on disk and video quality (resolution, codec and HDR).
-- **Filters that add up.** Type (movies, series, seasons, episodes), library, genres, watched state (never played, watched by someone, by everyone, or by one user), added before or after, nobody played it in a while, size, resolution, codec, HDR, and search on title or path.
+- **Filters that add up.** Type (movies, series, seasons, episodes), library, genres, watched status (unwatched, watched by someone, by everyone, or by one user), added before or after, last played (never, or over a while ago), size, resolution, codec, HDR, and search on title or path.
 - **Start with what is empty.** The Library page opens on movies and series that take 0 B: usually series Sonarr added but that have no episodes yet, or whose episodes are all gone. Jellyfin only sees a download once Radarr or Sonarr moves it into the library, so anything still downloading is checked in Radarr and Sonarr and left alone. Removing them is the safest first clean-up. If a whole library folder can't be reached, like a network drive that is offline, its items are left alone, because they only look empty.
 - **One-click suggestions.** *Empty movies and series*, *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone*, *Series nobody played in 2 years*, *Movies you have twice* and *Old H.264 below 1080p*.
 - **Copies.** Spots movies and series that are in Jellyfin more than once, like a 1080p copy next to a 4K one, so you can drop the one you don't need.
@@ -126,7 +126,7 @@ What Jellyfin shows as watched for each user. *Never played by anyone* means nob
 A series adds up its episode files. Artwork and extras in the series folder are not counted.
 
 **The list is not up to date.**
-JellyClean reads the library again every few minutes. Press **Refresh** to read it right away.
+When a Jellyfin scan adds or removes movies or episodes, the Library page updates on its own within about a minute. Watched state and sizes are read again every few minutes. Press **Refresh** to read everything right away.
 
 ## For developers
 

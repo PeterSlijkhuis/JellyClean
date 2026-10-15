@@ -262,8 +262,8 @@
                         <div class="jc-field">
                             <label for="jcWatched">Watched</label>
                             <select id="jcWatched">
-                                <option value="">Watched or not</option>
-                                <option value="none">Never played by anyone</option>
+                                <option value="">Any watch status</option>
+                                <option value="none">Unwatched by everyone</option>
                                 <option value="any">Watched by someone</option>
                                 <option value="all">Watched by everyone</option>
                             </select>
@@ -272,30 +272,31 @@
                             <label for="jcAdded">Added</label>
                             <select id="jcAdded">
                                 <option value="">Any time</option>
+                                <option value="-30">In the last month</option>
                                 <option value="30">Over a month ago</option>
                                 <option value="91">Over 3 months ago</option>
                                 <option value="182">Over 6 months ago</option>
                                 <option value="365">Over a year ago</option>
                                 <option value="730">Over 2 years ago</option>
                                 <option value="1826">Over 5 years ago</option>
-                                <option value="-30">In the last month</option>
                             </select>
                         </div>
                         <div class="jc-field">
-                            <label for="jcIdle">Nobody played it in</label>
+                            <label for="jcIdle">Last played</label>
                             <select id="jcIdle">
-                                <option value="">No limit</option>
-                                <option value="91">3 months</option>
-                                <option value="182">6 months</option>
-                                <option value="365">A year</option>
-                                <option value="730">2 years</option>
+                                <option value="">Any time</option>
+                                <option value="never">Never</option>
+                                <option value="91">Over 3 months ago, or never</option>
+                                <option value="182">Over 6 months ago, or never</option>
+                                <option value="365">Over a year ago, or never</option>
+                                <option value="730">Over 2 years ago, or never</option>
                             </select>
                         </div>
                         <div class="jc-field">
                             <label for="jcSize">Size</label>
                             <select id="jcSize">
                                 <option value="">Any size</option>
-                                <option value="empty">0 B (empty)</option>
+                                <option value="empty">Empty (0 B)</option>
                                 <option value="1">1 GB or more</option>
                                 <option value="5">5 GB or more</option>
                                 <option value="10">10 GB or more</option>
@@ -316,14 +317,15 @@
                             </select>
                         </div>
                         <div class="jc-field">
-                            <label for="jcHdr">HDR</label>
+                            <label for="jcHdr">Dynamic range</label>
                             <select id="jcHdr">
-                                <option value="">HDR or not</option>
-                                <option value="hdr">Any HDR</option>
+                                <option value="">Any dynamic range</option>
+                                <option value="hdr">HDR (any kind)</option>
                                 <option value="Dolby Vision">Dolby Vision</option>
                                 <option value="HDR10+">HDR10+</option>
                                 <option value="HDR10">HDR10</option>
-                                <option value="sdr">No HDR</option>
+                                <option value="HLG">HLG</option>
+                                <option value="sdr">SDR</option>
                             </select>
                         </div>
                         <div class="jc-field">
@@ -361,7 +363,7 @@
 
                 <section class="jc-card">
                     <div class="jc-head">
-                        <span class="jc-count" id="jcCount" aria-live="polite">Loading...</span>
+                        <span class="jc-count" id="jcCount" aria-live="polite">Reading your library. The very first read can take a few minutes on a big library.</span>
                         <div class="jc-actions">
                             <button type="button" class="jc-btn" id="jcSelectAll">Select all</button>
                             <button type="button" class="jc-btn" id="jcExport" title="Download this list as a spreadsheet">Export</button>
@@ -402,6 +404,8 @@
                 var selected = new Map(); // id -> size
                 var lastCheck = null;
                 var opened = false;
+                var version = null;
+                var poller = null;
                 var genres = new Set();
                 var timer = null;
                 var request = 0;
@@ -475,6 +479,7 @@
                         AddedMoreThanDays: added > 0 ? added : null,
                         AddedWithinDays: added < 0 ? -added : null,
                         NotPlayedForDays: idle > 0 ? idle : null,
+                        NeverPlayed: $('jcIdle').value === 'never',
                         MinSize: size > 0 ? size * 1e9 : null,
                         MaxSize: empty ? 0 : null,
                         Resolutions: $('jcResolution').value ? $('jcResolution').value.split(',') : null,
@@ -514,7 +519,7 @@
                     $('jcLibrary').value = f.Library || '';
                     $('jcWatched').value = f.Watched || '';
                     $('jcAdded').value = f.AddedMoreThanDays ? String(f.AddedMoreThanDays) : f.AddedWithinDays ? String(-f.AddedWithinDays) : '';
-                    $('jcIdle').value = f.NotPlayedForDays ? String(f.NotPlayedForDays) : '';
+                    $('jcIdle').value = f.NeverPlayed ? 'never' : f.NotPlayedForDays ? String(f.NotPlayedForDays) : '';
                     $('jcSize').value = f.MaxSize === 0 ? 'empty' : f.MinSize ? String(Math.round(f.MinSize / 1e9)) : '';
                     $('jcResolution').value = (f.Resolutions || []).join(',');
                     $('jcHdr').value = f.Hdr || '';
@@ -988,7 +993,29 @@
                     }
                 });
 
+                // Every 30 seconds, check whether items were added or removed,
+                // and if so reload quietly, unless a dialog is open or the page is in the background.
+                function poll() {
+                    if (document.hidden || !$('jcDialog').hidden) { return; }
+                    call('GET', 'Status').then(function (s) {
+                        if (version !== null && s.Version !== version) {
+                            loadOverview(false).then(function () { return load(false); });
+                            loadLeaving().catch(function () {});
+                        }
+                        version = s.Version;
+                    }).catch(function () {});
+                }
+
+                page.addEventListener('pagehide', function () {
+                    clearInterval(poller);
+                    poller = null;
+                });
+
                 page.addEventListener('pageshow', function () {
+                    clearInterval(poller);
+                    version = null;
+                    poller = setInterval(poll, 30000);
+                    poll();
                     loadConfig();
                     loadLeaving().catch(function () { $('jcLeaving').hidden = true; });
                     loadOverview(false).then(function () {
