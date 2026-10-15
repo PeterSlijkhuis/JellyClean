@@ -7,12 +7,12 @@ A Jellyfin plugin that gives admins one dashboard page to see everything in thei
 - **Read only by default.** Browsing, filtering and sorting never write to a library, a metadata file or the database. The plugin keeps its own index and its own settings, nothing more.
 - **See what matters per item:** title, type, library, genres, year, date added, watched or not (and by whom, and when last), file size, file path, video quality.
 - **Filter and combine:** type (movie, series, season, episode), library, genre, watched state, added before or after, last watched before, size, rating, year.
-- **Bulk remove** the result of a filter, for example *unwatched horror movies added more than 2 years ago*, behind a preview and a confirmation.
+- **Bulk remove** the result of a filter, for example *unwatched horror movies added more than 2 years ago*, behind a preview and a confirmation. Removing deletes the files from disk and removes the item from Jellyfin, Radarr and Sonarr, so it doesn't come back.
 - **Same look as JellyBadge and JellyTheme.**
 
 ## Not in scope (for now)
 
-- Automatic, scheduled deletion by rules. That is what [media-cleaner](https://github.com/shemanaev/jellyfin-plugin-media-cleaner) does well. JellyClean is a manual tool you look at. A rule runner can come later on top of the same filters (see phase 4).
+- Automatic, scheduled deletion by rules. That is what [media-cleaner](https://github.com/shemanaev/jellyfin-plugin-media-cleaner) does well. JellyClean is a manual tool you look at. A rule runner can come later on top of the same filters (see phase 5).
 - Anything in the normal Jellyfin home screen or item pages for regular users.
 - Moving, renaming or transcoding files.
 
@@ -73,8 +73,22 @@ Filtering runs on the server, so a library with 20 000 episodes stays fast on a 
 1. **Select** rows by hand, or press *Select all matching*.
 2. **Preview.** The server works out exactly what would go: every item, every file, the total size, and what is skipped and why (marked keep, being watched now, in a library where deleting is not allowed).
 3. **Confirm** in a dialog that shows the count and size, for example *Delete 37 movies, 412 GB, from disk*. Large removals ask you to type the number.
-4. **Delete** through Jellyfin's own `ILibraryManager.DeleteItem(item, new DeleteOptions { DeleteFileLocation = true })`, one item at a time, so Jellyfin removes the files, its metadata and images, and its database rows the same way as the Delete button in the web app does. Nothing is deleted outside Jellyfin's own code path.
-5. **Log** every removal (title, path, size, user, time) on the activity page, also to Jellyfin's activity log.
+4. **Remove from Radarr and Sonarr first**, when they are connected (see below), so they don't download it again.
+5. **Delete from disk** through Jellyfin's own `ILibraryManager.DeleteItem(item, new DeleteOptions { DeleteFileLocation = true })`, one item at a time, so Jellyfin removes the files, its metadata and images, and its database rows the same way as the Delete button in the web app does.
+6. **Log** every removal (title, path, size, user, time, and what Radarr or Sonarr said) on the activity page, also to Jellyfin's activity log.
+
+### Radarr and Sonarr
+
+Deleting a file is not enough on its own: Radarr and Sonarr still have the movie or episode as *monitored*, see it as missing, and download it again. So JellyClean tells them as well.
+
+- **Settings:** a card per app with URL and API key, a **Test connection** button, and a switch *Add to the exclusion list* (on by default for Radarr) so a removed movie is never added again by a list.
+- **Matching:** by the TMDb or IMDb id for movies and the TVDb id for series, taken from the Jellyfin item's provider ids. Falls back to the file path. Items that can't be matched are shown in the preview as *not found in Radarr* so you know.
+- **Movies:** `DELETE /api/v3/movie/{id}?deleteFiles=false&addImportExclusion=true` on Radarr. The movie is gone from Radarr; Jellyfin then deletes the files.
+- **Whole series:** `DELETE /api/v3/series/{id}?deleteFiles=false` on Sonarr, optionally with an import exclusion; Jellyfin then deletes the files.
+- **Seasons or episodes:** Sonarr keeps the series. JellyClean unmonitors those episodes (`PUT /api/v3/episode/monitor`), Jellyfin deletes the files, and Sonarr sees them as unmonitored and missing, so they stay gone while new episodes still come in.
+- **Order:** Radarr or Sonarr first, then Jellyfin deletes the files. Only one of them ever deletes a file, so nothing fails on a file that is already gone. If the call to Radarr or Sonarr fails, that item is skipped, nothing is deleted, and the activity log says why. That way an item is never deleted from disk while Radarr or Sonarr still wants it.
+- Several Radarr or Sonarr instances (for example a separate 4K one) are allowed: each item is looked up in all of them.
+- Without Radarr or Sonarr connected, removal still works, and the preview warns that they may download the item again.
 
 Safety rules that always apply:
 
@@ -105,14 +119,16 @@ Layout:
 
 1. **Scaffold.** Project, build and release workflows, `manifest.json`, empty page with hero and tabs, README in the style of the other two.
 2. **Browse.** Catalog, filters, sorting, totals, the Library tab. Read only. Shippable on its own.
-3. **Remove.** Selection, preview, confirmation, delete, keep marks, favorites protection, the Activity tab.
-4. **Later, if wanted.** Saved filters, a scheduled task that runs a saved filter as a dry run and reports, then optionally deletes. A "Keep" button on item pages (this is the only part that might need File Transformation).
+3. **Remove.** Selection, preview, confirmation, delete from disk, keep marks, favorites protection, the Activity tab.
+4. **Radarr and Sonarr.** Connection settings, matching, removal and unmonitoring as described above.
+5. **Later, if wanted.** Saved filters, a scheduled task that runs a saved filter as a dry run and reports, then optionally deletes. A "Keep" button on item pages (this is the only part that might need File Transformation).
 
 ## Tests
 
 - Filter matching: every filter on fixture items, including the edge cases (played without a date, played before added, series with partly watched episodes).
 - Size: versions summed, series summed, missing size falls back to the file.
 - Remover: kept items, favorites and items being played are never in the plan; preview and delete use the same plan.
+- Radarr and Sonarr: matching by provider id and by path, and a failed call skips the item instead of deleting it (against a fake HTTP handler).
 - No test ever deletes a real file: the remover takes the delete action as a dependency.
 
 ## Open questions
