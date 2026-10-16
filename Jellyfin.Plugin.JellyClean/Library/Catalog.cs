@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
@@ -274,6 +275,7 @@ public class Catalog
         var measured = new ConcurrentDictionary<Guid, Measured>();
         Parallel.ForEach(items.Where(i => i is not Folder), new ParallelOptions { MaxDegreeOfParallelism = 8 }, item => measured[item.Id] = Measure(files, item));
 
+        var collections = FavoriteCollections();
         var keys = new List<(CatalogItem, string?)>();
         var rows = items.Select(item =>
         {
@@ -307,7 +309,8 @@ public class Catalog
 
             var data = userData.Select(u => (u.Id, Data: u.Data.GetValueOrDefault(item.Id))).Where(u => u.Data is not null).ToList();
             row.FavoriteBy = data.Where(u => u.Data!.IsFavorite).Select(u => u.Id).ToArray();
-            row.Favorite = row.FavoriteBy.Length > 0;
+            row.FavoriteCollections = collections.GetValueOrDefault(item.Id) ?? [];
+            row.Favorite = row.FavoriteBy.Length > 0 || row.FavoriteCollections.Length > 0;
 
             keys.Add((row, CopyKey(item)));
             if (item is not Folder)
@@ -352,6 +355,12 @@ public class Catalog
 
     private void OnUserDataSaved(object? sender, UserDataSaveEventArgs e)
     {
+        if (e.Item is BoxSet)
+        {
+            OnCollectionFavorite();
+            return;
+        }
+
         if (e.Item is not (MediaBrowser.Controller.Entities.Movies.Movie or Series or Season or Episode))
         {
             return;
@@ -366,7 +375,7 @@ public class Catalog
                 var by = FavoriteBy(e.Item);
                 if (!row.FavoriteBy.SequenceEqual(by))
                 {
-                    (row.FavoriteBy, row.Favorite) = (by, by.Length > 0);
+                    (row.FavoriteBy, row.Favorite) = (by, by.Length > 0 || row.FavoriteCollections.Length > 0);
                     Version++;
                 }
                 else
@@ -381,6 +390,50 @@ public class Catalog
         }
 
         FavoritesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    // A favorite collection keeps everything in it, so it changes what may be removed just like a favorite title.
+    private void OnCollectionFavorite()
+    {
+        var collections = FavoriteCollections();
+        var changed = false;
+        lock (_gate)
+        {
+            foreach (var row in _items?.Values ?? [])
+            {
+                var now = collections.GetValueOrDefault(row.Id) ?? [];
+                if (!row.FavoriteCollections.SequenceEqual(now))
+                {
+                    (row.FavoriteCollections, row.Favorite, changed) = (now, row.FavoriteBy.Length > 0 || now.Length > 0, true);
+                }
+            }
+
+            if (changed)
+            {
+                Version++;
+            }
+        }
+
+        if (changed)
+        {
+            FavoritesChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>
+    /// The titles in collections someone made a favorite, with the names of those collections.
+    /// The Leaving soon collection does not count: a heart on it would empty the list.
+    /// </summary>
+    private Dictionary<Guid, string[]> FavoriteCollections()
+    {
+        var users = _userManager.GetUsers().ToList();
+        var leaving = Plugin.Instance?.Configuration.CollectionId ?? Guid.Empty;
+        return _libraryManager.GetItemList(new InternalItemsQuery { IncludeItemTypes = [BaseItemKind.BoxSet], Recursive = true })
+            .OfType<BoxSet>()
+            .Where(b => b.Id != leaving && users.Any(u => _userDataManager.GetUserData(u, b)?.IsFavorite == true))
+            .SelectMany(b => b.GetLinkedChildren().Select(c => (c.Id, b.Name)))
+            .GroupBy(c => c.Id)
+            .ToDictionary(g => g.Key, g => g.Select(c => c.Name).Distinct().ToArray());
     }
 
     private Guid[] FavoriteBy(BaseItem item)
