@@ -176,6 +176,15 @@ public class LibraryTests
         Assert.Contains(new Slice("Never played", 2, 50), lib.Facts);
         Assert.Contains(new Slice("Favorites", 1, 10), lib.Facts);
         Assert.Equal("Movie", lib.Kind);
+
+        // Each part of the bar lists exactly what it counts.
+        kept.Kept = true;
+        foreach (var slice in lib.Status)
+        {
+            var found = new Filter { Library = "Movies", Status = slice.Name }.Apply([fav, everyone, some, never, kept], 2, _now).ToList();
+            Assert.Equal(slice.Count, found.Count);
+            Assert.Equal(slice.Size, found.Sum(i => i.Size));
+        }
     }
 
     [Fact]

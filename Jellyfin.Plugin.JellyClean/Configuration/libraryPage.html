@@ -355,6 +355,17 @@
                             <summary>Watching <span class="jc-badge" hidden></span></summary>
                             <div class="jc-fields">
                                 <div class="jc-field">
+                                    <label for="jcStatus">Watch status</label>
+                                    <select id="jcStatus">
+                                        <option value="">Any status</option>
+                                        <option>Favorite or keep</option>
+                                        <option>Being watched</option>
+                                        <option>Watched by everyone</option>
+                                        <option>Watched by some</option>
+                                        <option>Never played</option>
+                                    </select>
+                                </div>
+                                <div class="jc-field">
                                     <label for="jcWatched">Watched</label>
                                     <select id="jcWatched">
                                         <option value="">Any watch status</option>
@@ -583,6 +594,7 @@
                         Library: $('jcLibrary').value || null,
                         Genres: Array.from(genres),
                         Watched: $('jcWatched').value || null,
+                        Status: $('jcStatus').value || null,
                         AddedMoreThanDays: added > 0 ? added : null,
                         AddedWithinDays: added < 0 ? -added : null,
                         NotPlayedForDays: idle > 0 ? idle : null,
@@ -628,6 +640,7 @@
                     $('jcType').value = (f.Types || ['Movie']).join(',');
                     $('jcLibrary').value = f.Library || '';
                     $('jcWatched').value = f.Watched || '';
+                    $('jcStatus').value = f.Status || '';
                     $('jcAdded').value = f.AddedMoreThanDays ? String(f.AddedMoreThanDays) : f.AddedWithinDays ? String(-f.AddedWithinDays) : '';
                     $('jcIdle').value = f.NeverPlayed ? 'never' : f.NotPlayedForDays ? String(f.NotPlayedForDays) : '';
                     $('jcSize').value = f.MaxSize === 0 ? 'empty' : f.MinSize ? String(Math.round(f.MinSize / 1e9)) : '';
@@ -643,7 +656,7 @@
                     page.querySelectorAll('.jc-genre').forEach(function (b) { b.setAttribute('aria-pressed', String(genres.has(b.dataset.genre))); });
                     $('jcTarget').addEventListener('keydown', function (e) { if (e.key === 'Enter') { $('jcFreeUp').click(); } });
 
-                ['jcType', 'jcLibrary', 'jcWatched', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
+                ['jcType', 'jcLibrary', 'jcWatched', 'jcStatus', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
                         if ($(id).selectedIndex < 0) { $(id).selectedIndex = 0; }
                     });
                     load(false);
@@ -891,7 +904,6 @@
                             var seg = segment(STATUS[i][1], by(st), tip, st.Name + ': ' + noun(l.Kind, st.Count) + ', ' + bytes(st.Size));
                             if (i === 4) { seg.classList.add('never'); }
                             seg.dataset.segLibrary = l.Name;
-                            seg.dataset.segKind = l.Kind;
                             seg.dataset.segStatus = i;
                             bar.append(seg);
                         });
@@ -1041,11 +1053,12 @@
                         copies: { jcType: 'Movie', jcSort: 'name|0', copies: true },
                         lowres: { jcType: 'Movie,Series', jcResolution: '720p,SD', jcCodec: 'H.264', jcSort: 'size|1' }
                     }[name];
-                    var defaults = { jcType: 'Movie', jcLibrary: '', jcWatched: '', jcAdded: '', jcIdle: '', jcSize: '', jcResolution: '', jcHdr: '', jcCodec: '', jcSort: 'added|0', jcSearch: '' };
+                    var defaults = { jcType: 'Movie', jcLibrary: '', jcWatched: '', jcStatus: '', jcAdded: '', jcIdle: '', jcSize: '', jcResolution: '', jcHdr: '', jcCodec: '', jcSort: 'added|0', jcSearch: '' };
                     Object.keys(defaults).forEach(function (id) { $(id).value = values[id] !== undefined ? values[id] : defaults[id]; });
                     if ($('jcCodec').selectedIndex < 0) { $('jcCodec').value = ''; }
                     $('jcCopies').setAttribute('aria-checked', String(!!values.copies));
                     $('jcEnded').setAttribute('aria-checked', String(!!values.ended));
+                    $('jcHideProtected').setAttribute('aria-checked', 'false');
                     genres.clear();
                     page.querySelectorAll('.jc-genre').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
                     load(false);
@@ -1227,7 +1240,7 @@
 
                 // Events
 
-                ['jcType', 'jcLibrary', 'jcWatched', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
+                ['jcType', 'jcLibrary', 'jcWatched', 'jcStatus', 'jcAdded', 'jcIdle', 'jcSize', 'jcResolution', 'jcHdr', 'jcCodec', 'jcSort'].forEach(function (id) {
                     $(id).addEventListener('change', function () { load(false); });
                 });
                 $('jcSearch').addEventListener('input', reload);
@@ -1370,12 +1383,9 @@
                         }
                     } else if (b.dataset.segStatus) {
                         // Show the movies or series behind a part of the bar.
-                        var status = Number(b.dataset.segStatus);
                         hideTip();
-                        applyPreset(null, {
-                            jcType: b.dataset.segKind, jcLibrary: b.dataset.segLibrary, jcSort: 'size|1',
-                            jcWatched: { 2: 'all', 3: 'any' }[status] || '', jcIdle: status === 4 ? 'never' : ''
-                        });
+                        applyPreset(null, { jcType: 'Movie,Series', jcLibrary: b.dataset.segLibrary, jcStatus: STATUS[Number(b.dataset.segStatus)][0], jcSort: 'size|1' });
+                        page.querySelector('[data-group="watching"]').open = true;
                         $('jcList').scrollIntoView({ behavior: 'smooth', block: 'start' });
                     } else if (b.dataset.measure) {
                         measure = b.dataset.measure;
