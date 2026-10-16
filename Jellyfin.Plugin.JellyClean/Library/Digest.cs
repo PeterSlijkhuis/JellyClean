@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Net.Mail;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,5 +62,65 @@ public static class Digest
             : JsonContent.Create(new { content = text, text, title = "JellyClean digest" });
         using var response = await client.PostAsync(new Uri(url), body, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>
+    /// Sends the digest by email.
+    /// </summary>
+    /// <param name="mail">The mail server and the address to send to.</param>
+    /// <param name="text">The digest.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    public static async Task MailAsync(MailSettings mail, string text, CancellationToken cancellationToken)
+    {
+        // SmtpClient does STARTTLS but not implicit TLS on port 465; MailKit would add 465 if it is ever needed.
+        using var client = new SmtpClient(mail.Host.Trim(), mail.Port)
+        {
+            EnableSsl = mail.Ssl,
+            Credentials = mail.User.Length > 0 ? new NetworkCredential(mail.User, mail.Password) : null,
+        };
+        using var message = new MailMessage(mail.From.Length > 0 ? mail.From.Trim() : mail.User.Trim(), mail.To.Trim()) { Subject = "JellyClean digest", Body = text };
+        await client.SendMailAsync(message, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sends the digest everywhere it is set up to go: the webhook, email, or both.
+    /// </summary>
+    /// <param name="config">The configuration.</param>
+    /// <param name="client">An HTTP client for the webhook.</param>
+    /// <param name="text">The digest.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Where it went, and what went wrong.</returns>
+    public static async Task<(string[] Sent, string[] Problems)> SendAllAsync(PluginConfiguration config, HttpClient client, string text, CancellationToken cancellationToken)
+    {
+        var sent = new List<string>();
+        var problems = new List<string>();
+        if (!string.IsNullOrWhiteSpace(config.DigestUrl))
+        {
+            try
+            {
+                await SendAsync(client, config.DigestUrl.Trim(), text, cancellationToken).ConfigureAwait(false);
+                sent.Add("the webhook");
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException or InvalidOperationException)
+            {
+                problems.Add("Webhook: " + ex.Message);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(config.Mail.To))
+        {
+            try
+            {
+                await MailAsync(config.Mail, text, cancellationToken).ConfigureAwait(false);
+                sent.Add(config.Mail.To.Trim());
+            }
+            catch (Exception ex) when (ex is SmtpException or FormatException or InvalidOperationException or ArgumentException or TaskCanceledException)
+            {
+                problems.Add("Email: " + (ex.InnerException?.Message ?? ex.Message));
+            }
+        }
+
+        return (sent.ToArray(), problems.ToArray());
     }
 }

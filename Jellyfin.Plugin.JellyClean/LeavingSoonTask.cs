@@ -62,7 +62,7 @@ public class LeavingSoonTask : IScheduledTask
     {
         var config = Plugin.Instance!.Configuration;
         var now = DateTime.Now;
-        if (string.IsNullOrWhiteSpace(config.DigestUrl) || config.Digest.NextRun(now) is not { } next || next > now)
+        if ((string.IsNullOrWhiteSpace(config.DigestUrl) && string.IsNullOrWhiteSpace(config.Mail.To)) || config.Digest.NextRun(now) is not { } next || next > now)
         {
             return;
         }
@@ -75,14 +75,15 @@ public class LeavingSoonTask : IScheduledTask
             return;
         }
 
-        try
+        var (sent, problems) = await Digest.SendAllAsync(config, _http.CreateClient(), Digest.Text(config, _catalog.Get(), DateTime.UtcNow), cancellationToken).ConfigureAwait(false);
+        if (sent.Length > 0)
         {
-            await Digest.SendAsync(_http.CreateClient(), config.DigestUrl.Trim(), Digest.Text(config, _catalog.Get(), DateTime.UtcNow), cancellationToken).ConfigureAwait(false);
-            Activity.Info(_logger, "Sent the digest");
+            Activity.Info(_logger, "Sent the digest to {To}", string.Join(" and ", sent));
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException)
+
+        foreach (var problem in problems)
         {
-            Activity.Log(_logger, LogLevel.Warning, ex, "Could not send the digest");
+            Activity.Log(_logger, LogLevel.Warning, null, "Could not send the digest. {Problem}", problem);
         }
 
         config.Digest.LastRun = now;

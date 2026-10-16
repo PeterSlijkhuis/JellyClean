@@ -138,6 +138,52 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets when the digest goes out; only Schedule, Day, Hour and LastRun are used.
     /// </summary>
     public SavedView Digest { get; set; } = new() { Name = "Digest", Schedule = "weekly", Day = DayOfWeek.Monday, Hour = 9 };
+
+    /// <summary>
+    /// Gets or sets the mail server for the digest by email. An empty To sends no email.
+    /// </summary>
+    public MailSettings Mail { get; set; } = new();
+}
+
+/// <summary>
+/// A mail server to send the digest through.
+/// </summary>
+public class MailSettings
+{
+    /// <summary>
+    /// Gets or sets who gets the digest; several addresses are separated by commas.
+    /// </summary>
+    public string To { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the sender address; empty uses the user name.
+    /// </summary>
+    public string From { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the mail server, like smtp.gmail.com.
+    /// </summary>
+    public string Host { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the port; 587 with STARTTLS works for most providers.
+    /// </summary>
+    public int Port { get; set; } = 587;
+
+    /// <summary>
+    /// Gets or sets the user name; empty sends without signing in.
+    /// </summary>
+    public string User { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the password, or an app password.
+    /// </summary>
+    public string Password { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to encrypt the connection with STARTTLS.
+    /// </summary>
+    public bool Ssl { get; set; } = true;
 }
 
 /// <summary>

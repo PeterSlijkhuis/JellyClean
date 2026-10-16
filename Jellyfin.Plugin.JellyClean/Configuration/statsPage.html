@@ -55,6 +55,15 @@
             #JellyCleanStatsPage .jc-wrap dd { margin: 0; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
             #JellyCleanStatsPage .jc-wrap .jc-pills { display: flex; gap: 0.3em; flex-wrap: wrap; }
             #JellyCleanStatsPage .jc-wrap .jc-pills span { padding: 0.1em 0.55em; border-radius: 999px; background: rgba(255, 255, 255, 0.18); font-weight: 600; font-size: 0.9em; }
+            #JellyCleanStatsPage .jc-pick { display: flex; gap: 0.4em; flex-wrap: wrap; margin-bottom: 1em; }
+            #JellyCleanStatsPage .jc-pick button { padding: 0.45em 0.95em; min-height: 36px; border-radius: 999px; border: 1px solid var(--jc-line); background: transparent; color: inherit; font: inherit; font-size: 0.9em; cursor: pointer; }
+            #JellyCleanStatsPage .jc-pick button[aria-pressed="true"] { border-color: var(--jc-accent); background: rgba(0, 164, 220, 0.16); }
+            #JellyCleanStatsPage .jc-bars { display: grid; grid-template-columns: minmax(70px, max-content) 1fr auto; gap: 0.65em 0.9em; align-items: center; }
+            #JellyCleanStatsPage .jc-bars > b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            #JellyCleanStatsPage .jc-track { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: rgba(128, 128, 128, 0.1); }
+            #JellyCleanStatsPage .jc-track span { height: 100%; transition: width 0.3s; }
+            #JellyCleanStatsPage .jc-track span + span { border-left: 2px solid rgba(0, 0, 0, 0.35); }
+            #JellyCleanStatsPage .jc-bars > small { font-variant-numeric: tabular-nums; opacity: 0.85; text-align: right; }
             #JellyCleanStatsPage .jc-quiet { margin: 1em 0 0; opacity: 0.7; font-size: 0.9em; }
             #JellyCleanStatsPage .jc-tip { position: fixed; z-index: 1000; pointer-events: none; max-width: 260px; padding: 0.55em 0.75em; border-radius: 10px; background: rgba(16, 16, 20, 0.96); color: #fff; border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); font-size: 0.85em; line-height: 1.45; white-space: pre-line; }
             #JellyCleanStatsPage .jc-tip b { display: block; font-size: 1.05em; }
@@ -95,6 +104,14 @@
                     <h2>Never played: hall of shame</h2>
                     <p class="jc-hint" id="jcShameHint">The biggest movies and series nobody has ever started.</p>
                     <div class="jc-shame" id="jcShame"></div>
+                </section>
+
+                <section class="jc-card">
+                    <h2>Who watches what</h2>
+                    <p class="jc-hint" id="jcCompareHint"></p>
+                    <div class="jc-pick" id="jcPick" role="group" aria-label="What to compare"></div>
+                    <div class="jc-bars" id="jcBars"></div>
+                    <div class="jc-legend" id="jcBarsLegend"></div>
                 </section>
 
                 <section class="jc-card">
@@ -270,6 +287,60 @@
                     if (!active.length) { box.append(el('p', { className: 'jc-hint', textContent: 'Nobody has watched anything yet.' })); }
                 }
 
+                // Each measure: label, hint, and the parts of one bar (name, color, value).
+                var MEASURES = {
+                    hours: ['Hours', 'Hours of what each person watched to the end, movies and episodes.', function (u) { return [['Movies', '#aa5cc3', u.MovieHours], ['Episodes', '#00a4dc', u.EpisodeHours]]; }, function (v) { return hours(v) + ' h'; }],
+                    year: ['This year', 'Hours of what each person played this year.', function (u) { return [['This year', '#f0b429', u.HoursThisYear]]; }, function (v) { return hours(v) + ' h'; }],
+                    movies: ['Movies', 'Movies watched to the end.', function (u) { return [['Movies', '#aa5cc3', u.Movies]]; }, function (v) { return v.toLocaleString(); }],
+                    episodes: ['Episodes', 'Episodes watched to the end.', function (u) { return [['Episodes', '#00a4dc', u.Episodes]]; }, function (v) { return v.toLocaleString(); }],
+                    series: ['Series', 'Series with at least one episode watched, and how many of them every episode here was watched.', function (u) { return [['Watched every episode', '#66bb6a', u.SeriesFinished], ['Started', 'rgba(102, 187, 106, 0.4)', u.Series - u.SeriesFinished]]; }, function (v) { return v.toLocaleString(); }],
+                    favorites: ['Favorites', 'Movies and series each person made a favorite.', function (u) { return [['Favorites', '#e05a9a', u.Favorites]]; }, function (v) { return v.toLocaleString(); }]
+                };
+                var measure = 'hours';
+                try { measure = MEASURES[localStorage.getItem('jellyclean-measure-users')] ? localStorage.getItem('jellyclean-measure-users') : 'hours'; } catch (err) { /* only a convenience */ }
+
+                function renderCompare() {
+                    var m = MEASURES[measure];
+                    var pick = $('jcPick');
+                    pick.textContent = '';
+                    Object.keys(MEASURES).forEach(function (k) {
+                        var b = el('button', { type: 'button', textContent: MEASURES[k][0] });
+                        b.dataset.measure = k;
+                        b.setAttribute('aria-pressed', String(k === measure));
+                        pick.append(b);
+                    });
+                    $('jcCompareHint').textContent = m[1];
+                    var rows = stats.Users.map(function (u) {
+                        var parts = m[2](u);
+                        return { user: u, parts: parts, total: parts.reduce(function (sum, p) { return sum + p[2]; }, 0) };
+                    }).sort(function (a, b) { return b.total - a.total; });
+                    var max = Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.total; })));
+                    var all = rows.reduce(function (sum, r) { return sum + r.total; }, 0);
+                    var box = $('jcBars');
+                    box.textContent = '';
+                    rows.forEach(function (r) {
+                        var track = el('div', { className: 'jc-track' });
+                        r.parts.forEach(function (p) {
+                            if (!p[2]) { return; }
+                            var seg = el('span', {});
+                            seg.style.width = (p[2] / max * 100) + '%';
+                            seg.style.background = p[1];
+                            seg.tabIndex = 0;
+                            seg.dataset.tip = r.user.Name + ': ' + p[0] + '\n' + m[3](p[2]) + (r.parts.length > 1 && r.total ? ', ' + Math.round(p[2] / r.total * 100) + '% of theirs' : '') + (all ? '\n' + Math.round(p[2] / all * 100) + '% of everyone\'s' : '');
+                            track.append(seg);
+                        });
+                        box.append(el('b', { textContent: r.user.Name }), track, el('small', { textContent: m[3](r.total) }));
+                    });
+                    var legend = $('jcBarsLegend');
+                    legend.textContent = '';
+                    legend.hidden = m[2](stats.Users[0] || {}).length < 2;
+                    m[2](stats.Users[0] || {}).forEach(function (p) {
+                        var dot = el('i', {});
+                        dot.style.background = p[1];
+                        legend.append(el('span', {}, dot, p[0]));
+                    });
+                }
+
                 function load() {
                     fetch(ApiClient.getUrl('JellyClean/Stats'), { headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"' } })
                         .then(function (r) {
@@ -280,6 +351,7 @@
                             renderHero();
                             renderChart();
                             renderShame();
+                            renderCompare();
                             renderUsers();
                         }).catch(function (err) {
                             $('jcHero').textContent = 'Could not load the stats: ' + err.message;
@@ -322,8 +394,13 @@
 
                 page.addEventListener('click', function (e) {
                     var b = e.target.closest('button');
-                    if (b && page.contains(b) && b.classList.contains('jc-tab') && b.dataset.page) {
+                    if (!b || !page.contains(b)) { return; }
+                    if (b.classList.contains('jc-tab') && b.dataset.page) {
                         Dashboard.navigate(Dashboard.getPluginUrl(b.dataset.page));
+                    } else if (b.dataset.measure) {
+                        measure = b.dataset.measure;
+                        try { localStorage.setItem('jellyclean-measure-users', measure); } catch (err) { /* only a convenience */ }
+                        renderCompare();
                     }
                 });
 

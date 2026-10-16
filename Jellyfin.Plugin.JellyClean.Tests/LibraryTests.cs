@@ -212,16 +212,19 @@ public class LibraryTests
         movie.PlayedOn[_anna] = now.AddDays(-1);
         var unplayed = new CatalogItem { Id = Guid.NewGuid(), Name = "Dune", Type = "Movie", Size = 300, Added = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), RunTimeTicks = TimeSpan.FromHours(3).Ticks };
 
-        var stats = Stats.Build([movie, unplayed], [(_anna, "Anna")], [new Jellyfin.Plugin.JellyClean.Configuration.FreedMonth { Month = "2026-10", Bytes = 50, Count = 2 }], now);
+        CatalogItem Episode(string show, bool seen) => new() { Id = Guid.NewGuid(), Name = "E", Type = "Episode", SeriesName = show, Added = now, WatchedBy = seen ? [_anna] : [], AnyPlayed = seen, RunTimeTicks = TimeSpan.FromHours(1).Ticks };
+
+        var stats = Stats.Build([movie, unplayed, Episode("Dark", true), Episode("Dark", true), Episode("Lost", true), Episode("Lost", false)], [(_anna, "Anna")], [new Jellyfin.Plugin.JellyClean.Configuration.FreedMonth { Month = "2026-10", Bytes = 50, Count = 2 }], now);
 
         Assert.Equal(24, stats.Months.Length);
         Assert.Equal(new MonthPoint("2026-09", 100, 100, 0, 0), stats.Months[^2]);
         Assert.Equal(new MonthPoint("2026-10", 400, 300, 50, 2), stats.Months[^1]);
         Assert.Equal(50, stats.FreedThisYear);
-        Assert.Equal(3, stats.NeverPlayedHours);
+        Assert.Equal(4, stats.NeverPlayedHours);
         Assert.Same(unplayed, Assert.Single(stats.Shame));
         var anna = Assert.Single(stats.Users);
-        Assert.Equal((1, 2.0, 1, "Alien (1979)", "Horror"), (anna.Movies, anna.Hours, anna.ThisYear, anna.Oldest, anna.Genres[0].Name));
+        Assert.Equal((1, 5.0, 1, "Alien (1979)", "Horror"), (anna.Movies, anna.Hours, anna.ThisYear, anna.Oldest, anna.Genres[0].Name));
+        Assert.Equal((2.0, 3.0, 2, 1), (anna.MovieHours, anna.EpisodeHours, anna.Series, anna.SeriesFinished));
     }
 
     private static List<CopySet> Catalog_copies(CatalogItem[] items, string prefer) => Copies.Resolve(items, prefer).ToList();

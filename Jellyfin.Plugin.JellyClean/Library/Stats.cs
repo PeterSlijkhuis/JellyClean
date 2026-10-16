@@ -30,9 +30,14 @@ public sealed record MonthPoint(string Month, long Size, long Added, long Freed,
 /// <param name="Last">What they played last.</param>
 /// <param name="LastAt">When.</param>
 /// <param name="Favorites">Movies and series they made a favorite.</param>
+/// <param name="MovieHours">Hours of the movies they watched.</param>
+/// <param name="EpisodeHours">Hours of the episodes they watched.</param>
+/// <param name="Series">Series they watched at least one episode of.</param>
+/// <param name="SeriesFinished">Series they watched every episode of that is here.</param>
 public sealed record UserYear(
     Guid Id, string Name, int Movies, int Episodes, double Hours, int ThisYear, double HoursThisYear, Slice[] Genres,
-    string? TopSeries, int TopSeriesEpisodes, string? Oldest, int? OldestYear, string? Last, DateTime? LastAt, int Favorites);
+    string? TopSeries, int TopSeriesEpisodes, string? Oldest, int? OldestYear, string? Last, DateTime? LastAt, int Favorites,
+    double MovieHours, double EpisodeHours, int Series, int SeriesFinished);
 
 /// <summary>Everything on the Stats tab.</summary>
 /// <param name="Months">The last 24 months.</param>
@@ -76,6 +81,7 @@ public static class Stats
                 f?.Count ?? 0);
         }).ToArray();
 
+        var shows = files.Where(i => i.Type == "Episode").GroupBy(i => i.SeriesName).ToList();
         var thisYear = freedBy.Values.Where(f => f.Month.StartsWith(now.Year.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)).ToList();
         static double Hours(IEnumerable<CatalogItem> part) => Math.Round(part.Sum(i => i.RunTimeTicks) / (double)TimeSpan.TicksPerHour, 1);
 
@@ -102,7 +108,11 @@ public static class Stats
                 oldest?.Year,
                 last?.Title,
                 last?.PlayedOn[u.Id],
-                items.Count(i => i.Type is "Movie" or "Series" && i.FavoriteBy.Contains(u.Id)));
+                items.Count(i => i.Type is "Movie" or "Series" && i.FavoriteBy.Contains(u.Id)),
+                Hours(watched.Where(i => i.Type == "Movie")),
+                Hours(watched.Where(i => i.Type == "Episode")),
+                shows.Count(g => g.Any(i => i.WatchedBy.Contains(u.Id))),
+                shows.Count(g => g.All(i => i.WatchedBy.Contains(u.Id))));
         }).OrderByDescending(u => u.HoursThisYear).ThenByDescending(u => u.Hours).ToArray();
 
         return new StatsResult(

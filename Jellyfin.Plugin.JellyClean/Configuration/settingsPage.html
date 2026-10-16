@@ -86,6 +86,13 @@
             }
             #JellyCleanSettingsPage .jc-view input { width: 6em; }
             #JellyCleanSettingsPage .jc-view .jc-tile { width: auto; flex: 1 1 260px; }
+            #JellyCleanSettingsPage .jc-mail { margin-top: 0.9em; }
+            #JellyCleanSettingsPage .jc-mail > summary { cursor: pointer; font-weight: 600; min-height: 40px; display: flex; align-items: center; }
+            #JellyCleanSettingsPage .jc-mail[open] > summary { margin-bottom: 0.4em; }
+            #JellyCleanSettingsPage .jc-mail > summary { list-style: none; gap: 0.5em; }
+            #JellyCleanSettingsPage .jc-mail > summary::-webkit-details-marker { display: none; }
+            #JellyCleanSettingsPage .jc-mail > summary::before { content: ""; width: 0.45em; height: 0.45em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); opacity: 0.7; transition: transform 0.15s; }
+            #JellyCleanSettingsPage .jc-mail[open] > summary::before { transform: rotate(45deg); }
             #JellyCleanSettingsPage .jc-dirty { margin-right: auto; opacity: 0.85; font-size: 0.92em; }
         </style>
 
@@ -156,10 +163,28 @@
 
                 <section class="jc-card">
                     <h2>Digest</h2>
-                    <p class="jc-hint">A short message with what is due on the Leaving soon list, what sits in the recycle bin and how much space you freed. Paste a Discord or Slack webhook, or an ntfy topic like https://ntfy.sh/my-jellyfin. Leave it empty to send nothing.</p>
+                    <p class="jc-hint">A short message with what is due on the Leaving soon list, what sits in the recycle bin and how much space you freed. Send it to a Discord or Slack webhook, an ntfy topic like https://ntfy.sh/my-jellyfin, by email, or to several. Leave them empty to send nothing.</p>
                     <div class="jc-fields">
                         <div class="jc-field" style="grid-column:1/-1;"><label>Webhook address<input type="url" data-text="DigestUrl" placeholder="https://discord.com/api/webhooks/..." autocomplete="off"></label></div>
                     </div>
+                    <details class="jc-mail" id="jcMail">
+                        <summary>Email</summary>
+                        <p class="jc-hint">Any mail server works. For Gmail use smtp.gmail.com, port 587 and an app password, not your normal password. Port 465 is not supported; use 587.</p>
+                        <div class="jc-fields">
+                            <div class="jc-field"><label>Send to<input type="text" data-mail="To" placeholder="you@example.com" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>From<input type="text" data-mail="From" placeholder="Same as user name" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>Mail server<input type="text" data-mail="Host" placeholder="smtp.gmail.com" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>Port<input type="number" min="1" max="65535" data-mail="Port" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>User name<input type="text" data-mail="User" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>Password<input type="password" data-mail="Password" autocomplete="new-password"></label></div>
+                        </div>
+                        <div class="jc-tiles" style="margin:0.9em 0 0;">
+                            <button type="button" class="jc-tile" role="switch" id="jcMailSsl">
+                                <span class="jc-tile-text"><b>Encrypt the connection (STARTTLS)</b><small>Leave on, unless your mail server is on your own network and has no encryption.</small></span>
+                                <span class="jc-switch" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </details>
                     <div class="jc-view" style="border-top:0;padding-bottom:0;">
                         <label>How often<select id="jcDigestSchedule"><option value="daily">Every day</option><option value="weekly">Every week</option></select></label>
                         <label id="jcDigestDayLabel">On<select id="jcDigestDay"></select></label>
@@ -239,6 +264,12 @@
                         saving = null;
                         if (again) { again = false; save(); }
                     });
+                }
+
+                // Saves now, so a test uses what is on the screen.
+                function flush() {
+                    if (timer) { clearTimeout(timer); save(); }
+                    return Promise.resolve(saving).then(function () { return saving || timer ? flush() : null; });
                 }
 
                 function field(label, value, type, onInput, placeholder) {
@@ -339,6 +370,9 @@
                     $('jcDigestSchedule').value = d.Schedule === 'daily' ? 'daily' : 'weekly';
                     days.value = d.Day;
                     hours.value = d.Hour;
+                    page.querySelectorAll('[data-mail]').forEach(function (i) { i.value = config.Mail[i.dataset.mail] == null ? '' : config.Mail[i.dataset.mail]; });
+                    $('jcMailSsl').setAttribute('aria-checked', String(!!config.Mail.Ssl));
+                    $('jcMail').open = !!config.Mail.To;
                     $('jcDigestDayLabel').style.display = d.Schedule === 'daily' ? 'none' : '';
                 }
 
@@ -369,6 +403,9 @@
                     var i = e.target;
                     if (i.dataset.num) {
                         config[i.dataset.num] = Math.max(0, parseInt(i.value, 10) || 0);
+                        dirty();
+                    } else if (i.dataset.mail) {
+                        config.Mail[i.dataset.mail] = i.dataset.mail === 'Port' ? (parseInt(i.value, 10) || 587) : i.value;
                         dirty();
                     } else if (i.dataset.text) {
                         config[i.dataset.text] = i.value;
@@ -401,12 +438,16 @@
                             render();
                             dirty();
                         }
+                    } else if (b.id === 'jcMailSsl') {
+                        config.Mail.Ssl = !config.Mail.Ssl;
+                        b.setAttribute('aria-checked', String(config.Mail.Ssl));
+                        dirty();
                     } else if (b.id === 'jcDigestTest') {
                         var result = $('jcDigestResult');
                         b.disabled = true;
                         result.className = 'jc-test';
                         result.textContent = 'Sending...';
-                        post('JellyClean/Digest/Test?url=' + encodeURIComponent(config.DigestUrl || '')).then(function (r) { return r.json(); }).then(function (r) {
+                        flush().then(function () { return post('JellyClean/Digest/Test'); }).then(function (r) { return r.json(); }).then(function (r) {
                             result.className = 'jc-test ' + (r.Ok ? 'ok' : 'bad');
                             result.textContent = r.Message;
                             $('jcDigestText').textContent = r.Text;
@@ -434,6 +475,7 @@
                         config.Views = config.Views || [];
                         config.ProtectedLibraries = config.ProtectedLibraries || [];
                         config.Digest = config.Digest || { Name: 'Digest', Schedule: 'weekly', Day: 1, Hour: 9 };
+                        config.Mail = config.Mail || { To: '', From: '', Host: '', Port: 587, User: '', Password: '', Ssl: true };
                         render();
                         return ApiClient.getVirtualFolders();
                     }).then(function (folders) {

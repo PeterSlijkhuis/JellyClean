@@ -231,31 +231,23 @@ public class JellyCleanController : ControllerBase
         => Ok(Stats.Build(_catalog.Get().Values.ToList(), _userManager.GetUsers().Select(u => (u.Id, u.Username)), Plugin.Instance!.Configuration.FreedByMonth, DateTime.UtcNow));
 
     /// <summary>
-    /// Sends the digest now, to the address given or the saved one.
+    /// Sends the digest now, the way it is saved.
     /// </summary>
-    /// <param name="url">The webhook address; empty uses the saved one.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Whether it worked, and the text.</returns>
     [HttpPost("Digest/Test")]
-    public async Task<ActionResult> TestDigest([FromQuery] string? url, CancellationToken cancellationToken)
+    public async Task<ActionResult> TestDigest(CancellationToken cancellationToken)
     {
         var config = Plugin.Instance!.Configuration;
         var text = Digest.Text(config, _catalog.Get(), DateTime.UtcNow);
-        var to = string.IsNullOrWhiteSpace(url) ? config.DigestUrl : url;
-        if (string.IsNullOrWhiteSpace(to))
+        if (string.IsNullOrWhiteSpace(config.DigestUrl) && string.IsNullOrWhiteSpace(config.Mail.To))
         {
-            return Ok(new { Ok = false, Message = "Fill in a webhook address first.", Text = text });
+            return Ok(new { Ok = false, Message = "Fill in a webhook or an email address first.", Text = text });
         }
 
-        try
-        {
-            await Digest.SendAsync(_http.CreateClient(), to.Trim(), text, cancellationToken).ConfigureAwait(false);
-            return Ok(new { Ok = true, Message = "Sent.", Text = text });
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException or InvalidOperationException)
-        {
-            return Ok(new { Ok = false, Message = "Could not send it: " + ex.Message, Text = text });
-        }
+        var (sent, problems) = await Digest.SendAllAsync(config, _http.CreateClient(), text, cancellationToken).ConfigureAwait(false);
+        var message = string.Join(" ", (sent.Length > 0 ? new[] { "Sent to " + string.Join(" and ", sent) + "." } : []).Concat(problems));
+        return Ok(new { Ok = problems.Length == 0, Message = message, Text = text });
     }
 
     /// <summary>
