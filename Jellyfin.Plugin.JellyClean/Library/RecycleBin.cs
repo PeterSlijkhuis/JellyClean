@@ -156,6 +156,34 @@ public class RecycleBin
     }
 
     /// <summary>
+    /// Undoes the most recent removal that still has items in the bin: every item of it comes back.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>How many came back, and what went wrong per item.</returns>
+    public async Task<(int Restored, string[] Problems)> UndoLastAsync(CancellationToken cancellationToken)
+    {
+        var last = Config.Recycled.Where(r => r.Batch != Guid.Empty).MaxBy(r => r.Removed);
+        if (last is null)
+        {
+            return (0, []);
+        }
+
+        var restored = 0;
+        var problems = new List<string>();
+        foreach (var item in Config.Recycled.Where(r => r.Batch == last.Batch).ToList())
+        {
+            var (error, warning) = await RestoreAsync(item.Id, cancellationToken).ConfigureAwait(false);
+            restored += error is null ? 1 : 0;
+            if ((error ?? warning) is { } problem)
+            {
+                problems.Add(item.Title + ": " + problem);
+            }
+        }
+
+        return (restored, problems.ToArray());
+    }
+
+    /// <summary>
     /// Restores an item completely: the files go back, Jellyfin scans them in, and Radarr and Sonarr get the movie
     /// or series back (or monitor the episodes again), as they were.
     /// </summary>
@@ -275,8 +303,7 @@ public class RecycleBin
                 }
 
                 // Only now is the space really free.
-                Config.FreedBytes += item.Size;
-                Config.RemovedCount++;
+                CountFreed(item.Size, 1);
                 Forget(item);
                 Activity.Info(_logger, "Deleted {Title} from the recycle bin for good", item.Title);
                 return true;
@@ -295,6 +322,27 @@ public class RecycleBin
     /// <param name="item">The item.</param>
     /// <returns>The time.</returns>
     public static DateTime DeleteAt(RecycledItem item) => item.Removed.AddDays(item.Days > 0 ? item.Days : Math.Max(0, Config.RecycleDays));
+
+    /// <summary>
+    /// Counts space as freed, in the total and in this month for the Stats tab. The caller saves the configuration.
+    /// </summary>
+    /// <param name="bytes">Bytes freed.</param>
+    /// <param name="count">Items removed.</param>
+    public static void CountFreed(long bytes, int count)
+    {
+        Config.FreedBytes += bytes;
+        Config.RemovedCount += count;
+        var month = DateTime.UtcNow.ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture);
+        var entry = Config.FreedByMonth.FirstOrDefault(m => m.Month == month);
+        if (entry is null)
+        {
+            entry = new FreedMonth { Month = month };
+            Config.FreedByMonth = Config.FreedByMonth.Append(entry).ToArray();
+        }
+
+        entry.Bytes += bytes;
+        entry.Count += count;
+    }
 
     private static void Forget(RecycledItem item)
     {

@@ -188,6 +188,45 @@ public class LibraryTests
     }
 
     [Fact]
+    public void Copies_keep_the_best_or_the_smallest_and_never_a_favorite()
+    {
+        CatalogItem Copy(string res, long size, string lib) => new() { Id = Guid.NewGuid(), Name = "Alien", Type = "Movie", Resolution = res, Size = size, Library = lib, CopyGroup = "Movie tmdb348" };
+        var hd = Copy("1080p", 10, "Movies");
+        var uhd = Copy("4K", 50, "Movies 4K");
+        var single = new CatalogItem { Id = Guid.NewGuid(), Type = "Movie", Size = 5 };
+
+        var best = Assert.Single(Catalog_copies([hd, uhd, single], "best"));
+        Assert.Same(uhd, best.Keep);
+        Assert.Equal([hd], best.Others);
+        Assert.Same(hd, Assert.Single(Catalog_copies([hd, uhd], "smallest")).Keep);
+
+        uhd.Favorite = true;
+        Assert.Same(uhd, Assert.Single(Catalog_copies([hd, uhd], "smallest")).Keep);
+    }
+
+    [Fact]
+    public void Stats_count_per_month_and_per_user()
+    {
+        var now = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc);
+        var movie = new CatalogItem { Id = Guid.NewGuid(), Name = "Alien", Type = "Movie", Year = 1979, Size = 100, Added = new DateTime(2026, 9, 3, 0, 0, 0, DateTimeKind.Utc), WatchedBy = [_anna], AnyPlayed = true, RunTimeTicks = TimeSpan.FromHours(2).Ticks, Genres = ["Horror"] };
+        movie.PlayedOn[_anna] = now.AddDays(-1);
+        var unplayed = new CatalogItem { Id = Guid.NewGuid(), Name = "Dune", Type = "Movie", Size = 300, Added = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), RunTimeTicks = TimeSpan.FromHours(3).Ticks };
+
+        var stats = Stats.Build([movie, unplayed], [(_anna, "Anna")], [new Jellyfin.Plugin.JellyClean.Configuration.FreedMonth { Month = "2026-10", Bytes = 50, Count = 2 }], now);
+
+        Assert.Equal(24, stats.Months.Length);
+        Assert.Equal(new MonthPoint("2026-09", 100, 100, 0, 0), stats.Months[^2]);
+        Assert.Equal(new MonthPoint("2026-10", 400, 300, 50, 2), stats.Months[^1]);
+        Assert.Equal(50, stats.FreedThisYear);
+        Assert.Equal(3, stats.NeverPlayedHours);
+        Assert.Same(unplayed, Assert.Single(stats.Shame));
+        var anna = Assert.Single(stats.Users);
+        Assert.Equal((1, 2.0, 1, "Alien (1979)", "Horror"), (anna.Movies, anna.Hours, anna.ThisYear, anna.Oldest, anna.Genres[0].Name));
+    }
+
+    private static List<CopySet> Catalog_copies(CatalogItem[] items, string prefer) => Copies.Resolve(items, prefer).ToList();
+
+    [Fact]
     public void Empty_series_counts_as_never_watched()
     {
         var series = new CatalogItem { Id = Guid.NewGuid(), Name = "Empty", Type = "Series" };

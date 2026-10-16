@@ -118,6 +118,71 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets how many items JellyClean has removed so far.
     /// </summary>
     public int RemovedCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the space freed per month, for the chart on the Stats tab.
+    /// </summary>
+    public FreedMonth[] FreedByMonth { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the last rule runs, dry runs included, newest first.
+    /// </summary>
+    public RuleRun[] RuleRuns { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets where the digest goes: a Discord, Slack or ntfy address, or any webhook. Empty sends nothing.
+    /// </summary>
+    public string DigestUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets when the digest goes out; only Schedule, Day, Hour and LastRun are used.
+    /// </summary>
+    public SavedView Digest { get; set; } = new() { Name = "Digest", Schedule = "weekly", Day = DayOfWeek.Monday, Hour = 9 };
+}
+
+/// <summary>
+/// Space freed in one month.
+/// </summary>
+public class FreedMonth
+{
+    /// <summary>Gets or sets the month, like 2026-10.</summary>
+    public string Month { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the bytes freed.</summary>
+    public long Bytes { get; set; }
+
+    /// <summary>Gets or sets how many items were removed.</summary>
+    public int Count { get; set; }
+}
+
+/// <summary>
+/// One run of a Leaving soon rule, or a dry run that changed nothing.
+/// </summary>
+public class RuleRun
+{
+    /// <summary>Gets or sets when it ran (UTC).</summary>
+    public DateTime When { get; set; }
+
+    /// <summary>Gets or sets the rule.</summary>
+    public string Rule { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets a value indicating whether this was a dry run.</summary>
+    public bool Dry { get; set; }
+
+    /// <summary>Gets or sets how many items the filter found.</summary>
+    public int Matched { get; set; }
+
+    /// <summary>Gets or sets how many went on the list, or would have for a dry run.</summary>
+    public int Added { get; set; }
+
+    /// <summary>Gets or sets their size.</summary>
+    public long AddedSize { get; set; }
+
+    /// <summary>Gets or sets how many a safeguard kept off.</summary>
+    public int Kept { get; set; }
+
+    /// <summary>Gets or sets the first titles that went on, or would have.</summary>
+    public string[] Titles { get; set; } = [];
 }
 
 /// <summary>
@@ -312,6 +377,9 @@ public class RecycledItem
 
     /// <summary>Gets or sets what was done in Radarr and Sonarr, so a restore can undo it.</summary>
     public ArrUndo[] Arr { get; set; } = [];
+
+    /// <summary>Gets or sets the removal it was part of, so a whole removal can be undone at once.</summary>
+    public Guid Batch { get; set; }
 }
 
 /// <summary>

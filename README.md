@@ -85,6 +85,10 @@ The other tools are good at what they do and you can check their own pages for d
 
 <img src="docs/screenshots/recover.png" alt="Recover tab listing items in the recycle bin" width="100%" />
 
+**Stats.** How the library grew month by month and what JellyClean freed, the hours nobody has started, a hall of shame of the biggest never played titles, and a year in review per user.
+
+<img src="docs/screenshots/stats.png" alt="Stats tab with a space over time chart, a never played hall of shame and a year in review per user" width="100%" />
+
 **Settings and Activity.** Safeguards, recycle bin days, Radarr and Sonarr, and a log of every removal and why something stayed.
 
 <img src="docs/screenshots/settings.png" alt="Settings tab with safeguards and recycle bin days" width="100%" />
@@ -103,15 +107,19 @@ The other tools are good at what they do and you can check their own pages for d
 - **One-click suggestions**, folded away under *Quick filters and saved views*. *Empty movies and series*, *Never played, added over a year ago*, *Biggest movies*, *Watched by everyone*, *Finished series everyone watched*, *Series nobody played in 2 years*, *Movies you have twice* and *Old H.264 below 1080p*.
 - **Free up a set amount.** Type how many GB you need and press **Free up GB**: JellyClean selects from the top of the current list, in its sort order, skipping keep, favorites and Continue Watching, until that much is selected. Then check it in the preview.
 - **Finished series.** Filter on series that have ended, so no new episodes are coming. *Finished series everyone watched* finds the ones every user watched to the end.
-- **Copies.** Spots movies and series that are in Jellyfin more than once, like a 1080p copy next to a 4K one, so you can drop the one you don't need.
+- **Copies.** Spots movies and series that are in Jellyfin more than once, like a 1080p copy next to a 4K one. **Pick which copy to keep** under *Quick filters* lists every set with the best quality (or the smallest file) checked to stay, never moving a favorite or kept copy; change any pick, and the rest goes to the preview in one click.
 - **Export.** Download the current list as a spreadsheet (CSV).
 - **Real sizes.** The size is what removing frees: the movie's folder with its extras and artwork, or the episode file with its subtitles. Series and seasons add up their episodes.
 - **Preview first.** See exactly which files and folders go, what happens in Radarr and Sonarr, and what stays and why. Removing 20 or more items asks you to type the number.
 - **Keep what matters.** Mark anything **keep** with the lock button and it is never removed, nor the season or series it is in. Each favorite shows whose it is, and the × next to a name takes that person's favorite off, without opening the item. Safeguards you choose in **Settings** keep favorites, Continue Watching, Next Up, recently added and recently played items, items with a tag like `keep`, and whole libraries. One removal is capped at 200 items unless you change it.
 - **Saved views.** Save any filter under a name and open it with one click. Days are relative, so *added over 2 years ago* still means that next year.
 - **Leaving soon.** A tab of its own, with the rules on top (the whole section and each rule fold up) and the list below. Instead of deleting right away, put items on a list with a notice period (14 days by default). Users can see the list as a Jellyfin collection if you like. When items are due you review and remove them; safeguards are checked again at that moment.
+- **Dry runs and run history.** **Dry run** on a rule shows what it would put on the list right now, without changing anything. *Run history* on the Leaving soon tab lists every run, dry or real, with what it matched, what it added and how much space that is.
 - **Scheduled Leaving soon.** Turn any filter into a rule with **Schedule for Leaving soon**. Each rule runs every day or every week at the hour you pick, with its own notice period, and puts what it finds on the Leaving soon list. Once due, items wait for you, or are removed on their own if you switch that on for the rule.
 - **Recycle bin and Recover tab.** Set a number of days under **Settings** and removed files move to a hidden `.jellyclean-trash` folder in their library folder instead of being deleted. While they are there, Radarr and Sonarr only stop monitoring them, so nothing is downloaded again. The **Recover** tab lists everything that can come back: **Recover** puts the files back, Jellyfin scans them in, Radarr and Sonarr monitor them again, and the item is marked keep so a Leaving soon rule does not take it again. Space counts as freed once the bin is emptied. When the days are over, the files are deleted for good and the movie or series is removed from Radarr and Sonarr. Whatever Leaving soon removes on its own always goes through the recycle bin (7 days by default), even when it is off for removals by hand.
+- **Undo.** After a removal into the recycle bin, **Undo this removal** brings all of it back. The Recover tab has **Undo last removal** too, for the newest removal as a whole.
+- **Stats tab.** A chart of space over the last 24 months, with what was added and what JellyClean freed each month; hover a month for the numbers. Plus space freed this year, hours of content, hours nobody ever started, a hall of shame of the six biggest never played titles, and a year in review per user: hours, movies and episodes, top series, favorite genres, the oldest thing they watched and what they played last.
+- **Digest.** A weekly or daily message to Discord, Slack or ntfy with what is due on Leaving soon, what sits in the recycle bin and how much space you freed. Set it under **Settings** and press **Send a test now** to see it.
 - **Radarr and Sonarr.** Removed movies leave Radarr, removed series leave Sonarr, and removed seasons or episodes stop being monitored, so new episodes still come in. Several of each are fine, like a separate 4K one.
 - **Activity log.** Every removal, every item that was kept and why, and every error.
 

@@ -126,7 +126,8 @@ Layout:
 7. **Saved views and Leaving soon.** Named filters with relative days. A Leaving soon list with a notice period, an optional collection for users, and a daily task that adds matches from views marked *Check daily*. It only deletes due items when that is switched on; otherwise they wait for review.
 8. **Recycle bin, targets and rules.** Removed files can wait in a hidden folder for a set number of days. "Free up X GB" selects from the top of the list. A filter for ended series. Saved views become rules with a daily or weekly schedule, their own notice period and optional removal when due, run by an hourly task. Favorites show whose they are and can be cleared per person.
 9. **Leaving soon and Recover tabs.** Leaving soon gets its own tab with posters, full details, Cancel per item and the rules. Recover lists the recycle bin. While files are in the bin Radarr and Sonarr only stop monitoring; the movie or series is removed there when the bin is emptied, and Recover monitors it again. The Leaving soon list drops items that become protected or no longer match their rule.
-10. **Later, if wanted.** A "Keep" button on item pages (this is the only part that might need File Transformation). Notifications when items become due.
+10. **Copies, undo, history and stats.** A dialog picks which copy of each movie or series stays (best quality or smallest, never a favorite or kept copy). Each removal gets a batch id, so the newest one can be undone from the recycle bin in one go. Rule runs are logged, and a dry run shows what a rule would add without changing anything. A Stats tab shows space per month (what is here now, by when it was added, plus what was freed), never played hours, the biggest never played titles and a year in review per user. A digest goes to a Discord, Slack or ntfy webhook daily or weekly.
+11. **Later, if wanted.** A "Keep" button on item pages (this is the only part that might need File Transformation).
 
 ## Tests
 

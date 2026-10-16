@@ -95,6 +95,7 @@
                     <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanLeaving">Leaving soon</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanStats">Stats</button>
                     <button type="button" class="jc-tab" aria-current="page">Settings</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
                 </nav>
@@ -154,6 +155,24 @@
                 </section>
 
                 <section class="jc-card">
+                    <h2>Digest</h2>
+                    <p class="jc-hint">A short message with what is due on the Leaving soon list, what sits in the recycle bin and how much space you freed. Paste a Discord or Slack webhook, or an ntfy topic like https://ntfy.sh/my-jellyfin. Leave it empty to send nothing.</p>
+                    <div class="jc-fields">
+                        <div class="jc-field" style="grid-column:1/-1;"><label>Webhook address<input type="url" data-text="DigestUrl" placeholder="https://discord.com/api/webhooks/..." autocomplete="off"></label></div>
+                    </div>
+                    <div class="jc-view" style="border-top:0;padding-bottom:0;">
+                        <label>How often<select id="jcDigestSchedule"><option value="daily">Every day</option><option value="weekly">Every week</option></select></label>
+                        <label id="jcDigestDayLabel">On<select id="jcDigestDay"></select></label>
+                        <label>At<select id="jcDigestHour"></select></label>
+                    </div>
+                    <div class="jc-row">
+                        <button type="button" class="jc-btn" id="jcDigestTest">Send a test now</button>
+                        <span class="jc-test" id="jcDigestResult"></span>
+                    </div>
+                    <pre class="jc-hint" id="jcDigestText" hidden style="white-space:pre-wrap;margin:0.8em 0 0;font:inherit;"></pre>
+                </section>
+
+                <section class="jc-card">
                     <h2>Radarr and Sonarr</h2>
                     <p class="jc-hint">Without them, a deleted movie or episode is seen as missing and downloaded again. With them, JellyClean removes the movie from Radarr, removes the series from Sonarr when you remove a whole series, and stops monitoring the episodes when you remove seasons or episodes. If Radarr or Sonarr can't be reached, the files stay. The Jellyfin server connects to them, not your browser, so use the address that works on the server, like http://192.168.1.10:8989, even when you manage Jellyfin from away. Add a second Radarr or Sonarr, like a 4K one, if you have it. Rather not add API keys? Switch on Unmonitor Deleted Movies (Radarr) and Unmonitor Deleted Episodes (Sonarr) under Settings, Media Management instead: they then stop monitoring what disappears from disk, though the movie or series stays listed there.</p>
                     <div id="jcServers"></div>
@@ -208,6 +227,9 @@
                         config.RemovedCount = latest.RemovedCount;
                         config.Recycled = latest.Recycled || [];
                         config.Views = latest.Views || [];
+                        config.FreedByMonth = latest.FreedByMonth || [];
+                        config.RuleRuns = latest.RuleRuns || [];
+                        if (latest.Digest) { config.Digest.LastRun = latest.Digest.LastRun; }
                         return ApiClient.updatePluginConfiguration(pluginId, config);
                     }).then(function () {
                         $('jcDirty').textContent = 'Saved.';
@@ -307,6 +329,19 @@
                     });
                 }
 
+                function renderDigest() {
+                    var d = config.Digest;
+                    var days = $('jcDigestDay'), hours = $('jcDigestHour');
+                    if (!days.options.length) {
+                        ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].forEach(function (n, i) { days.append(el('option', { value: i, textContent: n })); });
+                        for (var h = 0; h < 24; h++) { hours.append(el('option', { value: h, textContent: (h < 10 ? '0' : '') + h + ':00' })); }
+                    }
+                    $('jcDigestSchedule').value = d.Schedule === 'daily' ? 'daily' : 'weekly';
+                    days.value = d.Day;
+                    hours.value = d.Hour;
+                    $('jcDigestDayLabel').style.display = d.Schedule === 'daily' ? 'none' : '';
+                }
+
                 function render() {
                     page.querySelectorAll('[data-flag]').forEach(function (b) { b.setAttribute('aria-checked', String(!!config[b.dataset.flag])); });
                     page.querySelectorAll('[data-num]').forEach(function (i) { i.value = config[i.dataset.num] || 0; });
@@ -316,8 +351,19 @@
                     $('jcClearKept').hidden = !kept;
                     renderLibraries();
                     renderServers();
+                    renderDigest();
                     $('jcDirty').textContent = 'Changes save on their own.';
                 }
+
+                page.addEventListener('change', function (e) {
+                    var id = e.target.id;
+                    if (id === 'jcDigestSchedule') { config.Digest.Schedule = e.target.value; }
+                    else if (id === 'jcDigestDay') { config.Digest.Day = parseInt(e.target.value, 10); }
+                    else if (id === 'jcDigestHour') { config.Digest.Hour = parseInt(e.target.value, 10); }
+                    else { return; }
+                    renderDigest();
+                    dirty();
+                });
 
                 page.addEventListener('input', function (e) {
                     var i = e.target;
@@ -355,6 +401,20 @@
                             render();
                             dirty();
                         }
+                    } else if (b.id === 'jcDigestTest') {
+                        var result = $('jcDigestResult');
+                        b.disabled = true;
+                        result.className = 'jc-test';
+                        result.textContent = 'Sending...';
+                        post('JellyClean/Digest/Test?url=' + encodeURIComponent(config.DigestUrl || '')).then(function (r) { return r.json(); }).then(function (r) {
+                            result.className = 'jc-test ' + (r.Ok ? 'ok' : 'bad');
+                            result.textContent = r.Message;
+                            $('jcDigestText').textContent = r.Text;
+                            $('jcDigestText').hidden = !r.Text;
+                        }).catch(function (err) {
+                            result.className = 'jc-test bad';
+                            result.textContent = err.message;
+                        }).finally(function () { b.disabled = false; });
                     } else if (b.dataset.add) {
                         config.Servers.push({ Kind: b.dataset.add, Name: '', Url: '', ApiKey: '', AddExclusion: true });
                         renderServers();
@@ -373,6 +433,7 @@
                         config.KeptIds = config.KeptIds || [];
                         config.Views = config.Views || [];
                         config.ProtectedLibraries = config.ProtectedLibraries || [];
+                        config.Digest = config.Digest || { Name: 'Digest', Schedule: 'weekly', Day: 1, Hour: 9 };
                         render();
                         return ApiClient.getVirtualFolders();
                     }).then(function (folders) {

@@ -57,6 +57,14 @@
             #JellyCleanLeavingPage .jc-tag.protected { border-color: rgba(170, 92, 195, 0.7); color: #c58ad8; }
             #JellyCleanLeavingPage .jc-section { margin: 1.2em 0 0.2em; font-weight: 600; opacity: 0.85; }
             #JellyCleanLeavingPage .jc-status { margin: 0 0 1em; padding: 0.8em 1em; border-radius: 10px; border: 1px solid rgba(0, 164, 220, 0.5); background: rgba(0, 164, 220, 0.1); font-weight: 600; }
+            #JellyCleanLeavingPage .jc-dry { margin-top: 0.7em; padding: 0.7em 0.9em; border-radius: 10px; border: 1px dashed var(--jc-line); font-size: 0.92em; }
+            #JellyCleanLeavingPage .jc-dry p { margin: 0 0 0.3em; }
+            #JellyCleanLeavingPage .jc-runs { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+            #JellyCleanLeavingPage .jc-runs td { padding: 0.45em 0.4em; border-top: 1px solid var(--jc-line); vertical-align: top; }
+            #JellyCleanLeavingPage .jc-runs td:last-child { text-align: right; white-space: nowrap; }
+            #JellyCleanLeavingPage .jc-runs details summary { cursor: pointer; }
+            #JellyCleanLeavingPage .jc-runs small { display: block; opacity: 0.7; }
+            #JellyCleanLeavingPage .jc-chip { display: inline-block; padding: 0.05em 0.5em; border-radius: 999px; font-size: 0.8em; border: 1px solid var(--jc-line); margin-left: 0.4em; }
             #JellyCleanLeavingPage .jc-review { margin: 0.8em 0 1em; padding: 1em; border-radius: 12px; border: 1px solid rgba(240, 180, 41, 0.5); background: rgba(240, 180, 41, 0.06); }
             #JellyCleanLeavingPage .jc-review-foot { display: flex; gap: 0.6em; flex-wrap: wrap; justify-content: flex-end; margin-top: 0.8em; }
             #JellyCleanLeavingPage .jc-fold > summary, #JellyCleanLeavingPage .jc-rule > summary { list-style: none; cursor: pointer; }
@@ -107,6 +115,7 @@
                     <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
                     <button type="button" class="jc-tab" aria-current="page">Leaving soon</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanStats">Stats</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanSettings">Settings</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
                 </nav>
@@ -136,6 +145,14 @@
                     </div>
                     <div class="jc-review" id="jcReviewBox" hidden></div>
                     <div id="jcList"></div>
+                </section>
+
+                <section class="jc-card" aria-labelledby="jcRunsTitle">
+                    <details class="jc-fold" data-fold="history">
+                    <summary><h2 id="jcRunsTitle">Run history</h2><small id="jcRunsCount"></small></summary>
+                    <p class="jc-hint">Every rule run, with what it put on the list. A dry run shows what a rule would take, without changing anything.</p>
+                    <table class="jc-runs"><tbody id="jcRuns"></tbody></table>
+                    </details>
                 </section>
             </div>
         </div>
@@ -339,6 +356,7 @@
                     return ApiClient.getPluginConfiguration(pluginId).then(function (c) {
                         config = c;
                         renderRules();
+                        renderRuns();
                     });
                 }
 
@@ -364,7 +382,7 @@
                 function folds() {
                     try { return JSON.parse(localStorage.getItem('jellyclean-folds') || '{}'); } catch (err) { return {}; }
                 }
-                function isOpen(name) { return folds()[name] !== false; }
+                function isOpen(name, closed) { var f = folds()[name]; return closed ? f === true : f !== false; }
                 page.addEventListener('toggle', function (e) {
                     if (!e.target.dataset || !e.target.dataset.fold) { return; }
                     var state = folds();
@@ -373,6 +391,36 @@
                 }, true);
 
                 page.querySelector('[data-fold="rules"]').open = isOpen('rules');
+                page.querySelector('[data-fold="history"]').open = isOpen('history', true);
+
+                function dryText(r) {
+                    var box = el('div', { className: 'jc-dry', role: 'status' },
+                        el('p', {}, el('b', { textContent: r.Added ? 'Would add ' + plural(r.Added, 'item', 'items') + ', ' + bytes(r.AddedSize) + '.' : 'Would add nothing.' }),
+                            ' ' + plural(r.Matched, 'item matches', 'items match') + (r.Kept ? ', ' + r.Kept + ' of them stay (protected or already on the list).' : '.')));
+                    if (r.Titles.length) {
+                        box.append(el('small', { textContent: r.Titles.join(', ') + (r.Added > r.Titles.length ? ' and ' + (r.Added - r.Titles.length) + ' more.' : '') }));
+                    }
+                    return box;
+                }
+
+                function renderRuns() {
+                    var runs = config.RuleRuns || [];
+                    var body = $('jcRuns');
+                    body.textContent = '';
+                    $('jcRunsCount').textContent = runs.length ? plural(runs.length, 'run', 'runs') : '';
+                    if (!runs.length) {
+                        body.append(el('tr', {}, el('td', { textContent: 'No runs yet.' })));
+                    }
+                    runs.forEach(function (r) {
+                        var what = r.Added ? el('details', {}, el('summary', { textContent: plural(r.Added, 'item', 'items') + (r.Dry ? ' would be added' : ' added') }),
+                            el('small', { textContent: r.Titles.join(', ') + (r.Added > r.Titles.length ? ' and ' + (r.Added - r.Titles.length) + ' more' : '') }))
+                            : el('span', { textContent: r.Dry ? 'Would add nothing' : 'Nothing added' });
+                        body.append(el('tr', {},
+                            el('td', {}, el('b', { textContent: r.Rule }), r.Dry ? el('span', { className: 'jc-chip', textContent: 'dry run' }) : null, el('small', { textContent: when(r.When) })),
+                            el('td', {}, what, el('small', { textContent: r.Matched + ' matched' + (r.Kept ? ', ' + r.Kept + ' stayed' : '') })),
+                            el('td', { textContent: r.Added ? bytes(r.AddedSize) : '' })));
+                    });
+                }
 
                 function renderRules() {
                     var box = $('jcRules');
@@ -438,6 +486,17 @@
                                 status('"' + view.Name + '" ran: ' + plural(fresh ? fresh.LastAdded : 0, 'new item', 'new items') + ' on the list.');
                             }).catch(function (err) { window.alert(err.message); run.disabled = false; run.textContent = 'Run now'; });
                         });
+                        var dryBox = el('div', {});
+                        var dry = el('button', { type: 'button', className: 'jc-btn', textContent: 'Dry run', title: 'Shows what it would put on the list, without changing anything' });
+                        dry.addEventListener('click', function () {
+                            dry.disabled = true;
+                            dryBox.textContent = '';
+                            call('POST', 'LeavingSoon/Run?dry=true&view=' + encodeURIComponent(view.Name)).then(function (runs) {
+                                dryBox.append(runs[0] ? dryText(runs[0]) : el('div', { className: 'jc-dry', textContent: 'The rule could not be read. Save it again from the Library page.' }));
+                                return ApiClient.getPluginConfiguration(pluginId).then(function (c) { config.RuleRuns = c.RuleRuns; renderRuns(); });
+                            }).catch(function (err) { dryBox.append(el('div', { className: 'jc-dry', textContent: 'Could not run it: ' + err.message })); })
+                                .finally(function () { dry.disabled = false; });
+                        });
                         var remove = el('button', { type: 'button', className: 'jc-btn danger', textContent: 'Delete' });
                         remove.setAttribute('aria-label', 'Delete rule ' + view.Name);
                         remove.addEventListener('click', function () {
@@ -461,7 +520,8 @@
                         var rule = el('details', { className: 'jc-rule', open: isOpen('rule:' + view.Name) },
                             el('summary', { className: 'jc-rule-head' }, el('span', { className: 'jc-rule-title' }, el('b', { textContent: view.Name }), timing, info, saved)),
                             el('div', { className: 'jc-rule-grid' }, field('Schedule', schedule), dayField, field('At', hour), field('Notice days', notice)),
-                            el('div', { className: 'jc-rule-foot' }, auto, run, remove));
+                            el('div', { className: 'jc-rule-foot' }, auto, dry, run, remove),
+                            dryBox);
                         rule.dataset.fold = 'rule:' + view.Name;
                         box.append(rule);
                     });

@@ -223,6 +223,12 @@
             #JellyCleanLibraryPage .jc-plan > div { padding: 0.5em 0.8em; border-bottom: 1px solid var(--jc-line); }
             #JellyCleanLibraryPage .jc-plan > div:last-child { border-bottom: 0; }
             #JellyCleanLibraryPage .jc-plan-row { display: flex; gap: 0.8em; align-items: flex-start; }
+            #JellyCleanLibraryPage .jc-copyset { border: 1px solid var(--jc-line); border-radius: 12px; padding: 0.6em 0.8em; margin-bottom: 0.6em; }
+            #JellyCleanLibraryPage .jc-copyset legend { font-weight: 600; padding: 0 0.3em; }
+            #JellyCleanLibraryPage .jc-copy { display: flex; align-items: center; gap: 0.7em; min-height: 44px; cursor: pointer; }
+            #JellyCleanLibraryPage .jc-copy input { width: 1.2em; height: 1.2em; accent-color: var(--jc-accent); flex: none; }
+            #JellyCleanLibraryPage .jc-copy small { opacity: 0.7; }
+            #JellyCleanLibraryPage .jc-copy .jc-tag { margin-left: auto; flex: none; }
             #JellyCleanLibraryPage .jc-plan-row > div { flex: 1; min-width: 0; }
             #JellyCleanLibraryPage .jc-plan small { display: block; opacity: 0.65; overflow-wrap: anywhere; }
             #JellyCleanLibraryPage .jc-plan .jc-arr { opacity: 0.9; color: #7fd3f0; }
@@ -256,6 +262,7 @@
                     <button type="button" class="jc-tab" aria-current="page">Library</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanLeaving">Leaving soon</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanStats">Stats</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanSettings">Settings</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
                 </nav>
@@ -312,6 +319,7 @@
                         <button type="button" class="jc-preset" data-preset="finished">Finished series everyone watched</button>
                         <button type="button" class="jc-preset" data-preset="forgotten">Series nobody played in 2 years</button>
                         <button type="button" class="jc-preset" data-preset="copies">Movies you have twice</button>
+                        <button type="button" class="jc-preset" id="jcCopiesTool">Pick which copy to keep</button>
                         <button type="button" class="jc-preset" data-preset="lowres">Old H.264 below 1080p</button>
                         <button type="button" class="jc-preset" data-preset="reset">Clear filters</button>
                     </div>
@@ -1216,6 +1224,52 @@
                     })();
                 }
 
+                // Copies: one radio group per movie or series; the checked copy stays, the others go to the preview.
+                function showCopies(prefer) {
+                    call('GET', 'Copies?prefer=' + prefer).then(function (sets) {
+                        openDialog(sets.length ? plural(sets.length, 'movie or series', 'movies and series') + ' you have more than once' : 'No copies found');
+                        var body = $('jcDialogBody');
+                        var foot = $('jcDialogFoot');
+                        if (!sets.length) {
+                            body.append(el('p', { className: 'jc-hint', textContent: 'Nothing is in Jellyfin twice. Copies are matched by their TMDb, TVDb or IMDb id.' }));
+                        } else {
+                            var choose = el('select', { ariaLabel: 'Which copy to keep' },
+                                el('option', { value: 'best', textContent: 'Keep the best quality' }), el('option', { value: 'smallest', textContent: 'Keep the smallest file' }));
+                            choose.value = prefer;
+                            choose.addEventListener('change', function () { showCopies(choose.value); });
+                            body.append(el('p', { className: 'jc-hint', textContent: 'The checked copy stays; the others go to the preview, where safeguards still apply. A favorite or kept copy is always picked to stay.' }), el('div', { className: 'jc-field', style: 'max-width:280px;margin:0.8em 0;' }, choose));
+                        }
+                        var go = el('button', { type: 'button', className: 'jc-btn danger' });
+                        function count() {
+                            var ids = Array.prototype.filter.call(body.querySelectorAll('input[type=radio]'), function (x) { return !x.checked; });
+                            var size = ids.reduce(function (sum, x) { return sum + Number(x.dataset.size); }, 0);
+                            go.textContent = 'Preview removal of ' + plural(ids.length, 'copy', 'copies') + ', ' + bytes(size);
+                            go.disabled = !ids.length;
+                            return ids.map(function (x) { return x.value; });
+                        }
+                        sets.forEach(function (set, n) {
+                            var box = el('fieldset', { className: 'jc-copyset' }, el('legend', { textContent: set.Title }));
+                            [set.Keep].concat(set.Others).forEach(function (c) {
+                                var radio = el('input', { type: 'radio', name: 'jc-copy-' + n, value: c.Id, checked: c === set.Keep });
+                                radio.dataset.size = c.Size;
+                                radio.addEventListener('change', count);
+                                var quality = [c.Resolution, c.Codec, c.Hdr].filter(Boolean).join(' · ');
+                                box.append(el('label', { className: 'jc-copy' }, radio,
+                                    el('span', {}, c.Library + ' ', el('small', { textContent: (quality ? quality + ' · ' : '') + bytes(c.Size) + (c.AnyPlayed ? '' : ' · never played') })),
+                                    c.Favorite || c.Kept ? el('span', { className: 'jc-tag protected', textContent: c.Kept ? 'Keep' : 'Favorite' }) : null));
+                            });
+                            body.append(box);
+                        });
+                        var close = el('button', { type: 'button', className: 'jc-btn', textContent: 'Cancel' });
+                        close.addEventListener('click', closeDialog);
+                        go.addEventListener('click', function () {
+                            call('POST', 'Preview', { Ids: count() }).then(showPlan).catch(function (err) { window.alert('Could not prepare the removal: ' + err.message); });
+                        });
+                        foot.append(close);
+                        if (sets.length) { count(); foot.append(go); }
+                    }).catch(function (err) { window.alert('Could not read the copies: ' + err.message); });
+                }
+
                 function showResult(plan, err) {
                     openDialog(err ? 'Removal failed' : 'Removed ' + plural(plan.Remove.length, 'item', 'items') + ', ' + plan.Size);
                     var body = $('jcDialogBody');
@@ -1231,6 +1285,23 @@
                     }
                     var close = el('button', { type: 'button', className: 'jc-btn primary', textContent: 'Done' });
                     close.addEventListener('click', closeDialog);
+                    // With the recycle bin on, the whole removal can be taken back in one go.
+                    if (!err && plan.Remove.length && config.RecycleDays > 0) {
+                        var undo = el('button', { type: 'button', className: 'jc-btn', textContent: 'Undo this removal' });
+                        undo.addEventListener('click', function () {
+                            undo.disabled = true;
+                            undo.textContent = 'Putting everything back...';
+                            call('POST', 'RecycleBin/UndoLast').then(function (r) {
+                                body.textContent = '';
+                                body.append(el('p', { textContent: plural(r.Restored, 'item is', 'items are') + ' back. Jellyfin scans them in, and Radarr and Sonarr monitor them again.' }));
+                                r.Problems.forEach(function (x) { body.append(el('div', { className: 'jc-warn', textContent: x })); });
+                                undo.remove();
+                                loadBin().catch(function () {});
+                                loadOverview(false).then(function () { load(false); });
+                            }).catch(function (e) { undo.textContent = 'Undo failed: ' + e.message; });
+                        });
+                        $('jcDialogFoot').append(undo);
+                    }
                     $('jcDialogFoot').append(close);
                     updateBar();
                     loadLeaving();
@@ -1263,6 +1334,8 @@
 
                     if (b.dataset.page) {
                         Dashboard.navigate(Dashboard.getPluginUrl(b.dataset.page));
+                    } else if (b.id === 'jcCopiesTool') {
+                        showCopies('best');
                     } else if (b.dataset.preset) {
                         applyPreset(b.dataset.preset);
                     } else if (b.dataset.genre) {

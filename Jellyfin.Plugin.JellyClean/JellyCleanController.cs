@@ -28,6 +28,7 @@ public class JellyCleanController : ControllerBase
     private readonly ArrClient _arr;
     private readonly LeavingSoon _leavingSoon;
     private readonly IUserManager _userManager;
+    private readonly IHttpClientFactory _http;
     private readonly RecycleBin _bin;
     private readonly ILibraryManager _libraryManager;
 
@@ -41,8 +42,10 @@ public class JellyCleanController : ControllerBase
     /// <param name="userManager">User manager.</param>
     /// <param name="bin">Recycle bin.</param>
     /// <param name="libraryManager">Library manager.</param>
-    public JellyCleanController(Catalog catalog, Remover remover, ArrClient arr, LeavingSoon leavingSoon, IUserManager userManager, RecycleBin bin, ILibraryManager libraryManager)
+    /// <param name="http">HTTP client factory, for the digest.</param>
+    public JellyCleanController(Catalog catalog, Remover remover, ArrClient arr, LeavingSoon leavingSoon, IUserManager userManager, RecycleBin bin, ILibraryManager libraryManager, IHttpClientFactory http)
     {
+        _http = http;
         _bin = bin;
         _libraryManager = libraryManager;
         _catalog = catalog;
@@ -199,15 +202,60 @@ public class JellyCleanController : ControllerBase
     /// </summary>
     /// <param name="view">One view to run, by name.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>No content.</returns>
+    /// <param name="dry">Only show what it would add, without changing anything.</param>
+    /// <returns>What each view added, or would add.</returns>
     [HttpPost("LeavingSoon/Run")]
-    public async Task<ActionResult> RunLeavingSoon([FromQuery] string? view, CancellationToken cancellationToken)
+    public async Task<ActionResult> RunLeavingSoon([FromQuery] string? view, CancellationToken cancellationToken, [FromQuery] bool dry = false)
     {
         var views = view is null
             ? Plugin.Instance!.Configuration.Views.Where(v => v.Runs().Length > 0).Select(v => v.Name).ToList()
             : [view];
-        await _leavingSoon.RunAsync(cancellationToken, views).ConfigureAwait(false);
-        return NoContent();
+        return Ok(await _leavingSoon.RunAsync(cancellationToken, views, dry).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// Movies and series that are in Jellyfin more than once, with the copy to keep picked out.
+    /// </summary>
+    /// <param name="prefer">"best" keeps the best quality, "smallest" the smallest file.</param>
+    /// <returns>One set per movie or series.</returns>
+    [HttpGet("Copies")]
+    public ActionResult GetCopies([FromQuery] string prefer = "best")
+        => Ok(Copies.Resolve(_catalog.Find(new Filter { Limit = int.MaxValue }), prefer));
+
+    /// <summary>
+    /// The numbers for the Stats tab.
+    /// </summary>
+    /// <returns>Space over time, the biggest unplayed items and a year per user.</returns>
+    [HttpGet("Stats")]
+    public ActionResult GetStats()
+        => Ok(Stats.Build(_catalog.Get().Values.ToList(), _userManager.GetUsers().Select(u => (u.Id, u.Username)), Plugin.Instance!.Configuration.FreedByMonth, DateTime.UtcNow));
+
+    /// <summary>
+    /// Sends the digest now, to the address given or the saved one.
+    /// </summary>
+    /// <param name="url">The webhook address; empty uses the saved one.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Whether it worked, and the text.</returns>
+    [HttpPost("Digest/Test")]
+    public async Task<ActionResult> TestDigest([FromQuery] string? url, CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance!.Configuration;
+        var text = Digest.Text(config, _catalog.Get(), DateTime.UtcNow);
+        var to = string.IsNullOrWhiteSpace(url) ? config.DigestUrl : url;
+        if (string.IsNullOrWhiteSpace(to))
+        {
+            return Ok(new { Ok = false, Message = "Fill in a webhook address first.", Text = text });
+        }
+
+        try
+        {
+            await Digest.SendAsync(_http.CreateClient(), to.Trim(), text, cancellationToken).ConfigureAwait(false);
+            return Ok(new { Ok = true, Message = "Sent.", Text = text });
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException or InvalidOperationException)
+        {
+            return Ok(new { Ok = false, Message = "Could not send it: " + ex.Message, Text = text });
+        }
     }
 
     /// <summary>
@@ -226,6 +274,7 @@ public class JellyCleanController : ControllerBase
             r.Size,
             r.Removed,
             r.Source,
+            r.Batch,
             DeleteAt = RecycleBin.DeleteAt(r),
             Arr = r.Arr.Select(a => a.Kind).Distinct(),
         }));
@@ -242,6 +291,18 @@ public class JellyCleanController : ControllerBase
     {
         var (error, warning) = await _bin.RestoreAsync(itemId, cancellationToken).ConfigureAwait(false);
         return Ok(new { Error = error, Warning = warning });
+    }
+
+    /// <summary>
+    /// Undoes the last removal: everything of it that is still in the recycle bin comes back.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>How many came back, and what went wrong.</returns>
+    [HttpPost("RecycleBin/UndoLast")]
+    public async Task<ActionResult> UndoLastRemoval(CancellationToken cancellationToken)
+    {
+        var (restored, problems) = await _bin.UndoLastAsync(cancellationToken).ConfigureAwait(false);
+        return Ok(new { Restored = restored, Problems = problems });
     }
 
     /// <summary>

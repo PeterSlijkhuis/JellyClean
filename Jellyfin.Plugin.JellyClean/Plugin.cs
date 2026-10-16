@@ -56,6 +56,12 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             },
             new PluginPageInfo
             {
+                Name = "JellyCleanStats",
+                DisplayName = "JellyClean stats",
+                EmbeddedResourcePath = GetType().Namespace + ".Configuration.statsPage.html"
+            },
+            new PluginPageInfo
+            {
                 Name = "JellyCleanSettings",
                 DisplayName = "JellyClean settings",
                 EmbeddedResourcePath = GetType().Namespace + ".Configuration.settingsPage.html"

@@ -83,8 +83,9 @@ public class LeavingSoon
     /// <param name="source">"you" or the name of a saved view.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="noticeDays">Days until due; 0 uses the general notice period.</param>
+    /// <param name="dry">Only work out what would go on the list.</param>
     /// <returns>The items added and the ones left off.</returns>
-    public async Task<RemovalPlan> AddAsync(IEnumerable<Guid> ids, string source, CancellationToken cancellationToken, int noticeDays = 0)
+    public async Task<RemovalPlan> AddAsync(IEnumerable<Guid> ids, string source, CancellationToken cancellationToken, int noticeDays = 0, bool dry = false)
     {
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -93,6 +94,10 @@ public class LeavingSoon
             var safeguards = _remover.Safeguards();
             safeguards.MaxItems = 0;
             var plan = RemovalPlan.Build(ids.Where(id => !listed.Contains(id)), _catalog.Get(), safeguards);
+            if (dry)
+            {
+                return plan;
+            }
 
             var now = DateTime.UtcNow;
             var due = now.AddDays(noticeDays > 0 ? noticeDays : Math.Max(0, Config.NoticeDays));
@@ -240,11 +245,13 @@ public class LeavingSoon
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="views">Run these views now, whatever their schedule. Null: the ones that are due.</param>
-    /// <returns>A task.</returns>
-    public async Task RunAsync(CancellationToken cancellationToken, IReadOnlyCollection<string>? views = null)
+    /// <param name="dry">Only log what the views would put on the list; nothing changes.</param>
+    /// <returns>What each view did, or would do.</returns>
+    public async Task<List<RuleRun>> RunAsync(CancellationToken cancellationToken, IReadOnlyCollection<string>? views = null, bool dry = false)
     {
         var items = _catalog.Get(refresh: true);
         var now = DateTime.Now;
+        var runs = new List<RuleRun>();
 
         foreach (var view in Config.Views.Where(v => views is null ? v.NextRun(now) <= now : views.Contains(v.Name)).ToList())
         {
@@ -254,9 +261,26 @@ public class LeavingSoon
                 continue;
             }
 
-            var plan = await AddAsync(_catalog.Find(filter).Select(i => i.Id), view.Name, cancellationToken, view.NoticeDays).ConfigureAwait(false);
-            (view.LastRun, view.LastAdded) = (now, plan.Remove.Count);
+            var matches = _catalog.Find(filter);
+            var plan = await AddAsync(matches.Select(i => i.Id), view.Name, cancellationToken, view.NoticeDays, dry).ConfigureAwait(false);
+            if (!dry)
+            {
+                (view.LastRun, view.LastAdded) = (now, plan.Remove.Count);
+            }
+
+            var run = new RuleRun
+            {
+                When = DateTime.UtcNow, Rule = view.Name, Dry = dry, Matched = matches.Count, Added = plan.Remove.Count,
+                AddedSize = plan.TotalSize, Kept = plan.Skip.Count, Titles = plan.Remove.Take(30).Select(p => p.Item.Title).ToArray(),
+            };
+            runs.Add(run);
+            Config.RuleRuns = Config.RuleRuns.Prepend(run).Take(100).ToArray();
             Plugin.Instance!.SaveConfiguration();
+        }
+
+        if (dry)
+        {
+            return runs;
         }
 
         var missing = Config.LeavingSoon.Where(l => !items.ContainsKey(l.Id)).Select(l => l.Id).ToList();
@@ -285,6 +309,8 @@ public class LeavingSoon
         {
             _lock.Release();
         }
+
+        return runs;
     }
 
     // Makes the collection hold exactly the listed items, or deletes it when switched off.

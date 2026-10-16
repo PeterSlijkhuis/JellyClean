@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyClean.Library;
 using MediaBrowser.Model.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyClean;
 
@@ -15,16 +17,25 @@ public class LeavingSoonTask : IScheduledTask
 {
     private readonly LeavingSoon _leavingSoon;
     private readonly RecycleBin _bin;
+    private readonly Catalog _catalog;
+    private readonly IHttpClientFactory _http;
+    private readonly ILogger<LeavingSoonTask> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LeavingSoonTask"/> class.
     /// </summary>
     /// <param name="leavingSoon">Leaving soon list.</param>
     /// <param name="bin">Recycle bin.</param>
-    public LeavingSoonTask(LeavingSoon leavingSoon, RecycleBin bin)
+    /// <param name="catalog">Catalog, for the digest.</param>
+    /// <param name="http">HTTP client factory, for the digest.</param>
+    /// <param name="logger">Logger.</param>
+    public LeavingSoonTask(LeavingSoon leavingSoon, RecycleBin bin, Catalog catalog, IHttpClientFactory http, ILogger<LeavingSoonTask> logger)
     {
         _leavingSoon = leavingSoon;
         _bin = bin;
+        _catalog = catalog;
+        _http = http;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -34,7 +45,7 @@ public class LeavingSoonTask : IScheduledTask
     public string Key => "JellyCleanLeavingSoon";
 
     /// <inheritdoc />
-    public string Description => "Empties what has been in the recycle bin long enough. Runs the scheduled views whose time has come, putting their matches on the Leaving soon list. Removes due items only where that is switched on.";
+    public string Description => "Empties what has been in the recycle bin long enough. Runs the scheduled views whose time has come, putting their matches on the Leaving soon list. Removes due items only where that is switched on, and sends the digest when it is time.";
 
     /// <inheritdoc />
     public string Category => "JellyClean";
@@ -44,6 +55,38 @@ public class LeavingSoonTask : IScheduledTask
     {
         await _bin.PurgeAsync(all: false, cancellationToken).ConfigureAwait(false);
         await _leavingSoon.RunAsync(cancellationToken).ConfigureAwait(false);
+        await SendDigestAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SendDigestAsync(CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance!.Configuration;
+        var now = DateTime.Now;
+        if (string.IsNullOrWhiteSpace(config.DigestUrl) || config.Digest.NextRun(now) is not { } next || next > now)
+        {
+            return;
+        }
+
+        if (config.Digest.LastRun is null)
+        {
+            // Just switched on: the first one goes out at its own day and hour, not right away.
+            config.Digest.LastRun = now;
+            Plugin.Instance.SaveConfiguration();
+            return;
+        }
+
+        try
+        {
+            await Digest.SendAsync(_http.CreateClient(), config.DigestUrl.Trim(), Digest.Text(config, _catalog.Get(), DateTime.UtcNow), cancellationToken).ConfigureAwait(false);
+            Activity.Info(_logger, "Sent the digest");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException)
+        {
+            Activity.Log(_logger, LogLevel.Warning, ex, "Could not send the digest");
+        }
+
+        config.Digest.LastRun = now;
+        Plugin.Instance.SaveConfiguration();
     }
 
     /// <inheritdoc />
