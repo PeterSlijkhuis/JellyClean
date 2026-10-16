@@ -143,6 +143,11 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets the mail server for the digest by email. An empty To sends no email.
     /// </summary>
     public MailSettings Mail { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets which parts the digest has; see <see cref="Library.Digest.Parts"/>.
+    /// </summary>
+    public string[] DigestParts { get; set; } = ["due", "week", "bin", "freed", "disk"];
 }
 
 /// <summary>

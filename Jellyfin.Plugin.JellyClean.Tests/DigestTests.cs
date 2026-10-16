@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -30,6 +32,62 @@ public sealed class DigestTests
         Assert.Contains("RCPT TO:<anna@example.com>", mail, StringComparison.Ordinal);
         Assert.Contains("Freed so far: 1 TB.", mail, StringComparison.Ordinal);
         server.Stop();
+    }
+
+    [Fact]
+    public void Digest_has_only_the_parts_you_picked()
+    {
+        var now = new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc);
+        var due = new CatalogItem { Id = Guid.NewGuid(), Name = "Alien", Type = "Movie", Year = 1979, Size = 5_000_000_000, Added = now.AddYears(-2), Rating = 8.5f, RunTimeTicks = TimeSpan.FromHours(2).Ticks };
+        var soon = new CatalogItem { Id = Guid.NewGuid(), Name = "Dune", Type = "Movie", Year = 2021, Size = 3_000_000_000, Added = now.AddYears(-2) };
+        var items = new Dictionary<Guid, CatalogItem> { [due.Id] = due, [soon.Id] = soon };
+        var config = new PluginConfiguration
+        {
+            LeavingSoon =
+            [
+                new LeavingItem { Id = due.Id, Title = "Alien (1979)", Due = now.AddDays(-1) },
+                new LeavingItem { Id = soon.Id, Title = "Dune (2021)", Due = now.AddDays(3) },
+            ],
+            DigestParts = ["week", "gem", "disk"],
+        };
+        var stats = Stats.Build(items.Values.ToList(), [], [], now) with { Disks = [new DiskSpace("/media", 10_000_000_000_000, 1_000_000_000_000, ["Movies"])] };
+
+        var text = Digest.Text(config, items, stats, now);
+
+        Assert.DoesNotContain("Due now", text, StringComparison.Ordinal);
+        Assert.Contains("Due in the next 7 days: 1, 3.0 GB: Dune (2021).", text, StringComparison.Ordinal);
+        Assert.Contains("Alien (1979), rated 8.5", text, StringComparison.Ordinal);
+        Assert.Contains("Disk /media: 1.0 TB free of 10 TB", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Insights_find_gems_decades_and_genres()
+    {
+        var now = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc);
+        var gem = new CatalogItem { Id = Guid.NewGuid(), Name = "Heat", Type = "Movie", Year = 1995, Rating = 8.3f, Size = 40, Genres = ["Crime"], Added = now.AddYears(-3), RunTimeTicks = TimeSpan.FromHours(3).Ticks };
+        var seen = new CatalogItem { Id = Guid.NewGuid(), Name = "Up", Type = "Movie", Year = 2009, Rating = 8.0f, Size = 60, Genres = ["Crime"], Added = now, AnyPlayed = true, LastWatched = now.AddYears(-3), RunTimeTicks = TimeSpan.FromHours(1).Ticks };
+
+        var lib = Stats.Build([gem, seen], [], [], now).Library;
+
+        Assert.Same(gem, Assert.Single(lib.Gems));
+        Assert.Equal(["1990s", "2000s"], lib.Decades.Select(d => d.Name));
+        Assert.Equal(new GenreInsight("Crime", 2, 100, 1, 40), Assert.Single(lib.Genres));
+        Assert.Equal(0.6, lib.PlayedShare);
+        Assert.Same(seen, lib.Hogs[0]);
+        Assert.Same(gem, lib.Longest);
+        Assert.Equal((1, 60L), (lib.Stale.Count, lib.Stale.Size));
+        Assert.Equal((1, 40L), (lib.Untouched.Count, lib.Untouched.Size));
+    }
+
+    [Fact]
+    public void Disks_group_library_folders_by_the_disk_they_are_on()
+    {
+        var root = System.IO.Path.GetTempPath();
+        var disks = Stats.Disks([("Movies", System.IO.Path.Combine(root, "a")), ("Shows", System.IO.Path.Combine(root, "b"))]);
+
+        var disk = Assert.Single(disks);
+        Assert.Equal(["Movies", "Shows"], disk.Libraries);
+        Assert.True(disk.Total > 0);
     }
 
     // Just enough SMTP to accept one message; returns everything the client said.

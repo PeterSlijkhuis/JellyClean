@@ -226,9 +226,17 @@ public class JellyCleanController : ControllerBase
     /// The numbers for the Stats tab.
     /// </summary>
     /// <returns>Space over time, the biggest unplayed items and a year per user.</returns>
-    [HttpGet("Stats")]
+    [HttpGet("Insights")]
     public ActionResult GetStats()
-        => Ok(Stats.Build(_catalog.Get().Values.ToList(), _userManager.GetUsers().Select(u => (u.Id, u.Username)), Plugin.Instance!.Configuration.FreedByMonth, DateTime.UtcNow));
+        => Ok(Stats.For(_catalog, _userManager, _libraryManager));
+
+    /// <summary>
+    /// Writes the digest the way it is saved, without sending it.
+    /// </summary>
+    /// <returns>The text.</returns>
+    [HttpGet("Digest/Preview")]
+    public ActionResult PreviewDigest()
+        => Ok(new { Text = Digest.Text(Plugin.Instance!.Configuration, _catalog.Get(), Stats.For(_catalog, _userManager, _libraryManager), DateTime.UtcNow) });
 
     /// <summary>
     /// Sends the digest now, the way it is saved.
@@ -239,7 +247,7 @@ public class JellyCleanController : ControllerBase
     public async Task<ActionResult> TestDigest(CancellationToken cancellationToken)
     {
         var config = Plugin.Instance!.Configuration;
-        var text = Digest.Text(config, _catalog.Get(), DateTime.UtcNow);
+        var text = Digest.Text(config, _catalog.Get(), Stats.For(_catalog, _userManager, _libraryManager), DateTime.UtcNow);
         if (string.IsNullOrWhiteSpace(config.DigestUrl) && string.IsNullOrWhiteSpace(config.Mail.To))
         {
             return Ok(new { Ok = false, Message = "Fill in a webhook or an email address first.", Text = text });

@@ -167,7 +167,7 @@ public class Catalog
             _builtAt = DateTime.MinValue;
         }
 
-        // ponytail: the next Get() rebuilds while the caller waits; fine after a removal, which already took a while.
+        // The next Get() rebuilds while the caller waits; fine after a removal, which already took a while.
     }
 
     // Jellyfin drops a series from Next Up a year after it was last played (its default).
