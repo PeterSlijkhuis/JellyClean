@@ -23,10 +23,10 @@
             #JellyCleanRecoverPage .jc-card h2 { margin: 0 0 0.25em; font-size: 1.15em; font-weight: 600; }
             #JellyCleanRecoverPage .jc-hint { margin: 0; opacity: 0.7; font-size: 0.92em; flex: 1 1 300px; }
             #JellyCleanRecoverPage .jc-row { display: flex; gap: 1em; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 0.8em; }
-            #JellyCleanRecoverPage .jc-actions { display: flex; gap: 0.5em; flex: 1 1 300px; justify-content: flex-end; }
+            #JellyCleanRecoverPage .jc-actions { display: flex; gap: 0.5em; flex: 1 1 300px; justify-content: flex-end; flex-wrap: wrap; }
             #JellyCleanRecoverPage .jc-btn { padding: 0.75em 0.9em; border-radius: 10px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600; cursor: pointer; background: rgba(128, 128, 128, 0.15); color: inherit; white-space: nowrap; }
             #JellyCleanRecoverPage .jc-btn[aria-pressed="true"] { border-color: currentColor; }
-            @media (max-width: 600px) { #JellyCleanRecoverPage .jc-actions .jc-btn { flex: 1 1 0; } }
+            @media (max-width: 600px) { #JellyCleanRecoverPage .jc-actions .jc-btn { flex: 1 1 0; } #JellyCleanRecoverPage #jcUndo { flex-basis: 100%; white-space: normal; } }
             #JellyCleanRecoverPage button:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 2px; }
             #JellyCleanRecoverPage .jc-item { display: flex; gap: 1em; align-items: center; flex-wrap: wrap; padding: 0.8em 0; border-top: 1px solid var(--jc-line); }
             #JellyCleanRecoverPage .jc-item-text { flex: 1 1 320px; min-width: 0; }
@@ -49,6 +49,7 @@
                     <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanLeaving">Leaving soon</button>
                     <button type="button" class="jc-tab" aria-current="page">Recover</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanInsights">Insights</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanSettings">Settings</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
                 </nav>
@@ -59,6 +60,7 @@
                         <p class="jc-hint" id="jcSummary">Loading...</p>
                         <div class="jc-actions">
                             <button type="button" class="jc-btn" id="jcRefresh">Refresh</button>
+                            <button type="button" class="jc-btn primary" id="jcUndo" hidden>Undo last removal</button>
                             <button type="button" class="jc-btn danger" id="jcEmpty">Empty now</button>
                         </div>
                     </div>
@@ -109,6 +111,13 @@
                             ? list.length + (list.length === 1 ? ' item, ' : ' items, ') + bytes(size) + ' can be recovered.'
                             : 'Nothing to recover.';
                         $('jcEmpty').hidden = !list.length;
+                        var last = list.filter(function (r) { return r.Batch && !/^0{8}-/.test(r.Batch); })
+                            .reduce(function (a, r) { return !a || r.Removed > a.Removed ? r : a; }, null);
+                        var batch = last ? list.filter(function (r) { return r.Batch === last.Batch; }) : [];
+                        $('jcUndo').hidden = !batch.length;
+                        $('jcUndo').textContent = batch.length === 1 ? 'Undo last removal: ' + last.Title
+                            : 'Undo last removal: ' + batch.length + ' items, ' + bytes(batch.reduce(function (sum, r) { return sum + r.Size; }, 0));
+                        $('jcUndo').title = batch.length ? 'Recovers everything removed on ' + date(last.Removed) + ' in one go.' : '';
                         var box = $('jcList');
                         box.textContent = '';
                         if (!list.length) {
@@ -152,6 +161,13 @@
                             b.disabled = ok;
                             if (ok) { setTimeout(load, 4000); }
                         }).catch(function (err) { window.alert(err.message); b.disabled = false; b.textContent = 'Recover'; });
+                    } else if (b.id === 'jcUndo') {
+                        b.disabled = true;
+                        b.textContent = 'Recovering...';
+                        call('POST', 'RecycleBin/UndoLast').then(function (r) {
+                            $('jcSummary').textContent = 'Recovered ' + r.Restored + (r.Restored === 1 ? ' item' : ' items') + '. ' + (r.Problems.length ? r.Problems.join(' ') : 'They are back in Jellyfin after the scan that just started.');
+                            setTimeout(load, 4000);
+                        }).catch(function (err) { window.alert(err.message); load(); }).finally(function () { b.disabled = false; });
                     } else if (b.id === 'jcEmpty') {
                         if (window.confirm('Delete everything here for good, and remove it from Radarr and Sonarr? This can not be undone.')) {
                             b.disabled = true;

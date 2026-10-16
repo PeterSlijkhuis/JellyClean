@@ -110,6 +110,35 @@ public sealed class RemoverTests : IDisposable
         Assert.Equal(1, await bin.PurgeAsync(all: true, CancellationToken.None));
         Assert.Empty(_config.Recycled);
         Assert.Equal([".ignore"], Directory.EnumerateFileSystemEntries(Path.Combine(lib, RecycleBin.FolderName)).Select(Path.GetFileName));
+        Assert.Equal(1, Assert.Single(_config.FreedByMonth).Count);
+    }
+
+    [Fact]
+    public async Task Undo_last_brings_back_only_the_last_removal()
+    {
+        var lib = Path.Combine(_root, "movies");
+        _library.Setup(l => l.GetVirtualFolders()).Returns([new MediaBrowser.Model.Entities.VirtualFolderInfo { Name = "Movies", Locations = [lib] }]);
+        var bin = new RecycleBin(_library.Object, new ArrClient(Mock.Of<IHttpClientFactory>()), NullLogger<RecycleBin>.Instance);
+        RecycledItem Recycle(string name, DateTime when)
+        {
+            var folder = Path.Combine(lib, name);
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, name + ".mkv"), "x");
+            var r = bin.Move(new CatalogItem { Id = Guid.NewGuid(), Name = name, Type = "Movie" }, [folder]);
+            (r.Removed, r.Batch) = (when, Guid.NewGuid());
+            RecycleBin.Add(r);
+            return r;
+        }
+
+        var older = Recycle("Alien", DateTime.UtcNow.AddDays(-1));
+        Recycle("Dune", DateTime.UtcNow);
+
+        var (restored, problems) = await bin.UndoLastAsync(CancellationToken.None);
+
+        Assert.Equal(1, restored);
+        Assert.Empty(problems);
+        Assert.True(File.Exists(Path.Combine(lib, "Dune", "Dune.mkv")));
+        Assert.Equal(older.Id, Assert.Single(_config.Recycled).Id);
     }
 
     [Fact]

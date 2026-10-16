@@ -167,7 +167,7 @@ public class Catalog
             _builtAt = DateTime.MinValue;
         }
 
-        // ponytail: the next Get() rebuilds while the caller waits; fine after a removal, which already took a while.
+        // The next Get() rebuilds while the caller waits; fine after a removal, which already took a while.
     }
 
     // Jellyfin drops a series from Next Up a year after it was last played (its default).
@@ -211,6 +211,7 @@ public class Catalog
         {
             var children = (folder.Type == "Series" ? bySeries[folder.Id] : bySeason[folder.Id]).ToList();
             folder.Size = children.Sum(e => e.Size);
+            folder.RunTimeTicks = children.Sum(e => e.RunTimeTicks);
             folder.AnyPlayed = children.Any(e => e.AnyPlayed);
             folder.InProgress = children.Any(e => e.InProgress);
             folder.NextUp = children.Any(e => e.NextUp);
@@ -241,6 +242,7 @@ public class Catalog
             foreach (var (item, _) in group)
             {
                 item.CopiesIn = group.Where(g => g.Item != item).Select(g => g.Item.Library).ToArray();
+                item.CopyGroup = group.Key.Type + " " + group.Key.Key;
             }
         }
     }
@@ -312,6 +314,7 @@ public class Catalog
             {
                 var m = measured[item.Id];
                 row.Size = m.Size;
+                row.RunTimeTicks = item.RunTimeTicks ?? 0;
                 (row.Resolution, row.Codec, row.Hdr) = m.Quality;
                 row.WatchedBy = data.Where(u => u.Data!.Played).Select(u => u.Id).ToArray();
                 row.AnyPlayed = row.WatchedBy.Length > 0 || data.Any(u => u.Data!.PlayCount > 0 || u.Data.PlaybackPositionTicks > 0);

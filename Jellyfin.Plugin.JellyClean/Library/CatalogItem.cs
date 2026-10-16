@@ -83,6 +83,12 @@ public sealed class CatalogItem
     /// <summary>Gets or sets when each user last played it. Only used to build the catalog.</summary>
     internal Dictionary<Guid, DateTime> PlayedOn { get; set; } = [];
 
+    /// <summary>Gets or sets what ties copies of the same movie or series together, like "Movie tmdb603"; null without copies.</summary>
+    public string? CopyGroup { get; set; }
+
+    /// <summary>Gets or sets the running time in ticks. Series and seasons add up their episodes.</summary>
+    public long RunTimeTicks { get; set; }
+
     /// <summary>Gets or sets the Jellyfin tags.</summary>
     public string[] Tags { get; set; } = [];
 

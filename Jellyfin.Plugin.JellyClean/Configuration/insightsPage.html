@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JellyClean insights</title>
+</head>
+<body>
+    <div id="JellyCleanInsightsPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-button">
+        <style>
+            /* Same look as the Library page, scoped to this page. */
+            #JellyCleanInsightsPage {
+                --jc-accent: #00a4dc;
+                --jc-accent-2: #aa5cc3;
+                --jc-line: rgba(128, 128, 128, 0.22);
+                --jc-card: rgba(128, 128, 128, 0.07);
+                --jc-radius: 14px;
+            }
+            #JellyCleanInsightsPage .content-primary { max-width: 1240px; padding-bottom: 4em; }
+            #JellyCleanInsightsPage .jc-tabs { display: flex; gap: 0.4em; flex-wrap: wrap; margin: 1em 0 1.4em; }
+            #JellyCleanInsightsPage .jc-tab { padding: 0.6em 1.2em; border-radius: 999px; border: 1px solid var(--jc-line); font: inherit; font-weight: 600; cursor: pointer; background: transparent; color: inherit; opacity: 0.75; }
+            #JellyCleanInsightsPage .jc-tab[aria-current="page"] { background: linear-gradient(135deg, var(--jc-accent-2), var(--jc-accent)); border-color: transparent; color: #fff; opacity: 1; }
+            #JellyCleanInsightsPage button:focus-visible, #JellyCleanInsightsPage [tabindex]:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 2px; }
+            #JellyCleanInsightsPage .jc-card { background: var(--jc-card); border: 1px solid var(--jc-line); border-radius: var(--jc-radius); padding: 1.3em 1.4em; margin-bottom: 1.2em; }
+            #JellyCleanInsightsPage .jc-card h2 { margin: 0 0 0.25em; font-size: 1.15em; font-weight: 600; }
+            #JellyCleanInsightsPage .jc-hint { margin: 0 0 0.9em; opacity: 0.7; font-size: 0.92em; }
+            #JellyCleanInsightsPage .jc-hero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8em; margin-bottom: 1.2em; }
+            #JellyCleanInsightsPage .jc-stat { padding: 1em 1.1em; border-radius: var(--jc-radius); border: 1px solid var(--jc-line); background: var(--jc-card); }
+            #JellyCleanInsightsPage .jc-stat b { display: block; font-size: 1.7em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+            #JellyCleanInsightsPage .jc-stat span { opacity: 0.7; font-size: 0.88em; }
+            #JellyCleanInsightsPage .jc-stat.big { background: linear-gradient(135deg, rgba(170, 92, 195, 0.28), rgba(0, 164, 220, 0.22)); border-color: transparent; }
+            #JellyCleanInsightsPage .jc-chart { width: 100%; }
+            #JellyCleanInsightsPage .jc-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+            #JellyCleanInsightsPage .jc-chart text { fill: currentColor; opacity: 0.6; font-size: 11px; }
+            #JellyCleanInsightsPage .jc-chart .grid { stroke: currentColor; opacity: 0.12; }
+            #JellyCleanInsightsPage .jc-chart .hit { fill: transparent; cursor: default; }
+            #JellyCleanInsightsPage .jc-chart .hit:hover, #JellyCleanInsightsPage .jc-chart .hit:focus { fill: rgba(128, 128, 128, 0.12); outline: none; }
+            #JellyCleanInsightsPage .jc-legend { display: flex; gap: 0.4em 1.2em; flex-wrap: wrap; font-size: 0.85em; opacity: 0.8; margin-top: 0.6em; }
+            #JellyCleanInsightsPage .jc-legend i { display: inline-block; width: 0.8em; height: 0.8em; border-radius: 3px; margin-right: 0.4em; vertical-align: -0.05em; }
+            #JellyCleanInsightsPage .jc-shame { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1em; }
+            #JellyCleanInsightsPage .jc-shame a { color: inherit; text-decoration: none; display: block; }
+            #JellyCleanInsightsPage .jc-shame img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 10px; background: rgba(128, 128, 128, 0.15); display: block; filter: grayscale(0.55); transition: filter 0.2s; }
+            #JellyCleanInsightsPage .jc-shame a:hover img, #JellyCleanInsightsPage .jc-shame a:focus img { filter: none; }
+            #JellyCleanInsightsPage .jc-shame b { display: block; margin-top: 0.45em; font-size: 0.92em; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            #JellyCleanInsightsPage .jc-shame small { display: block; opacity: 0.7; font-size: 0.8em; }
+            #JellyCleanInsightsPage .jc-rank { position: relative; }
+            #JellyCleanInsightsPage .jc-rank::before { content: attr(data-rank); position: absolute; top: 0.4em; left: 0.4em; z-index: 1; min-width: 1.6em; height: 1.6em; display: grid; place-items: center; border-radius: 999px; background: rgba(224, 90, 90, 0.92); color: #fff; font-weight: 700; font-size: 0.8em; padding: 0 0.45em; box-sizing: border-box; }
+            #JellyCleanInsightsPage .jc-users { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1em; }
+            #JellyCleanInsightsPage .jc-wrap { border-radius: 18px; padding: 1.3em 1.3em 1.1em; color: #fff; background: linear-gradient(150deg, hsl(var(--h), 62%, 38%), hsl(calc(var(--h) + 50), 70%, 22%)); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25); }
+            #JellyCleanInsightsPage .jc-wrap h3 { margin: 0; font-size: 1.15em; }
+            #JellyCleanInsightsPage .jc-wrap > small { opacity: 0.8; font-size: 0.82em; }
+            #JellyCleanInsightsPage .jc-wrap .jc-hours { font-size: 2.6em; font-weight: 800; line-height: 1; margin: 0.45em 0 0.1em; font-variant-numeric: tabular-nums; }
+            #JellyCleanInsightsPage .jc-wrap .jc-hours small { font-size: 0.38em; font-weight: 600; opacity: 0.85; margin-left: 0.2em; }
+            #JellyCleanInsightsPage .jc-wrap dl { display: grid; grid-template-columns: auto 1fr; gap: 0.35em 0.9em; margin: 0.9em 0 0; font-size: 0.9em; }
+            #JellyCleanInsightsPage .jc-wrap dt { opacity: 0.75; }
+            #JellyCleanInsightsPage .jc-wrap dd { margin: 0; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+            #JellyCleanInsightsPage .jc-wrap .jc-pills { display: flex; gap: 0.3em; flex-wrap: wrap; }
+            #JellyCleanInsightsPage .jc-wrap .jc-pills span { padding: 0.1em 0.55em; border-radius: 999px; background: rgba(255, 255, 255, 0.18); font-weight: 600; font-size: 0.9em; }
+            #JellyCleanInsightsPage .jc-pick { display: flex; gap: 0.4em; flex-wrap: wrap; margin-bottom: 1em; }
+            #JellyCleanInsightsPage .jc-pick button { padding: 0.45em 0.95em; min-height: 36px; border-radius: 999px; border: 1px solid var(--jc-line); background: transparent; color: inherit; font: inherit; font-size: 0.9em; cursor: pointer; }
+            #JellyCleanInsightsPage .jc-pick button[aria-pressed="true"] { border-color: var(--jc-accent); background: rgba(0, 164, 220, 0.16); }
+            #JellyCleanInsightsPage .jc-bars { display: grid; grid-template-columns: minmax(70px, max-content) 1fr auto; gap: 0.65em 0.9em; align-items: center; }
+            #JellyCleanInsightsPage .jc-bars > b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            #JellyCleanInsightsPage .jc-track { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: rgba(128, 128, 128, 0.1); }
+            #JellyCleanInsightsPage .jc-track span { height: 100%; transition: width 0.3s; }
+            #JellyCleanInsightsPage .jc-track span + span { border-left: 2px solid rgba(0, 0, 0, 0.35); }
+            #JellyCleanInsightsPage .jc-bars > small { font-variant-numeric: tabular-nums; opacity: 0.85; text-align: right; }
+            #JellyCleanInsightsPage .jc-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.2em; }
+            #JellyCleanInsightsPage .jc-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.7em; }
+            #JellyCleanInsightsPage .jc-fact { padding: 0.8em 0.9em; border-radius: 12px; background: rgba(128, 128, 128, 0.08); border: 1px solid var(--jc-line); }
+            #JellyCleanInsightsPage .jc-fact span { display: block; opacity: 0.65; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.04em; }
+            #JellyCleanInsightsPage .jc-fact b { display: block; font-size: 1.15em; margin-top: 0.15em; }
+            #JellyCleanInsightsPage .jc-fact small { display: block; opacity: 0.7; font-size: 0.85em; }
+            #JellyCleanInsightsPage .jc-disk { margin-bottom: 1em; }
+            #JellyCleanInsightsPage .jc-disk:last-child { margin-bottom: 0; }
+            #JellyCleanInsightsPage .jc-disk-head { display: flex; justify-content: space-between; gap: 1em; flex-wrap: wrap; margin-bottom: 0.4em; }
+            #JellyCleanInsightsPage .jc-disk-head small { opacity: 0.7; }
+            #JellyCleanInsightsPage .jc-stack { display: flex; height: 26px; border-radius: 8px; overflow: hidden; background: rgba(128, 128, 128, 0.12); }
+            #JellyCleanInsightsPage .jc-stack span { height: 100%; min-width: 2px; }
+            #JellyCleanInsightsPage .jc-stack span + span { border-left: 2px solid rgba(0, 0, 0, 0.35); }
+            #JellyCleanInsightsPage .jc-forecast { margin: 0.45em 0 0; font-size: 0.9em; }
+            #JellyCleanInsightsPage .jc-forecast.warn { color: #f0b429; }
+            #JellyCleanInsightsPage .jc-cols { display: flex; align-items: flex-end; gap: 4px; height: 170px; padding-top: 1.2em; }
+            #JellyCleanInsightsPage .jc-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+            #JellyCleanInsightsPage .jc-col i { width: 100%; max-width: 46px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #00a4dc, #aa5cc3); }
+            #JellyCleanInsightsPage .jc-col small { margin-top: 0.35em; font-size: 0.72em; opacity: 0.7; white-space: nowrap; }
+            #JellyCleanInsightsPage .jc-sub { margin: 1.1em 0 0.45em; font-size: 0.9em; font-weight: 600; opacity: 0.85; }
+            #JellyCleanInsightsPage .jc-rows { display: flex; flex-direction: column; }
+            #JellyCleanInsightsPage .jc-rows a { display: flex; gap: 0.8em; align-items: center; padding: 0.55em 0; border-top: 1px solid var(--jc-line); color: inherit; text-decoration: none; }
+            #JellyCleanInsightsPage .jc-rows img { width: 40px; height: 60px; object-fit: cover; border-radius: 6px; background: rgba(128, 128, 128, 0.15); flex: none; }
+            #JellyCleanInsightsPage .jc-rows span { flex: 1; min-width: 0; }
+            #JellyCleanInsightsPage .jc-rows b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            #JellyCleanInsightsPage .jc-rows small { display: block; opacity: 0.7; font-size: 0.85em; }
+            #JellyCleanInsightsPage .jc-rows em { font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+            #JellyCleanInsightsPage .jc-gem::before { background: rgba(240, 180, 41, 0.95) !important; color: #222 !important; }
+            #JellyCleanInsightsPage .jc-quiet { margin: 1em 0 0; opacity: 0.7; font-size: 0.9em; }
+            #JellyCleanInsightsPage .jc-tip { position: fixed; z-index: 1000; pointer-events: none; max-width: 260px; padding: 0.55em 0.75em; border-radius: 10px; background: rgba(16, 16, 20, 0.96); color: #fff; border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); font-size: 0.85em; line-height: 1.45; white-space: pre-line; }
+            #JellyCleanInsightsPage .jc-tip b { display: block; font-size: 1.05em; }
+            #JellyCleanInsightsPage [hidden] { display: none !important; }
+            @media (max-width: 760px) {
+                #JellyCleanInsightsPage .jc-two { grid-template-columns: minmax(0, 1fr); }
+                #JellyCleanInsightsPage .jc-cols { height: 140px; gap: 2px; }
+                #JellyCleanInsightsPage .jc-hero { grid-template-columns: repeat(2, 1fr); }
+                #JellyCleanInsightsPage .jc-stat b { font-size: 1.35em; }
+                #JellyCleanInsightsPage .jc-card { padding: 1em; }
+                #JellyCleanInsightsPage .jc-shame { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6em; }
+            }
+        </style>
+
+        <div data-role="content">
+            <div class="content-primary">
+                <nav class="jc-tabs" aria-label="JellyClean">
+                    <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanLeaving">Leaving soon</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
+                    <button type="button" class="jc-tab" aria-current="page">Insights</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanSettings">Settings</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
+                </nav>
+
+                <div class="jc-hero" id="jcHero" aria-live="polite"></div>
+
+                <section class="jc-card" id="jcDiskCard" hidden>
+                    <h2>Disk space</h2>
+                    <p class="jc-hint">How full the disks with your libraries are, and when they fill up if you keep adding at the pace of the last 12 months.</p>
+                    <div id="jcDisks"></div>
+                </section>
+
+                <section class="jc-card">
+                    <h2>Did you know</h2>
+                    <div class="jc-facts" id="jcFacts"></div>
+                </section>
+
+                <section class="jc-card">
+                    <h2>Space over time</h2>
+                    <p class="jc-hint">How much space what is here now took up at the end of each month, by when it was added, and what JellyClean freed. Hover a month for the numbers.</p>
+                    <div class="jc-chart" id="jcChart"></div>
+                    <div class="jc-legend">
+                        <span><i style="background:linear-gradient(135deg,#aa5cc3,#00a4dc)"></i>In the library</span>
+                        <span><i style="background:#66bb6a"></i>Added that month</span>
+                        <span><i style="background:#e05a5a"></i>Freed that month</span>
+                    </div>
+                </section>
+
+                <div class="jc-two">
+                    <section class="jc-card">
+                        <h2>Genres</h2>
+                        <p class="jc-hint">The genres taking the most space, and how much of each nobody ever played.</p>
+                        <div class="jc-bars" id="jcGenres"></div>
+                        <div class="jc-legend"><span><i style="background:#aa5cc3"></i>Played</span><span><i style="background:rgba(170,92,195,0.35)"></i>Never played</span></div>
+                    </section>
+                    <section class="jc-card">
+                        <h2>By decade</h2>
+                        <p class="jc-hint">Movies and series by the decade they came out. Hover a bar for the space.</p>
+                        <div class="jc-cols" id="jcDecades"></div>
+                    </section>
+                </div>
+
+                <div class="jc-two">
+                    <section class="jc-card">
+                        <h2>Quality</h2>
+                        <p class="jc-hint">Space per resolution and per video codec.</p>
+                        <div class="jc-sub">Resolution</div>
+                        <div class="jc-stack" id="jcRes"></div>
+                        <div class="jc-legend" id="jcResLegend"></div>
+                        <div class="jc-sub">Codec</div>
+                        <div class="jc-stack" id="jcCodec"></div>
+                        <div class="jc-legend" id="jcCodecLegend"></div>
+                    </section>
+                    <section class="jc-card">
+                        <h2>Space hogs</h2>
+                        <p class="jc-hint">Movies taking the most space for every hour of film. A good place to look for a smaller copy.</p>
+                        <div class="jc-rows" id="jcHogs"></div>
+                    </section>
+                </div>
+
+                <section class="jc-card">
+                    <h2>Hidden gems</h2>
+                    <p class="jc-hint" id="jcGemsHint">The best rated movies and series in your library that nobody has played yet. Worth a look before they go.</p>
+                    <div class="jc-shame" id="jcGems"></div>
+                </section>
+
+                <section class="jc-card">
+                    <h2>Never played: hall of shame</h2>
+                    <p class="jc-hint" id="jcShameHint">The biggest movies and series nobody has ever started.</p>
+                    <div class="jc-shame" id="jcShame"></div>
+                </section>
+
+                <section class="jc-card">
+                    <h2>Left halfway</h2>
+                    <p class="jc-hint" id="jcAbandonedHint"></p>
+                    <div class="jc-rows" id="jcAbandoned"></div>
+                </section>
+
+                <section class="jc-card">
+                    <h2>Who watches what</h2>
+                    <p class="jc-hint" id="jcCompareHint"></p>
+                    <div class="jc-pick" id="jcPick" role="group" aria-label="What to compare"></div>
+                    <div class="jc-bars" id="jcBars"></div>
+                    <div class="jc-legend" id="jcBarsLegend"></div>
+                </section>
+
+                <section class="jc-card">
+                    <h2 id="jcYearTitle">Your year</h2>
+                    <p class="jc-hint">What everyone watched, from what is still in the library.</p>
+                    <div class="jc-users" id="jcUsers"></div>
+                    <p class="jc-quiet" id="jcQuiet" hidden></p>
+                </section>
+
+                <div class="jc-tip" id="jcTip" role="tooltip" hidden></div>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            (function () {
+                var page = document.querySelector('#JellyCleanInsightsPage');
+                var SVG = 'http://www.w3.org/2000/svg';
+                var stats = null;
+
+                function $(id) { return page.querySelector('#' + id); }
+
+                function el(tag, props) {
+                    var e = document.createElement(tag);
+                    Object.assign(e, props || {});
+                    for (var i = 2; i < arguments.length; i++) {
+                        if (arguments[i] != null) { e.append(arguments[i]); }
+                    }
+                    return e;
+                }
+
+                function svg(tag, attrs) {
+                    var e = document.createElementNS(SVG, tag);
+                    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+                    return e;
+                }
+
+                function bytes(n) {
+                    var units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+                    var i = 0;
+                    while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
+                    return (i && n < 10 ? n.toFixed(1) : Math.round(n)) + ' ' + units[i];
+                }
+
+                function hours(h) { return h >= 100 ? Math.round(h).toLocaleString() : h.toLocaleString(undefined, { maximumFractionDigits: 1 }); }
+                function plural(n, one, many) { return n.toLocaleString() + ' ' + (n === 1 ? one : many); }
+                function month(key, long) { var p = key.split('-'); return new Date(+p[0], +p[1] - 1, 1).toLocaleDateString(undefined, long ? { month: 'long', year: 'numeric' } : { month: 'short' }); }
+                function date(d) { return new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); }
+
+                function stat(value, label, big) {
+                    return el('div', { className: 'jc-stat' + (big ? ' big' : '') }, el('b', { textContent: value }), el('span', { textContent: label }));
+                }
+
+                function renderHero() {
+                    var now = stats.Months[stats.Months.length - 1];
+                    var share = stats.Hours ? Math.round(stats.NeverPlayedHours / stats.Hours * 100) : 0;
+                    $('jcHero').textContent = '';
+                    $('jcHero').append(
+                        stat(bytes(stats.FreedThisYear), 'freed this year, ' + plural(stats.RemovedThisYear, 'item', 'items') + ' removed', true),
+                        stat(bytes(now ? now.Size : 0), 'in the library now'),
+                        stat(hours(stats.Hours) + ' h', 'of things to watch, ' + Math.round(stats.Hours / 24).toLocaleString() + ' days back to back'),
+                        stat(hours(stats.NeverPlayedHours) + ' h', 'never played, ' + share + '% of it all'));
+                }
+
+                function renderChart() {
+                    var box = $('jcChart');
+                    var months = stats.Months;
+                    var w = Math.max(280, box.clientWidth || 800);
+                    var top = 210, gap = 26, strip = 60, left = 52, bottom = 22;
+                    var h = top + gap + strip + bottom;
+                    var maxSize = Math.max(1, Math.max.apply(null, months.map(function (m) { return m.Size; })));
+                    var maxFlow = Math.max(1, Math.max.apply(null, months.map(function (m) { return Math.max(m.Added, m.Freed); })));
+                    var step = (w - left) / months.length;
+                    function x(i) { return left + step * i; }
+                    function y(v) { return top - v / maxSize * (top - 8); }
+
+                    var s = svg('svg', { viewBox: '0 0 ' + w + ' ' + h, role: 'img', 'aria-label': 'Library size per month' });
+                    var defs = svg('defs');
+                    var grad = svg('linearGradient', { id: 'jcArea', x1: '0', y1: '0', x2: '0', y2: '1' });
+                    grad.append(svg('stop', { offset: '0', 'stop-color': '#00a4dc', 'stop-opacity': '0.55' }), svg('stop', { offset: '1', 'stop-color': '#aa5cc3', 'stop-opacity': '0.08' }));
+                    var line = svg('linearGradient', { id: 'jcLine', x1: '0', y1: '0', x2: '1', y2: '0' });
+                    line.append(svg('stop', { offset: '0', 'stop-color': '#aa5cc3' }), svg('stop', { offset: '1', 'stop-color': '#00a4dc' }));
+                    defs.append(grad, line);
+                    s.append(defs);
+
+                    [0, 0.5, 1].forEach(function (f) {
+                        s.append(svg('line', { class: 'grid', x1: left, x2: w, y1: y(maxSize * f), y2: y(maxSize * f) }));
+                        var t = svg('text', { x: left - 8, y: y(maxSize * f) + 4, 'text-anchor': 'end' });
+                        t.textContent = f ? bytes(maxSize * f) : '0';
+                        s.append(t);
+                    });
+
+                    var pts = months.map(function (m, i) { return [x(i) + step / 2, y(m.Size)]; });
+                    var path = 'M' + pts.map(function (p) { return p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' L');
+                    s.append(svg('path', { d: path + ' L' + pts[pts.length - 1][0].toFixed(1) + ' ' + top + ' L' + pts[0][0].toFixed(1) + ' ' + top + ' Z', fill: 'url(#jcArea)' }));
+                    s.append(svg('path', { d: path, fill: 'none', stroke: 'url(#jcLine)', 'stroke-width': '2.5', 'stroke-linejoin': 'round' }));
+
+                    // Added and freed side by side, under the area, on their own scale.
+                    var base = top + gap + strip;
+                    var bar = Math.max(2, step / 2 - 2);
+                    s.append(svg('line', { class: 'grid', x1: left, x2: w, y1: base, y2: base }));
+                    var label = svg('text', { x: left - 8, y: top + gap + 10, 'text-anchor': 'end' });
+                    label.textContent = bytes(maxFlow);
+                    s.append(label);
+                    months.forEach(function (m, i) {
+                        var a = m.Added / maxFlow * strip, f = m.Freed / maxFlow * strip;
+                        if (a) { s.append(svg('rect', { x: x(i) + step / 2 - bar - 1, y: base - a, width: bar, height: a, rx: 2, fill: '#66bb6a', opacity: '0.85' })); }
+                        if (f) { s.append(svg('rect', { x: x(i) + step / 2 + 1, y: base - f, width: bar, height: f, rx: 2, fill: '#e05a5a' })); }
+                        var every = step < 34 ? 3 : 1;
+                        if ((months.length - 1 - i) % every === 0) {
+                            var t = svg('text', { x: x(i) + step / 2, y: h - 6, 'text-anchor': 'middle' });
+                            t.textContent = month(m.Month) + (m.Month.slice(5) === '01' || i === 0 ? ' ' + m.Month.slice(2, 4) : '');
+                            s.append(t);
+                        }
+                        var hit = svg('rect', { class: 'hit', x: x(i), y: 0, width: step, height: base, tabindex: '0' });
+                        hit.dataset.tip = month(m.Month, true) + '\nIn the library: ' + bytes(m.Size) + '\nAdded: ' + bytes(m.Added)
+                            + '\nFreed: ' + (m.Freed ? bytes(m.Freed) + ', ' + plural(m.FreedCount, 'item', 'items') : 'nothing');
+                        s.append(hit);
+                    });
+                    box.textContent = '';
+                    box.append(s);
+                }
+
+                var PALETTE = ['#00a4dc', '#aa5cc3', '#66bb6a', '#f0b429', '#e05a5a', '#5c7cfa', '#8d99ae', '#e05a9a'];
+
+                function poster(item, h) {
+                    var img = el('img', { alt: '', loading: 'lazy', src: ApiClient.getImageUrl(item.Id, { type: 'Primary', maxHeight: h || 360 }) });
+                    img.addEventListener('error', function () { img.style.visibility = 'hidden'; });
+                    return img;
+                }
+
+                function ago(d) {
+                    var days = Math.max(0, Math.floor((Date.now() - new Date(d)) / 864e5));
+                    return days >= 365 ? plural(Math.floor(days / 365), 'year', 'years') : days >= 60 ? plural(Math.floor(days / 30), 'month', 'months') : plural(days, 'day', 'days');
+                }
+
+                function fact(label, value, sub) {
+                    return el('div', { className: 'jc-fact' }, el('span', { textContent: label }), el('b', { textContent: value }), sub ? el('small', { textContent: sub }) : null);
+                }
+
+                function stack(box, legend, slices) {
+                    var total = slices.reduce(function (sum, x) { return sum + x.Size; }, 0) || 1;
+                    $(box).textContent = '';
+                    $(legend).textContent = '';
+                    slices.slice(0, 8).forEach(function (x, i) {
+                        var part = el('span', { tabIndex: 0 });
+                        part.style.width = (x.Size / total * 100) + '%';
+                        part.style.background = PALETTE[i % PALETTE.length];
+                        part.dataset.tip = x.Name + '\n' + bytes(x.Size) + ', ' + Math.round(x.Size / total * 100) + '%\n' + plural(x.Count, 'item', 'items');
+                        $(box).append(part);
+                        var dot = el('i', {});
+                        dot.style.background = part.style.background;
+                        $(legend).append(el('span', {}, dot, x.Name + ' ' + Math.round(x.Size / total * 100) + '%'));
+                    });
+                }
+
+                function renderDisks() {
+                    var disks = stats.Disks || [];
+                    $('jcDiskCard').hidden = !disks.length;
+                    var box = $('jcDisks');
+                    box.textContent = '';
+                    var pace = stats.Library.AddedPerMonth;
+                    disks.forEach(function (d) {
+                        var used = d.Total - d.Free;
+                        var bar = el('div', { className: 'jc-stack' });
+                        var u = el('span', { tabIndex: 0 });
+                        u.style.width = (used / d.Total * 100) + '%';
+                        u.style.background = used / d.Total > 0.9 ? '#e05a5a' : 'linear-gradient(90deg, #aa5cc3, #00a4dc)';
+                        u.dataset.tip = 'Used\n' + bytes(used) + ', ' + Math.round(used / d.Total * 100) + '%';
+                        var f = el('span', { tabIndex: 0 });
+                        f.style.width = (d.Free / d.Total * 100) + '%';
+                        f.dataset.tip = 'Free\n' + bytes(d.Free);
+                        bar.append(u, f);
+                        var months = pace > 0 ? d.Free / pace : Infinity;
+                        var when = !isFinite(months) ? 'Nothing was added in the last 12 months, so it is not filling up.'
+                            : months < 1 ? 'At ' + bytes(pace) + ' added a month, it is full within a month.'
+                            : 'At ' + bytes(pace) + ' added a month, it is full in about ' + (months >= 24 ? plural(Math.round(months / 12), 'year', 'years') : plural(Math.round(months), 'month', 'months')) + '.';
+                        box.append(el('div', { className: 'jc-disk' },
+                            el('div', { className: 'jc-disk-head' }, el('b', { textContent: d.Libraries.join(', ') }), el('small', { textContent: bytes(d.Free) + ' free of ' + bytes(d.Total) + ' · ' + d.Name })),
+                            bar,
+                            el('p', { className: 'jc-forecast' + (months < 6 ? ' warn' : ''), textContent: when })));
+                    });
+                }
+
+                function renderFacts() {
+                    var l = stats.Library;
+                    var box = $('jcFacts');
+                    box.textContent = '';
+                    var years = stats.Hours / 2 / 365;
+                    box.append(
+                        fact('In the library', plural(l.Movies, 'movie', 'movies') + ', ' + plural(l.Series, 'series', 'series'), plural(l.Episodes, 'episode', 'episodes')),
+                        fact('Ever played', Math.round(l.PlayedShare * 100) + '% of the space', 'The rest nobody has started'),
+                        fact('At 2 hours a day', years >= 1 ? (years < 10 ? years.toFixed(1) : Math.round(years)) + ' years' : Math.round(years * 365) + ' days', 'to watch everything once'),
+                        l.Longest ? fact('Longest movie', l.Longest.Title, hours(l.Longest.RunTimeTicks / 36e9) + ' hours') : null,
+                        l.Oldest ? fact('Oldest', l.Oldest.Title, 'from ' + l.Oldest.Year) : null,
+                        l.AverageRating ? fact('Average rating', '★ ' + l.AverageRating.toFixed(1), 'community rating') : null,
+                        fact('Not played in 2 years', bytes(l.Stale.Size), plural(l.Stale.Count, 'movie or series', 'movies and series')),
+                        fact('Untouched for a year', bytes(l.Untouched.Size), plural(l.Untouched.Count, 'item', 'items') + ' added over a year ago, never played'));
+                }
+
+                function renderGenres() {
+                    var box = $('jcGenres');
+                    box.textContent = '';
+                    var max = Math.max.apply(null, stats.Library.Genres.map(function (g) { return g.Size; }).concat([1]));
+                    stats.Library.Genres.forEach(function (g) {
+                        var track = el('div', { className: 'jc-track' });
+                        var played = el('span', { tabIndex: 0 }), never = el('span', { tabIndex: 0 });
+                        played.style.width = ((g.Size - g.NeverPlayedSize) / max * 100) + '%';
+                        played.style.background = '#aa5cc3';
+                        played.dataset.tip = g.Name + ', played\n' + bytes(g.Size - g.NeverPlayedSize) + ', ' + plural(g.Count - g.NeverPlayed, 'item', 'items');
+                        never.style.width = (g.NeverPlayedSize / max * 100) + '%';
+                        never.style.background = 'rgba(170, 92, 195, 0.35)';
+                        never.dataset.tip = g.Name + ', never played\n' + bytes(g.NeverPlayedSize) + ', ' + plural(g.NeverPlayed, 'item', 'items') + '\n' + (g.Size ? Math.round(g.NeverPlayedSize / g.Size * 100) : 0) + '% of this genre';
+                        if (g.Size - g.NeverPlayedSize > 0) { track.append(played); }
+                        if (g.NeverPlayedSize > 0) { track.append(never); }
+                        box.append(el('b', { textContent: g.Name }), track, el('small', { textContent: bytes(g.Size) }));
+                    });
+                }
+
+                function renderDecades() {
+                    var box = $('jcDecades');
+                    box.textContent = '';
+                    var d = stats.Library.Decades;
+                    var max = Math.max.apply(null, d.map(function (x) { return x.Count; }).concat([1]));
+                    d.forEach(function (x) {
+                        var bar = el('i', {});
+                        bar.style.height = Math.max(2, x.Count / max * 100) + '%';
+                        var col = el('div', { className: 'jc-col', tabIndex: 0 }, bar, el('small', { textContent: d.length > 8 ? "'" + x.Name.slice(2) : x.Name }));
+                        col.dataset.tip = x.Name + '\n' + plural(x.Count, 'movie or series', 'movies and series') + '\n' + bytes(x.Size);
+                        box.append(col);
+                    });
+                }
+
+                function rows(box, items, line, value) {
+                    $(box).textContent = '';
+                    items.forEach(function (item) {
+                        $(box).append(el('a', { href: '#/details?id=' + item.Id }, poster(item, 120),
+                            el('span', {}, el('b', { textContent: item.Title }), el('small', { textContent: line(item) })),
+                            el('em', { textContent: value(item) })));
+                    });
+                }
+
+                function renderLists() {
+                    var l = stats.Library;
+                    stack('jcRes', 'jcResLegend', l.Resolutions);
+                    stack('jcCodec', 'jcCodecLegend', l.Codecs);
+                    rows('jcHogs', l.Hogs, function (i) { return bytes(i.Size) + ' for ' + hours(i.RunTimeTicks / 36e9) + ' h' + (i.Resolution ? ' · ' + i.Resolution : ''); }, function (i) { return bytes(i.Size / (i.RunTimeTicks / 36e9)) + '/h'; });
+                    if (!l.Hogs.length) { $('jcHogs').append(el('p', { className: 'jc-hint', textContent: 'No movies with a known length yet.' })); }
+                    $('jcAbandonedHint').textContent = l.AbandonedTotal.Count
+                        ? plural(l.AbandonedTotal.Count, 'series', 'series') + ', ' + bytes(l.AbandonedTotal.Size) + ': started, never finished by anyone, and not played for half a year.'
+                        : 'No series left halfway. Everything someone started is still being watched or was finished.';
+                    rows('jcAbandoned', l.Abandoned, function (i) { return 'Last played ' + ago(i.LastWatched) + ' ago'; }, function (i) { return bytes(i.Size); });
+                    var gems = $('jcGems');
+                    gems.textContent = '';
+                    $('jcGemsHint').hidden = false;
+                    if (!l.Gems.length) { $('jcGemsHint').textContent = 'Nothing rated is waiting to be played.'; }
+                    l.Gems.forEach(function (item) {
+                        var a = el('a', { href: '#/details?id=' + item.Id },
+                            el('div', { className: 'jc-rank jc-gem' }, poster(item)),
+                            el('b', { textContent: item.Title }),
+                            el('small', { textContent: bytes(item.Size) + (item.Year ? ' · ' + item.Year : '') }),
+                            el('small', { textContent: 'Waiting ' + ago(item.Added) }));
+                        a.firstChild.dataset.rank = '★ ' + item.Rating.toFixed(1);
+                        a.dataset.tip = item.Title + '\nRated ' + item.Rating.toFixed(1) + ', added ' + date(item.Added) + '\nNobody has played it yet.';
+                        gems.append(a);
+                    });
+                }
+
+                function renderShame() {
+                    var box = $('jcShame');
+                    box.textContent = '';
+                    var size = stats.Shame.reduce(function (sum, i) { return sum + i.Size; }, 0);
+                    $('jcShameHint').textContent = stats.Shame.length
+                        ? 'The biggest movies and series nobody has ever started. These ' + stats.Shame.length + ' alone take ' + bytes(size) + '.'
+                        : 'Everything in the library has been played at least once. Nothing to be ashamed of.';
+                    stats.Shame.forEach(function (item, i) {
+                        var img = el('img', { alt: '', loading: 'lazy', src: ApiClient.getImageUrl(item.Id, { type: 'Primary', maxHeight: 360 }) });
+                        img.addEventListener('error', function () { img.style.visibility = 'hidden'; });
+                        var days = Math.max(0, Math.floor((Date.now() - new Date(item.Added)) / 864e5));
+                        var a = el('a', { href: '#/details?id=' + item.Id },
+                            el('div', { className: 'jc-rank' }, img),
+                            el('b', { textContent: item.Title }),
+                            el('small', { textContent: bytes(item.Size) + (item.Year ? ' · ' + item.Year : '') }),
+                            el('small', { textContent: 'Waiting ' + (days >= 365 ? plural(Math.floor(days / 365), 'year', 'years') : plural(days, 'day', 'days')) }));
+                        a.firstChild.dataset.rank = '#' + (i + 1);
+                        a.dataset.tip = item.Title + '\n' + bytes(item.Size) + ', added ' + date(item.Added) + '\nNobody has ever pressed play.';
+                        box.append(a);
+                    });
+                }
+
+                function renderUsers() {
+                    var box = $('jcUsers');
+                    box.textContent = '';
+                    var year = new Date().getFullYear();
+                    $('jcYearTitle').textContent = 'Your ' + year;
+                    var active = stats.Users.filter(function (u) { return u.Movies + u.Episodes > 0; });
+                    var quiet = stats.Users.filter(function (u) { return u.Movies + u.Episodes === 0; });
+                    active.forEach(function (u, i) {
+                        var dl = el('dl', {});
+                        function row(label, value) { if (value != null && value !== '') { dl.append(el('dt', { textContent: label }), el('dd', {}, value)); } }
+                        row('Watched', plural(u.Movies, 'movie', 'movies') + ', ' + plural(u.Episodes, 'episode', 'episodes'));
+                        if (u.TopSeries) { row('Top series', u.TopSeries + ' (' + plural(u.TopSeriesEpisodes, 'episode', 'episodes') + ')'); }
+                        if (u.Genres.length) { row('Into', el('span', { className: 'jc-pills' }, u.Genres.map(function (g) { return el('span', { textContent: g.Name }); }).reduce(function (f, n) { f.append(n); return f; }, document.createDocumentFragment()))); }
+                        if (u.Oldest) { row('Oldest', u.Oldest + ' (' + u.OldestYear + ')'); }
+                        if (u.Last) { row('Last played', u.Last + ', ' + date(u.LastAt)); }
+                        if (u.Favorites) { row('Favorites', String(u.Favorites)); }
+                        var thisYear = u.HoursThisYear > 0;
+                        var card = el('article', { className: 'jc-wrap' },
+                            el('h3', { textContent: u.Name }),
+                            el('small', { textContent: i === 0 && active.length > 1 ? 'Watched the most' : year + ' in the library' }),
+                            el('div', { className: 'jc-hours' }, hours(thisYear ? u.HoursThisYear : u.Hours), el('small', { textContent: thisYear ? 'hours this year' : 'hours in all' })),
+                            el('small', { textContent: thisYear ? plural(u.ThisYear, 'play', 'plays') + ' this year, ' + hours(u.Hours) + ' hours in all' : 'Nothing played yet this year' }),
+                            dl);
+                        card.style.setProperty('--h', String((200 + i * 67) % 360));
+                        box.append(card);
+                    });
+                    $('jcQuiet').hidden = !quiet.length;
+                    $('jcQuiet').textContent = quiet.length ? 'Nothing watched yet: ' + quiet.map(function (u) { return u.Name; }).join(', ') + '.' : '';
+                    if (!active.length) { box.append(el('p', { className: 'jc-hint', textContent: 'Nobody has watched anything yet.' })); }
+                }
+
+                // Each measure: label, hint, and the parts of one bar (name, color, value).
+                var MEASURES = {
+                    hours: ['Hours', 'Hours of what each person watched to the end, movies and episodes.', function (u) { return [['Movies', '#aa5cc3', u.MovieHours], ['Episodes', '#00a4dc', u.EpisodeHours]]; }, function (v) { return hours(v) + ' h'; }],
+                    year: ['This year', 'Hours of what each person played this year.', function (u) { return [['This year', '#f0b429', u.HoursThisYear]]; }, function (v) { return hours(v) + ' h'; }],
+                    movies: ['Movies', 'Movies watched to the end.', function (u) { return [['Movies', '#aa5cc3', u.Movies]]; }, function (v) { return v.toLocaleString(); }],
+                    episodes: ['Episodes', 'Episodes watched to the end.', function (u) { return [['Episodes', '#00a4dc', u.Episodes]]; }, function (v) { return v.toLocaleString(); }],
+                    series: ['Series', 'Series with at least one episode watched, and how many of them every episode here was watched.', function (u) { return [['Watched every episode', '#66bb6a', u.SeriesFinished], ['Started', 'rgba(102, 187, 106, 0.4)', u.Series - u.SeriesFinished]]; }, function (v) { return v.toLocaleString(); }],
+                    favorites: ['Favorites', 'Movies and series each person made a favorite.', function (u) { return [['Favorites', '#e05a9a', u.Favorites]]; }, function (v) { return v.toLocaleString(); }]
+                };
+                var measure = 'hours';
+                try { measure = MEASURES[localStorage.getItem('jellyclean-measure-users')] ? localStorage.getItem('jellyclean-measure-users') : 'hours'; } catch (err) { /* only a convenience */ }
+
+                function renderCompare() {
+                    var m = MEASURES[measure];
+                    var pick = $('jcPick');
+                    pick.textContent = '';
+                    Object.keys(MEASURES).forEach(function (k) {
+                        var b = el('button', { type: 'button', textContent: MEASURES[k][0] });
+                        b.dataset.measure = k;
+                        b.setAttribute('aria-pressed', String(k === measure));
+                        pick.append(b);
+                    });
+                    $('jcCompareHint').textContent = m[1];
+                    var rows = stats.Users.map(function (u) {
+                        var parts = m[2](u);
+                        return { user: u, parts: parts, total: parts.reduce(function (sum, p) { return sum + p[2]; }, 0) };
+                    }).sort(function (a, b) { return b.total - a.total; });
+                    var max = Math.max(1, Math.max.apply(null, rows.map(function (r) { return r.total; })));
+                    var all = rows.reduce(function (sum, r) { return sum + r.total; }, 0);
+                    var box = $('jcBars');
+                    box.textContent = '';
+                    rows.forEach(function (r) {
+                        var track = el('div', { className: 'jc-track' });
+                        r.parts.forEach(function (p) {
+                            if (!p[2]) { return; }
+                            var seg = el('span', {});
+                            seg.style.width = (p[2] / max * 100) + '%';
+                            seg.style.background = p[1];
+                            seg.tabIndex = 0;
+                            seg.dataset.tip = r.user.Name + ': ' + p[0] + '\n' + m[3](p[2]) + (r.parts.length > 1 && r.total ? ', ' + Math.round(p[2] / r.total * 100) + '% of theirs' : '') + (all ? '\n' + Math.round(p[2] / all * 100) + '% of everyone\'s' : '');
+                            track.append(seg);
+                        });
+                        box.append(el('b', { textContent: r.user.Name }), track, el('small', { textContent: m[3](r.total) }));
+                    });
+                    var legend = $('jcBarsLegend');
+                    legend.textContent = '';
+                    legend.hidden = m[2](stats.Users[0] || {}).length < 2;
+                    m[2](stats.Users[0] || {}).forEach(function (p) {
+                        var dot = el('i', {});
+                        dot.style.background = p[1];
+                        legend.append(el('span', {}, dot, p[0]));
+                    });
+                }
+
+                function load() {
+                    fetch(ApiClient.getUrl('JellyClean/Insights'), { headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"' } })
+                        .then(function (r) {
+                            if (!r.ok) { throw new Error('The server said ' + r.status); }
+                            return r.json();
+                        }).then(function (s) {
+                            stats = s;
+                            renderHero();
+                            renderChart();
+                            renderDisks();
+                            renderFacts();
+                            renderGenres();
+                            renderDecades();
+                            renderLists();
+                            renderShame();
+                            renderCompare();
+                            renderUsers();
+                        }).catch(function (err) {
+                            $('jcHero').textContent = 'Could not load the insights: ' + err.message;
+                        });
+                }
+
+                // One tooltip for every [data-tip], on hover and on keyboard focus.
+                function showTip(target) {
+                    var tip = $('jcTip');
+                    var lines = target.dataset.tip.split('\n');
+                    tip.textContent = '';
+                    tip.append(el('b', { textContent: lines[0] }), lines.slice(1).join('\n'));
+                    tip.hidden = false;
+                    var r = target.getBoundingClientRect();
+                    var w = tip.offsetWidth, h = tip.offsetHeight;
+                    var x = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+                    var y = r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8;
+                    tip.style.left = x + 'px';
+                    tip.style.top = y + 'px';
+                }
+                function hideTip() { $('jcTip').hidden = true; }
+                ['pointerover', 'focusin'].forEach(function (type) {
+                    page.addEventListener(type, function (e) {
+                        var t = e.target.closest && e.target.closest('[data-tip]');
+                        if (t && page.contains(t)) { showTip(t); }
+                    });
+                });
+                ['pointerout', 'focusout'].forEach(function (type) {
+                    page.addEventListener(type, function (e) {
+                        if (e.target.closest && e.target.closest('[data-tip]')) { hideTip(); }
+                    });
+                });
+                window.addEventListener('scroll', hideTip, { passive: true });
+
+                var resized = null;
+                window.addEventListener('resize', function () {
+                    clearTimeout(resized);
+                    resized = setTimeout(function () { if (stats && page.isConnected) { renderChart(); } }, 150);
+                });
+
+                page.addEventListener('click', function (e) {
+                    var b = e.target.closest('button');
+                    if (!b || !page.contains(b)) { return; }
+                    if (b.classList.contains('jc-tab') && b.dataset.page) {
+                        Dashboard.navigate(Dashboard.getPluginUrl(b.dataset.page));
+                    } else if (b.dataset.measure) {
+                        measure = b.dataset.measure;
+                        try { localStorage.setItem('jellyclean-measure-users', measure); } catch (err) { /* only a convenience */ }
+                        renderCompare();
+                    }
+                });
+
+                page.addEventListener('pageshow', load);
+            })();
+        </script>
+    </div>
+</body>
+</html>

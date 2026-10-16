@@ -74,6 +74,7 @@
             #JellyCleanSettingsPage .jc-chips { display: flex; gap: 0.45em; flex-wrap: wrap; }
             #JellyCleanSettingsPage .jc-chip { padding: 0.4em 0.9em; border-radius: 999px; border: 1px solid var(--jc-line); background: transparent; color: inherit; font: inherit; cursor: pointer; }
             #JellyCleanSettingsPage .jc-chip[aria-pressed="true"] { border-color: #e05a5a; background: rgba(224, 90, 90, 0.14); }
+            #JellyCleanSettingsPage .jc-chip.on[aria-pressed="true"] { border-color: var(--jc-accent); background: rgba(0, 164, 220, 0.16); }
             #JellyCleanSettingsPage .jc-link { border: 0; background: none; padding: 0; font: inherit; color: var(--jc-accent); text-decoration: underline; cursor: pointer; }
             #JellyCleanSettingsPage .jc-sub { margin: 1.1em 0 0.5em; font-weight: 600; font-size: 0.95em; }
             #JellyCleanSettingsPage .jc-warn { border-color: rgba(224, 90, 90, 0.6); }
@@ -86,6 +87,13 @@
             }
             #JellyCleanSettingsPage .jc-view input { width: 6em; }
             #JellyCleanSettingsPage .jc-view .jc-tile { width: auto; flex: 1 1 260px; }
+            #JellyCleanSettingsPage .jc-mail { margin-top: 0.9em; }
+            #JellyCleanSettingsPage .jc-mail > summary { cursor: pointer; font-weight: 600; min-height: 40px; display: flex; align-items: center; }
+            #JellyCleanSettingsPage .jc-mail[open] > summary { margin-bottom: 0.4em; }
+            #JellyCleanSettingsPage .jc-mail > summary { list-style: none; gap: 0.5em; }
+            #JellyCleanSettingsPage .jc-mail > summary::-webkit-details-marker { display: none; }
+            #JellyCleanSettingsPage .jc-mail > summary::before { content: ""; width: 0.45em; height: 0.45em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); opacity: 0.7; transition: transform 0.15s; }
+            #JellyCleanSettingsPage .jc-mail[open] > summary::before { transform: rotate(45deg); }
             #JellyCleanSettingsPage .jc-dirty { margin-right: auto; opacity: 0.85; font-size: 0.92em; }
         </style>
 
@@ -95,6 +103,7 @@
                     <button type="button" class="jc-tab" data-page="JellyClean">Library</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanLeaving">Leaving soon</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanRecover">Recover</button>
+                    <button type="button" class="jc-tab" data-page="JellyCleanInsights">Insights</button>
                     <button type="button" class="jc-tab" aria-current="page">Settings</button>
                     <button type="button" class="jc-tab" data-page="JellyCleanActivity">Activity</button>
                 </nav>
@@ -154,6 +163,45 @@
                 </section>
 
                 <section class="jc-card">
+                    <h2>Digest</h2>
+                    <p class="jc-hint">A short message with what is due on the Leaving soon list, what sits in the recycle bin and how much space you freed. Send it to a Discord or Slack webhook, an ntfy topic like https://ntfy.sh/my-jellyfin, by email, or to several. Leave them empty to send nothing.</p>
+                    <div class="jc-fields">
+                        <div class="jc-field" style="grid-column:1/-1;"><label>Webhook address<input type="url" data-text="DigestUrl" placeholder="https://discord.com/api/webhooks/..." autocomplete="off"></label></div>
+                    </div>
+                    <details class="jc-mail" id="jcMail">
+                        <summary>Email</summary>
+                        <p class="jc-hint">Any mail server works. For Gmail use smtp.gmail.com, port 587 and an app password, not your normal password. Port 465 is not supported; use 587.</p>
+                        <div class="jc-fields">
+                            <div class="jc-field"><label>Send to<input type="text" data-mail="To" placeholder="you@example.com" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>From<input type="text" data-mail="From" placeholder="Same as user name" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>Mail server<input type="text" data-mail="Host" placeholder="smtp.gmail.com" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>Port<input type="number" min="1" max="65535" data-mail="Port" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>User name<input type="text" data-mail="User" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>Password<input type="password" data-mail="Password" autocomplete="new-password"></label></div>
+                        </div>
+                        <div class="jc-tiles" style="margin:0.9em 0 0;">
+                            <button type="button" class="jc-tile" role="switch" id="jcMailSsl">
+                                <span class="jc-tile-text"><b>Encrypt the connection (STARTTLS)</b><small>Leave on, unless your mail server is on your own network and has no encryption.</small></span>
+                                <span class="jc-switch" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </details>
+                    <div class="jc-view" style="border-top:0;padding-bottom:0;">
+                        <label>How often<select id="jcDigestSchedule"><option value="daily">Every day</option><option value="weekly">Every week</option></select></label>
+                        <label id="jcDigestDayLabel">On<select id="jcDigestDay"></select></label>
+                        <label>At<select id="jcDigestHour"></select></label>
+                    </div>
+                    <div class="jc-sub">What it says</div>
+                    <div class="jc-chips" id="jcDigestParts" role="group" aria-label="What the digest says"></div>
+                    <div class="jc-row">
+                        <button type="button" class="jc-btn" id="jcDigestPreview">Preview</button>
+                        <button type="button" class="jc-btn" id="jcDigestTest">Send a test now</button>
+                        <span class="jc-test" id="jcDigestResult"></span>
+                    </div>
+                    <pre class="jc-hint" id="jcDigestText" hidden style="white-space:pre-wrap;margin:0.8em 0 0;font:inherit;"></pre>
+                </section>
+
+                <section class="jc-card">
                     <h2>Radarr and Sonarr</h2>
                     <p class="jc-hint">Without them, a deleted movie or episode is seen as missing and downloaded again. With them, JellyClean removes the movie from Radarr, removes the series from Sonarr when you remove a whole series, and stops monitoring the episodes when you remove seasons or episodes. If Radarr or Sonarr can't be reached, the files stay. The Jellyfin server connects to them, not your browser, so use the address that works on the server, like http://192.168.1.10:8989, even when you manage Jellyfin from away. Add a second Radarr or Sonarr, like a 4K one, if you have it. Rather not add API keys? Switch on Unmonitor Deleted Movies (Radarr) and Unmonitor Deleted Episodes (Sonarr) under Settings, Media Management instead: they then stop monitoring what disappears from disk, though the movie or series stays listed there.</p>
                     <div id="jcServers"></div>
@@ -208,6 +256,9 @@
                         config.RemovedCount = latest.RemovedCount;
                         config.Recycled = latest.Recycled || [];
                         config.Views = latest.Views || [];
+                        config.FreedByMonth = latest.FreedByMonth || [];
+                        config.RuleRuns = latest.RuleRuns || [];
+                        if (latest.Digest) { config.Digest.LastRun = latest.Digest.LastRun; }
                         return ApiClient.updatePluginConfiguration(pluginId, config);
                     }).then(function () {
                         $('jcDirty').textContent = 'Saved.';
@@ -217,6 +268,12 @@
                         saving = null;
                         if (again) { again = false; save(); }
                     });
+                }
+
+                // Saves now, so a test uses what is on the screen.
+                function flush() {
+                    if (timer) { clearTimeout(timer); save(); }
+                    return Promise.resolve(saving).then(function () { return saving || timer ? flush() : null; });
                 }
 
                 function field(label, value, type, onInput, placeholder) {
@@ -307,6 +364,35 @@
                     });
                 }
 
+                // The same parts, in the same order, as Digest.Parts on the server.
+                var PARTS = [['due', 'Due now'], ['week', 'Due in the next 7 days'], ['coming', 'All of Leaving soon'], ['rules', 'What rules added'],
+                    ['added', 'What was added'], ['bin', 'Recycle bin'], ['freed', 'Space freed'], ['disk', 'Disk space and when it is full'],
+                    ['never', 'Never played'], ['abandoned', 'Series left halfway'], ['shame', 'Biggest never played'], ['gem', 'A hidden gem to watch'], ['users', 'Hours per person']];
+
+                function renderDigest() {
+                    var parts = $('jcDigestParts');
+                    parts.textContent = '';
+                    PARTS.forEach(function (p) {
+                        var chip = el('button', { type: 'button', className: 'jc-chip on', textContent: p[1] });
+                        chip.dataset.part = p[0];
+                        chip.setAttribute('aria-pressed', String(config.DigestParts.indexOf(p[0]) >= 0));
+                        parts.append(chip);
+                    });
+                    var d = config.Digest;
+                    var days = $('jcDigestDay'), hours = $('jcDigestHour');
+                    if (!days.options.length) {
+                        ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].forEach(function (n, i) { days.append(el('option', { value: i, textContent: n })); });
+                        for (var h = 0; h < 24; h++) { hours.append(el('option', { value: h, textContent: (h < 10 ? '0' : '') + h + ':00' })); }
+                    }
+                    $('jcDigestSchedule').value = d.Schedule === 'daily' ? 'daily' : 'weekly';
+                    days.value = d.Day;
+                    hours.value = d.Hour;
+                    page.querySelectorAll('[data-mail]').forEach(function (i) { i.value = config.Mail[i.dataset.mail] == null ? '' : config.Mail[i.dataset.mail]; });
+                    $('jcMailSsl').setAttribute('aria-checked', String(!!config.Mail.Ssl));
+                    $('jcMail').open = !!config.Mail.To;
+                    $('jcDigestDayLabel').style.display = d.Schedule === 'daily' ? 'none' : '';
+                }
+
                 function render() {
                     page.querySelectorAll('[data-flag]').forEach(function (b) { b.setAttribute('aria-checked', String(!!config[b.dataset.flag])); });
                     page.querySelectorAll('[data-num]').forEach(function (i) { i.value = config[i.dataset.num] || 0; });
@@ -316,13 +402,27 @@
                     $('jcClearKept').hidden = !kept;
                     renderLibraries();
                     renderServers();
+                    renderDigest();
                     $('jcDirty').textContent = 'Changes save on their own.';
                 }
+
+                page.addEventListener('change', function (e) {
+                    var id = e.target.id;
+                    if (id === 'jcDigestSchedule') { config.Digest.Schedule = e.target.value; }
+                    else if (id === 'jcDigestDay') { config.Digest.Day = parseInt(e.target.value, 10); }
+                    else if (id === 'jcDigestHour') { config.Digest.Hour = parseInt(e.target.value, 10); }
+                    else { return; }
+                    renderDigest();
+                    dirty();
+                });
 
                 page.addEventListener('input', function (e) {
                     var i = e.target;
                     if (i.dataset.num) {
                         config[i.dataset.num] = Math.max(0, parseInt(i.value, 10) || 0);
+                        dirty();
+                    } else if (i.dataset.mail) {
+                        config.Mail[i.dataset.mail] = i.dataset.mail === 'Port' ? (parseInt(i.value, 10) || 587) : i.value;
                         dirty();
                     } else if (i.dataset.text) {
                         config[i.dataset.text] = i.value;
@@ -355,6 +455,37 @@
                             render();
                             dirty();
                         }
+                    } else if (b.dataset.part) {
+                        var at = config.DigestParts.indexOf(b.dataset.part);
+                        if (at >= 0) { config.DigestParts.splice(at, 1); } else { config.DigestParts.push(b.dataset.part); }
+                        b.setAttribute('aria-pressed', String(at < 0));
+                        dirty();
+                    } else if (b.id === 'jcDigestPreview') {
+                        b.disabled = true;
+                        flush().then(function () {
+                            return fetch(ApiClient.getUrl('JellyClean/Digest/Preview'), { headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"' } });
+                        }).then(function (r) { return r.json(); }).then(function (r) {
+                            $('jcDigestText').textContent = r.Text;
+                            $('jcDigestText').hidden = false;
+                        }).catch(function (err) { $('jcDigestResult').textContent = err.message; }).finally(function () { b.disabled = false; });
+                    } else if (b.id === 'jcMailSsl') {
+                        config.Mail.Ssl = !config.Mail.Ssl;
+                        b.setAttribute('aria-checked', String(config.Mail.Ssl));
+                        dirty();
+                    } else if (b.id === 'jcDigestTest') {
+                        var result = $('jcDigestResult');
+                        b.disabled = true;
+                        result.className = 'jc-test';
+                        result.textContent = 'Sending...';
+                        flush().then(function () { return post('JellyClean/Digest/Test'); }).then(function (r) { return r.json(); }).then(function (r) {
+                            result.className = 'jc-test ' + (r.Ok ? 'ok' : 'bad');
+                            result.textContent = r.Message;
+                            $('jcDigestText').textContent = r.Text;
+                            $('jcDigestText').hidden = !r.Text;
+                        }).catch(function (err) {
+                            result.className = 'jc-test bad';
+                            result.textContent = err.message;
+                        }).finally(function () { b.disabled = false; });
                     } else if (b.dataset.add) {
                         config.Servers.push({ Kind: b.dataset.add, Name: '', Url: '', ApiKey: '', AddExclusion: true });
                         renderServers();
@@ -373,6 +504,9 @@
                         config.KeptIds = config.KeptIds || [];
                         config.Views = config.Views || [];
                         config.ProtectedLibraries = config.ProtectedLibraries || [];
+                        config.Digest = config.Digest || { Name: 'Digest', Schedule: 'weekly', Day: 1, Hour: 9 };
+                        config.DigestParts = config.DigestParts || ['due', 'week', 'bin', 'freed', 'disk'];
+                        config.Mail = config.Mail || { To: '', From: '', Host: '', Port: 587, User: '', Password: '', Ssl: true };
                         render();
                         return ApiClient.getVirtualFolders();
                     }).then(function (folders) {

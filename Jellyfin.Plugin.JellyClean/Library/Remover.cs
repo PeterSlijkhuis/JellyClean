@@ -202,10 +202,11 @@ public class Remover
             var plan = await PlanAsync(ids, cancellationToken).ConfigureAwait(false);
             var progress = Progress;
             progress.Total = plan.Remove.Count;
+            var batch = Guid.NewGuid();
             foreach (var planned in plan.Remove.ToList())
             {
                 progress.Current = planned.Item.Title;
-                var error = await RemoveOneAsync(planned, days, source, cancellationToken).ConfigureAwait(false);
+                var error = await RemoveOneAsync(planned, days, source, batch, cancellationToken).ConfigureAwait(false);
                 progress.Done++;
                 if (error is not null)
                 {
@@ -229,8 +230,7 @@ public class Remover
                 if (days == 0)
                 {
                     // With the recycle bin, the space counts as freed when the bin is emptied.
-                    config.FreedBytes += plan.TotalSize;
-                    config.RemovedCount += plan.Remove.Count;
+                    RecycleBin.CountFreed(plan.TotalSize, plan.Remove.Count);
                 }
                 Plugin.Instance.SaveConfiguration();
 
@@ -251,7 +251,7 @@ public class Remover
         }
     }
 
-    private async Task<string?> RemoveOneAsync(PlannedItem planned, int days, string source, CancellationToken cancellationToken)
+    private async Task<string?> RemoveOneAsync(PlannedItem planned, int days, string source, Guid batch, CancellationToken cancellationToken)
     {
         var title = planned.Item.Title;
         var item = _libraryManager.GetItemById(planned.Item.Id);
@@ -267,7 +267,7 @@ public class Remover
             try
             {
                 recycled = _bin.Move(planned.Item, planned.Paths);
-                (recycled.Days, recycled.Source, recycled.Type) = (days, source, planned.Item.Type);
+                (recycled.Days, recycled.Source, recycled.Type, recycled.Batch) = (days, source, planned.Item.Type, batch);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

@@ -47,7 +47,7 @@ public static class Breakdown
             .Select(g =>
             {
                 var all = g.ToList();
-                var status = all.ToLookup(i => Status(i, kept, users));
+                var status = all.ToLookup(i => Status(i, kept.Contains(i.Id), users));
                 Slice Of(string name, IEnumerable<CatalogItem> part) => new(name, part.Count(), part.Sum(i => i.Size));
                 return new LibraryBreakdown(
                     g.Key,
@@ -80,11 +80,11 @@ public static class Breakdown
     /// The one watch status slice an item falls in. Protection comes first, because that is what decides whether it can go.
     /// </summary>
     /// <param name="item">A movie or series.</param>
-    /// <param name="kept">Ids marked keep.</param>
+    /// <param name="kept">Whether it is marked keep.</param>
     /// <param name="users">How many users there are.</param>
     /// <returns>One of <see cref="StatusNames"/>.</returns>
-    internal static string Status(CatalogItem item, ISet<Guid> kept, int users)
-        => item.Favorite || kept.Contains(item.Id) ? StatusNames[0]
+    internal static string Status(CatalogItem item, bool kept, int users)
+        => item.Favorite || kept ? StatusNames[0]
             : item.InProgress || item.NextUp ? StatusNames[1]
             : users > 0 && item.WatchedBy.Length >= users ? StatusNames[2]
             : item.AnyPlayed ? StatusNames[3]
