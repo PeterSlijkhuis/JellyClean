@@ -79,7 +79,8 @@ public class JellyCleanController : ControllerBase
             LibrarySizes = files.GroupBy(i => i.Library)
                 .Select(g => new { Name = g.Key, Size = g.Sum(i => i.Size), NeverWatchedSize = g.Where(i => !i.AnyPlayed).Sum(i => i.Size) })
                 .OrderByDescending(l => l.Size),
-            Plugin.Instance!.Configuration.FreedBytes,
+            Breakdown = Breakdown.Build(items, Plugin.Instance!.Configuration.KeptIds.ToHashSet(), _userManager.GetUsers().Count(), DateTime.UtcNow),
+            Plugin.Instance.Configuration.FreedBytes,
             Plugin.Instance.Configuration.RemovedCount,
         });
     }

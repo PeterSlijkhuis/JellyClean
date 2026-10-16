@@ -26,7 +26,7 @@
 
             #JellyCleanLibraryPage .jc-hero {
                 display: flex; align-items: center; gap: 1.2em; flex-wrap: wrap;
-                padding: 1.4em 1.6em; margin: 1em 0 1.4em; border-radius: var(--jc-radius);
+                padding: 1.1em 1.4em; margin: 1em 0 1em; border-radius: var(--jc-radius);
                 background: linear-gradient(120deg, rgba(170, 92, 195, 0.28), rgba(0, 164, 220, 0.22));
                 border: 1px solid var(--jc-line);
             }
@@ -34,15 +34,50 @@
             #JellyCleanLibraryPage .jc-mascot .jc-broom { transform-origin: 54px 52px; animation: jc-sweep 2.4s ease-in-out infinite; }
             @keyframes jc-sweep { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-14deg); } }
             @media (prefers-reduced-motion: reduce) { #JellyCleanLibraryPage .jc-mascot .jc-broom { animation: none; } }
-            #JellyCleanLibraryPage .jc-storage { flex: 1 1 100%; }
-            #JellyCleanLibraryPage .jc-storage-bar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: rgba(0, 0, 0, 0.25); }
-            #JellyCleanLibraryPage .jc-storage-bar span { height: 100%; min-width: 3px; position: relative; }
-            #JellyCleanLibraryPage .jc-storage-bar i { position: absolute; inset: 0 auto 0 0; background: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.35) 0 4px, transparent 4px 8px); }
-            #JellyCleanLibraryPage .jc-legend { display: flex; flex-wrap: wrap; gap: 0.4em 1em; margin-top: 0.6em; font-size: 0.88em; }
-            #JellyCleanLibraryPage .jc-legend button { display: inline-flex; align-items: center; gap: 0.45em; padding: 0.15em 0.2em; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; opacity: 0.85; border-radius: 6px; }
-            #JellyCleanLibraryPage .jc-legend button:hover { opacity: 1; text-decoration: underline; }
-            #JellyCleanLibraryPage .jc-legend b { width: 0.75em; height: 0.75em; border-radius: 3px; display: inline-block; }
-            #JellyCleanLibraryPage .jc-legend small { opacity: 0.7; }
+            #JellyCleanLibraryPage .jc-libs-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6em; flex-wrap: wrap; margin-bottom: 0.5em; }
+            #JellyCleanLibraryPage .jc-libs-head h2 { margin: 0; }
+            #JellyCleanLibraryPage .jc-measure { display: inline-flex; border: 1px solid var(--jc-line); border-radius: 999px; padding: 2px; }
+            #JellyCleanLibraryPage .jc-measure button { border: 0; background: none; color: inherit; font: inherit; font-size: 0.85em; padding: 0.3em 0.9em; border-radius: 999px; cursor: pointer; opacity: 0.7; min-height: 32px; }
+            #JellyCleanLibraryPage .jc-measure button[aria-pressed="true"] { background: rgba(128, 128, 128, 0.25); opacity: 1; font-weight: 600; }
+            #JellyCleanLibraryPage .jc-key { display: flex; flex-wrap: wrap; gap: 0.3em 1.1em; font-size: 0.84em; margin-bottom: 0.4em; }
+            #JellyCleanLibraryPage .jc-key span { display: inline-flex; align-items: center; gap: 0.4em; cursor: default; }
+            #JellyCleanLibraryPage .jc-key small, #JellyCleanLibraryPage .jc-lib-meta, #JellyCleanLibraryPage .jc-fact small { opacity: 0.65; }
+            #JellyCleanLibraryPage .jc-dot { width: 0.7em; height: 0.7em; border-radius: 3px; display: inline-block; flex: none; }
+            #JellyCleanLibraryPage .jc-lib { padding: 0.75em 0; border-top: 1px solid var(--jc-line); }
+            #JellyCleanLibraryPage .jc-lib-head { display: flex; align-items: baseline; gap: 0.4em 0.8em; flex-wrap: wrap; margin-bottom: 0.45em; }
+            #JellyCleanLibraryPage .jc-lib-name { display: inline-flex; align-items: center; gap: 0.45em; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; font-size: 1.02em; padding: 0; cursor: pointer; }
+            #JellyCleanLibraryPage .jc-lib-name:hover { text-decoration: underline; }
+            #JellyCleanLibraryPage .jc-lib-meta { font-size: 0.86em; font-variant-numeric: tabular-nums; }
+            #JellyCleanLibraryPage .jc-bar2 { display: flex; gap: 2px; height: 16px; border-radius: 6px; overflow: hidden; background: rgba(0, 0, 0, 0.2); }
+            #JellyCleanLibraryPage .jc-bar2.small { height: 8px; border-radius: 4px; gap: 1px; }
+            #JellyCleanLibraryPage .jc-seg { display: block; height: 100%; min-width: 3px; border: 0; padding: 0; cursor: pointer; transition: filter 0.15s, transform 0.15s; }
+            #JellyCleanLibraryPage .jc-seg:hover, #JellyCleanLibraryPage .jc-seg:focus-visible { filter: brightness(1.25); }
+            #JellyCleanLibraryPage .jc-seg:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+            #JellyCleanLibraryPage .jc-seg.never { background-image: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.22) 0 4px, transparent 4px 8px); }
+            #JellyCleanLibraryPage .jc-lib-more { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 0.5em 1.4em; margin-top: 0.6em; font-size: 0.86em; }
+            #JellyCleanLibraryPage .jc-facts { display: flex; flex-wrap: wrap; gap: 0.35em; align-content: flex-start; }
+            #JellyCleanLibraryPage .jc-fact { padding: 0.15em 0.6em; border-radius: 999px; border: 1px solid var(--jc-line); background: rgba(0, 0, 0, 0.12); white-space: nowrap; font-variant-numeric: tabular-nums; }
+            #JellyCleanLibraryPage .jc-mini { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); align-items: center; gap: 0.5em; margin-bottom: 0.35em; }
+            #JellyCleanLibraryPage .jc-mini > span { opacity: 0.65; }
+            #JellyCleanLibraryPage .jc-mini-key { display: block; margin-top: 0.25em; opacity: 0.65; font-size: 0.92em; }
+            #JellyCleanLibraryPage .jc-genre-bars { display: flex; flex-wrap: wrap; gap: 0.3em; }
+            #JellyCleanLibraryPage .jc-genre-bar { padding: 0.1em 0.55em; border-radius: 6px; border: 1px solid var(--jc-line); cursor: default; }
+            #JellyCleanLibraryPage .jc-tip { position: fixed; z-index: 1000; pointer-events: none; max-width: 260px; padding: 0.55em 0.75em; border-radius: 10px; background: rgba(16, 16, 20, 0.96); color: #fff; border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); font-size: 0.85em; line-height: 1.45; white-space: pre-line; }
+            #JellyCleanLibraryPage .jc-tip b { display: block; font-size: 1.05em; }
+            #JellyCleanLibraryPage .jc-stat-link { font: inherit; color: inherit; text-align: left; cursor: pointer; }
+            #JellyCleanLibraryPage .jc-stat-link:hover { border-color: rgba(255, 255, 255, 0.35); }
+            #JellyCleanLibraryPage .jc-quick { border-top: 1px solid var(--jc-line); margin-bottom: 0.8em; }
+            #JellyCleanLibraryPage .jc-quick[open] .jc-views { margin-bottom: 0; }
+            #JellyCleanLibraryPage .jc-lib-details > summary { display: none; }
+            @media (max-width: 700px) {
+                #JellyCleanLibraryPage .jc-lib-more { grid-template-columns: minmax(0, 1fr); }
+                #JellyCleanLibraryPage .jc-lib-details > summary { display: flex; align-items: center; min-height: 40px; font-size: 0.88em; opacity: 0.8; cursor: pointer; }
+                #JellyCleanLibraryPage .jc-stats { display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 0.5em; }
+                #JellyCleanLibraryPage .jc-stat { min-width: 0; padding: 0.45em 0.7em; }
+                #JellyCleanLibraryPage .jc-hero { padding: 1em; }
+                #JellyCleanLibraryPage .jc-mascot { width: 56px; height: 56px; }
+            }
+            @media (prefers-reduced-motion: reduce) { #JellyCleanLibraryPage .jc-seg { transition: none; } }
             #JellyCleanLibraryPage .jc-hero h1 { margin: 0; font-size: 1.7em; font-weight: 600; }
             #JellyCleanLibraryPage .jc-hero p { margin: 0.2em 0 0; opacity: 0.8; }
             #JellyCleanLibraryPage .jc-hero-text { flex: 1 1 260px; }
@@ -53,7 +88,7 @@
 
             #JellyCleanLibraryPage .jc-card {
                 background: var(--jc-card); border: 1px solid var(--jc-line); border-radius: var(--jc-radius);
-                padding: 1.3em 1.4em; margin-bottom: 1.2em;
+                padding: 1.1em 1.25em; margin-bottom: 1em;
             }
             #JellyCleanLibraryPage .jc-card h2 { margin: 0 0 0.25em; font-size: 1.15em; font-weight: 600; }
             #JellyCleanLibraryPage .jc-hint { margin: 0 0 1em; opacity: 0.7; font-size: 0.92em; }
@@ -247,42 +282,28 @@
                         <p>Find what nobody watches and free up space. Nothing changes until you remove something.</p>
                     </div>
                     <div class="jc-stats" id="jcStats" aria-live="polite"></div>
-                    <div class="jc-storage" id="jcStorage" hidden>
-                        <div class="jc-storage-bar" id="jcStorageBar" role="img"></div>
-                        <div class="jc-legend" id="jcLegend"></div>
-                    </div>
                 </div>
 
                 <div class="jc-progress" id="jcProgress" role="status" hidden></div>
 
-                <section class="jc-card jc-leaving" id="jcLeaving" hidden>
-                    <div class="jc-head" style="margin:0;">
-                        <div>
-                            <h2>Leaving soon</h2>
-                            <p class="jc-hint" id="jcLeavingText" style="margin:0;"></p>
-                        </div>
-                        <div class="jc-actions">
-                            <button type="button" class="jc-btn" data-page="JellyCleanLeaving">Open Leaving soon</button>
-                            <button type="button" class="jc-btn danger" id="jcReviewDue" hidden>Review due items</button>
+                <section class="jc-card" id="jcLibs" aria-labelledby="jcLibsTitle" hidden>
+                    <div class="jc-libs-head">
+                        <h2 id="jcLibsTitle">Your libraries</h2>
+                        <div class="jc-measure" role="group" aria-label="Draw the bars by">
+                            <button type="button" data-measure="size" aria-pressed="true">By size</button>
+                            <button type="button" data-measure="count" aria-pressed="false">By count</button>
                         </div>
                     </div>
+                    <div class="jc-key" id="jcKey"></div>
+                    <div id="jcLibRows"></div>
                 </section>
-
-                <section class="jc-card jc-leaving" id="jcBin" hidden>
-                    <div class="jc-head" style="margin:0;">
-                        <div>
-                            <h2>Recycle bin</h2>
-                            <p class="jc-hint" id="jcBinText" style="margin:0;"></p>
-                        </div>
-                        <div class="jc-actions">
-                            <button type="button" class="jc-btn" data-page="JellyCleanRecover">Open Recover</button>
-                        </div>
-                    </div>
-                </section>
+                <div class="jc-tip" id="jcTip" role="tooltip" hidden></div>
 
                 <section class="jc-card">
                     <h2>Filter</h2>
                     <p class="jc-hint">Start from a suggestion or set your own filters. The list updates as you go.</p>
+                    <details class="jc-group jc-quick" data-group="quick">
+                        <summary>Quick filters and saved views</summary>
                     <div class="jc-presets">
                         <button type="button" class="jc-preset" data-preset="empty">Start here: empty movies and series</button>
                         <button type="button" class="jc-preset" data-preset="stale">Never played, added over a year ago</button>
@@ -295,6 +316,7 @@
                         <button type="button" class="jc-preset" data-preset="reset">Clear filters</button>
                     </div>
                     <div class="jc-views" id="jcViews"></div>
+                    </details>
                     <div class="jc-fields">
                         <div class="jc-field">
                             <label for="jcType">Show</label>
@@ -481,6 +503,9 @@
                 var servers = 0;
                 var config = { Views: [], NoticeDays: 14 };
                 var leaving = [];
+                var bin = { count: 0, size: 0 };
+                var overview = null;
+                var measure = 'size';
                 var shown = [];
                 var total = 0;
                 var selected = new Map(); // id -> size
@@ -637,13 +662,6 @@
                 function loadLeaving() {
                     return call('GET', 'LeavingSoon').then(function (list) {
                         leaving = list;
-                        var due = list.filter(function (l) { return l.IsDue && !l.Protected; });
-                        var size = list.reduce(function (sum, l) { return sum + l.Size; }, 0);
-                        $('jcLeaving').hidden = !list.length;
-                        $('jcLeavingText').textContent = plural(list.length, 'item', 'items') + ', ' + bytes(size) + '. ' +
-                            (due.length ? plural(due.length, 'is', 'are') + ' due and waiting for you.' : 'Nothing is due yet.');
-                        $('jcReviewDue').hidden = !due.length;
-                        $('jcReviewDue').textContent = 'Review due items (' + due.length + ')';
 
                     });
                 }
@@ -665,10 +683,19 @@
 
                 function loadBin() {
                     return call('GET', 'RecycleBin').then(function (list) {
-                        var size = list.reduce(function (sum, r) { return sum + r.Size; }, 0);
-                        $('jcBin').hidden = !list.length;
-                        $('jcBinText').textContent = plural(list.length, 'item', 'items') + ', ' + bytes(size) + ', still on disk and can be recovered.';
+                        bin = { count: list.length, size: list.reduce(function (sum, r) { return sum + r.Size; }, 0) };
+                        renderBinStat();
                     });
+                }
+
+                function renderBinStat() {
+                    var old = $('jcBinStat');
+                    if (old) { old.remove(); }
+                    if (!bin.count) { return; }
+                    var tile = el('button', { type: 'button', className: 'jc-stat jc-stat-link', id: 'jcBinStat', title: 'Still on disk and can be recovered. Open Recover.' },
+                        el('b', { textContent: bytes(bin.size) }), el('small', { textContent: 'in the recycle bin, ' + plural(bin.count, 'item', 'items') }));
+                    tile.dataset.page = 'JellyCleanRecover';
+                    $('jcStats').append(tile);
                 }
 
                 function watchedTag(item) {
@@ -765,6 +792,7 @@
                         var n = Array.prototype.filter.call(g.querySelectorAll('select'), function (x) { return x.value; }).length
                             + g.querySelectorAll('[aria-checked="true"], [aria-pressed="true"]').length;
                         var badge = g.querySelector('.jc-badge');
+                        if (!badge) { return; }
                         badge.hidden = !n;
                         badge.textContent = n + ' on';
                     });
@@ -802,30 +830,156 @@
                     if (on) { selected.set(id, size); } else { selected.delete(id); }
                 }
 
-                // Where the space goes, per library. The striped part was never played by anyone.
-                function renderStorage(o) {
-                    var libs = (o.LibrarySizes || []).filter(function (l) { return l.Size > 0; });
-                    var colors = ['#aa5cc3', '#00a4dc', '#4fc3a1', '#e6a700', '#e86a9a', '#7c8cf8', '#9ccc65', '#ff8a65'];
-                    var bar = $('jcStorageBar');
-                    var legend = $('jcLegend');
-                    bar.textContent = '';
-                    legend.textContent = '';
-                    $('jcStorage').hidden = !libs.length || !o.Size;
-                    bar.setAttribute('aria-label', libs.map(function (l) { return l.Name + ' ' + bytes(l.Size); }).join(', '));
-                    libs.forEach(function (l, i) {
-                        var color = colors[i % colors.length];
-                        var part = el('span', { title: l.Name + ': ' + bytes(l.Size) + ', ' + bytes(l.NeverWatchedSize) + ' never played' }, el('i'));
-                        part.style.width = (100 * l.Size / o.Size) + '%';
-                        part.style.background = color;
-                        part.firstChild.style.width = (100 * l.NeverWatchedSize / l.Size) + '%';
-                        bar.append(part);
-                        var item = el('button', { type: 'button', title: 'Show only ' + l.Name }, el('b'), l.Name + ' ', el('small', { textContent: bytes(l.Size) }));
-                        item.firstChild.style.background = color;
-                        item.dataset.storageLibrary = l.Name;
-                        legend.append(item);
-                    });
-                    legend.append(el('small', { textContent: 'Striped: never played' }));
+                // What is in each library: watch status per movie or series, by size or by count, with the details on hover.
+                var STATUS = [
+                    ['Favorite or keep', '#c58ad8', 'Someone made it a favorite, or it is marked keep. Never removed.'],
+                    ['Being watched', '#4fc3f7', 'In someone\'s Continue Watching or Next Up.'],
+                    ['Watched by everyone', '#66bb6a', 'Every user watched it to the end.'],
+                    ['Watched by some', '#2bb3a3', 'Some users played it, not everyone.'],
+                    ['Never played', '#f0b429', 'Nobody ever started it.']
+                ];
+                var QUALITY = { '4K': '#c58ad8', '1080p': '#4fc3f7', '720p': '#2bb3a3', 'SD': '#f0b429', 'Unknown': '#8a8a8a' };
+                var LIBRARY_COLORS = ['#aa5cc3', '#00a4dc', '#4fc3a1', '#e6a700', '#e86a9a', '#7c8cf8', '#9ccc65', '#ff8a65'];
+
+                // Wide screens always show the details of each library; phones open them on demand.
+                var wide = window.matchMedia('(min-width: 701px)');
+
+                function noun(kind, n) { return kind === 'Series' ? plural(n, 'series', 'series') : plural(n, 'movie', 'movies'); }
+                function pct(part, whole) { return whole ? Math.round(100 * part / whole) + '%' : '0%'; }
+
+                function segment(color, value, tip, label, tag) {
+                    var seg = el(tag || 'button', { className: 'jc-seg', ariaLabel: label });
+                    if (!tag) { seg.type = 'button'; } else { seg.tabIndex = 0; seg.style.cursor = 'default'; }
+                    seg.style.background = color;
+                    seg.style.flex = value + ' 1 0';
+                    seg.dataset.tip = tip;
+                    if (!value) { seg.hidden = true; }
+                    return seg;
                 }
+
+                function renderLibraries(o) {
+                    overview = o;
+                    var libs = (o.Breakdown || []).filter(function (l) { return l.Count > 0; });
+                    $('jcLibs').hidden = !libs.length;
+                    var grand = libs.reduce(function (sum, l) { return sum + l.Size; }, 0);
+                    var by = function (x) { return measure === 'size' ? x.Size : x.Count; };
+
+                    var key = $('jcKey');
+                    key.textContent = '';
+                    STATUS.forEach(function (st, i) {
+                        var count = 0, size = 0;
+                        libs.forEach(function (l) { count += l.Status[i].Count; size += l.Status[i].Size; });
+                        var dot = el('b', { className: 'jc-dot' });
+                        dot.style.background = st[1];
+                        var item = el('span', { tabIndex: 0 }, dot, st[0] + ' ', el('small', { textContent: count.toLocaleString() + ' · ' + bytes(size) }));
+                        item.dataset.tip = st[0] + '\n' + st[2] + '\n' + count.toLocaleString() + ' movies and series, ' + bytes(size) + ' (' + pct(size, grand) + ' of everything)';
+                        key.append(item);
+                    });
+
+                    var rows = $('jcLibRows');
+                    rows.textContent = '';
+                    libs.forEach(function (l, li) {
+                        var things = l.Kind === 'Series' ? 'series' : 'movies';
+                        var name = el('button', { type: 'button', className: 'jc-lib-name', title: 'Show only ' + l.Name }, el('b', { className: 'jc-dot' }), l.Name);
+                        name.firstChild.style.background = LIBRARY_COLORS[li % LIBRARY_COLORS.length];
+                        name.dataset.storageLibrary = l.Name;
+                        var meta = noun(l.Kind, l.Count) + (l.Episodes ? ' · ' + plural(l.Episodes, 'episode', 'episodes') : '') + ' · ' + bytes(l.Size) + ' · ' + pct(l.Size, grand) + ' of everything';
+
+                        var bar = el('div', { className: 'jc-bar2', role: 'group', ariaLabel: l.Name + ' by watch status' });
+                        l.Status.forEach(function (st, i) {
+                            var tip = st.Name + '\n' + noun(l.Kind, st.Count) + ', ' + bytes(st.Size) + '\n' + pct(st.Count, l.Count) + ' of the ' + things + ', ' + pct(st.Size, l.Size) + ' of the space' + '\n' + STATUS[i][2] + '\nClick to list them.';
+                            var seg = segment(STATUS[i][1], by(st), tip, st.Name + ': ' + noun(l.Kind, st.Count) + ', ' + bytes(st.Size));
+                            if (i === 4) { seg.classList.add('never'); }
+                            seg.dataset.segLibrary = l.Name;
+                            seg.dataset.segKind = l.Kind;
+                            seg.dataset.segStatus = i;
+                            bar.append(seg);
+                        });
+
+                        var facts = el('div', { className: 'jc-facts' });
+                        l.Facts.forEach(function (f) {
+                            var chip = el('span', { className: 'jc-fact', tabIndex: 0 }, f.Name + ' ', el('b', { textContent: f.Count.toLocaleString() }), ' ', el('small', { textContent: bytes(f.Size) }));
+                            chip.dataset.tip = f.Name + '\n' + noun(l.Kind, f.Count) + ', ' + bytes(f.Size) + '\n' + pct(f.Count, l.Count) + ' of the ' + things + ', ' + pct(f.Size, l.Size) + ' of the space';
+                            facts.append(chip);
+                        });
+                        if (l.Biggest) {
+                            var big = el('span', { className: 'jc-fact', tabIndex: 0 }, 'Biggest ', el('b', { textContent: l.Biggest.Name }), ' ', el('small', { textContent: bytes(l.Biggest.Size) }));
+                            big.dataset.tip = 'Biggest in ' + l.Name + '\n' + l.Biggest.Name + ', ' + bytes(l.Biggest.Size);
+                            facts.append(big);
+                        }
+
+                        var quality = el('div', { className: 'jc-bar2 small' });
+                        l.Quality.forEach(function (q) {
+                            quality.append(segment(QUALITY[q.Name] || '#8a8a8a', by(q), q.Name + '\n' + noun(l.Kind, q.Count) + ', ' + bytes(q.Size) + '\n' + pct(q.Size, l.Size) + ' of the space', q.Name + ': ' + noun(l.Kind, q.Count), 'span'));
+                        });
+
+                        var top = l.Genres.length ? l.Genres[0].Size || 1 : 1;
+                        var genreBox = el('div', { className: 'jc-genre-bars' });
+                        l.Genres.forEach(function (g) {
+                            var chip = el('span', { className: 'jc-genre-bar', tabIndex: 0, textContent: g.Name });
+                            var w = Math.max(6, Math.round(100 * g.Size / top));
+                            chip.style.background = 'linear-gradient(90deg, rgba(0, 164, 220, 0.28) ' + w + '%, transparent ' + w + '%)';
+                            chip.dataset.tip = g.Name + '\n' + noun(l.Kind, g.Count) + ', ' + bytes(g.Size) + '\n' + pct(g.Size, l.Size) + ' of the space';
+                            genreBox.append(chip);
+                        });
+
+                        rows.append(el('div', { className: 'jc-lib' },
+                            el('div', { className: 'jc-lib-head' }, name, el('span', { className: 'jc-lib-meta', textContent: meta })),
+                            bar,
+                            el('details', { className: 'jc-lib-details', open: wide.matches },
+                                el('summary', { textContent: 'More about ' + l.Name }),
+                                el('div', { className: 'jc-lib-more' },
+                                facts,
+                                el('div', {},
+                                    el('div', { className: 'jc-mini' }, el('span', { textContent: 'Quality' }), el('div', {}, quality,
+                                        el('small', { className: 'jc-mini-key', textContent: l.Quality.filter(function (q) { return q.Size > 0; }).slice(0, 4).map(function (q) { return q.Name + ' ' + pct(q.Size, l.Size); }).join(' · ') }))),
+                                    l.Genres.length ? el('div', { className: 'jc-mini' }, el('span', { textContent: 'Top genres' }), genreBox) : null)))));
+                    });
+                }
+
+                // One tooltip for every [data-tip], on hover and on keyboard focus.
+                function showTip(target) {
+                    var tip = $('jcTip');
+                    var lines = target.dataset.tip.split('\n');
+                    tip.textContent = '';
+                    tip.append(el('b', { textContent: lines[0] }), lines.slice(1).join('\n'));
+                    tip.hidden = false;
+                    var r = target.getBoundingClientRect();
+                    var w = tip.offsetWidth, h = tip.offsetHeight;
+                    var x = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+                    var y = r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8;
+                    tip.style.left = x + 'px';
+                    tip.style.top = y + 'px';
+                }
+                function hideTip() { $('jcTip').hidden = true; }
+                ['pointerover', 'focusin'].forEach(function (type) {
+                    page.addEventListener(type, function (e) {
+                        var t = e.target.closest && e.target.closest('[data-tip]');
+                        if (t && page.contains(t)) { showTip(t); }
+                    });
+                });
+                ['pointerout', 'focusout'].forEach(function (type) {
+                    page.addEventListener(type, function (e) {
+                        if (e.target.closest && e.target.closest('[data-tip]')) { hideTip(); }
+                    });
+                });
+                window.addEventListener('scroll', hideTip, { passive: true });
+
+                // Remember which groups are open and how the bars are drawn, per browser.
+                try {
+                    var openGroups = JSON.parse(localStorage.getItem('jellyclean-groups') || '{}');
+                    page.querySelectorAll('.jc-group').forEach(function (g) { if (g.dataset.group in openGroups) { g.open = openGroups[g.dataset.group]; } });
+                    measure = localStorage.getItem('jellyclean-measure') === 'count' ? 'count' : 'size';
+                    page.querySelectorAll('[data-measure]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.measure === measure)); });
+                } catch (err) { /* only a convenience */ }
+                page.addEventListener('toggle', function (e) {
+                    if (!e.target.dataset || !e.target.dataset.group) { return; }
+                    try {
+                        var state = JSON.parse(localStorage.getItem('jellyclean-groups') || '{}');
+                        state[e.target.dataset.group] = e.target.open;
+                        localStorage.setItem('jellyclean-groups', JSON.stringify(state));
+                    } catch (err) { /* only a convenience */ }
+                }, true);
 
                 function loadOverview(refresh) {
                     return call('GET', 'Overview' + (refresh ? '?refresh=true' : '')).then(function (o) {
@@ -841,7 +995,8 @@
                             stats.append(el('div', { className: 'jc-stat' }, el('b', { textContent: s[0] }), el('small', { textContent: s[1] })));
                         });
 
-                        renderStorage(o);
+                        renderLibraries(o);
+                        renderBinStat();
 
                         var library = $('jcLibrary');
                         var current = library.value;
@@ -874,8 +1029,8 @@
                     });
                 }
 
-                function applyPreset(name) {
-                    var values = {
+                function applyPreset(name, custom) {
+                    var values = custom || {
                         reset: {},
                         empty: { jcType: 'Movie,Series', jcSize: 'empty', jcSort: 'name|0' },
                         stale: { jcType: 'Movie,Series', jcWatched: 'none', jcAdded: '365', jcSort: 'size|1' },
@@ -1213,11 +1368,20 @@
                                 window.alert('Could not save the view: ' + err.message);
                             });
                         }
-                    } else if (b.id === 'jcReviewDue') {
-                        var due = leaving.filter(function (l) { return l.IsDue && !l.Protected; }).map(function (l) { return l.Id; });
-                        call('POST', 'Preview', { Ids: due }).then(showPlan).catch(function (err) {
-                            window.alert('Could not prepare the removal: ' + err.message);
+                    } else if (b.dataset.segStatus) {
+                        // Show the movies or series behind a part of the bar.
+                        var status = Number(b.dataset.segStatus);
+                        hideTip();
+                        applyPreset(null, {
+                            jcType: b.dataset.segKind, jcLibrary: b.dataset.segLibrary, jcSort: 'size|1',
+                            jcWatched: { 2: 'all', 3: 'any' }[status] || '', jcIdle: status === 4 ? 'never' : ''
                         });
+                        $('jcList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else if (b.dataset.measure) {
+                        measure = b.dataset.measure;
+                        page.querySelectorAll('[data-measure]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+                        try { localStorage.setItem('jellyclean-measure', measure); } catch (err) { /* only a convenience */ }
+                        if (overview) { renderLibraries(overview); }
                     } else if (b.id === 'jcExport') {
                         b.disabled = true;
                         fetch(ApiClient.getUrl('JellyClean/Export'), {
@@ -1273,8 +1437,8 @@
                     poller = setInterval(poll, 30000);
                     poll();
                     loadConfig();
-                    loadLeaving().catch(function () { $('jcLeaving').hidden = true; });
-                    loadBin().catch(function () { $('jcBin').hidden = true; });
+                    loadLeaving().catch(function () {});
+                    loadBin().catch(function () {});
                     // A removal started earlier may still be running.
                     call('GET', 'Remove').then(function (p) { if (p.Running) { watchRemoval(); } }).catch(function () {});
                     loadOverview(false).then(function () {

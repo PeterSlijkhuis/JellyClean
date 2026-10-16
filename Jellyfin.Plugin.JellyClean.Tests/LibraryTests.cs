@@ -150,6 +150,35 @@ public class LibraryTests
     }
 
     [Fact]
+    public void Breakdown_puts_each_item_in_one_status_and_adds_up()
+    {
+        CatalogItem Movie(long size) => new() { Id = Guid.NewGuid(), Type = "Movie", Library = "Movies", Size = size, Added = _now.AddYears(-2) };
+        var fav = Movie(10);
+        fav.Favorite = true;
+        var everyone = Movie(20);
+        everyone.WatchedBy = [_anna, _ben];
+        everyone.AnyPlayed = true;
+        var some = Movie(30);
+        some.WatchedBy = [_anna];
+        some.AnyPlayed = true;
+        var never = Movie(40);
+        var kept = Movie(5);
+        kept.AnyPlayed = true;
+        kept.InProgress = true;
+
+        var lib = Assert.Single(Breakdown.Build([fav, everyone, some, never, kept], new HashSet<Guid> { kept.Id }, 2, _now));
+
+        Assert.Equal(105, lib.Size);
+        Assert.Equal(lib.Size, lib.Status.Sum(s => s.Size));
+        Assert.Equal(lib.Count, lib.Status.Sum(s => s.Count));
+        Assert.Equal(new Slice("Favorite or keep", 2, 15), lib.Status[0]);
+        Assert.Equal(new Slice("Never played", 1, 40), lib.Status[^1]);
+        Assert.Contains(new Slice("Never played", 2, 50), lib.Facts);
+        Assert.Contains(new Slice("Favorites", 1, 10), lib.Facts);
+        Assert.Equal("Movie", lib.Kind);
+    }
+
+    [Fact]
     public void Empty_series_counts_as_never_watched()
     {
         var series = new CatalogItem { Id = Guid.NewGuid(), Name = "Empty", Type = "Series" };

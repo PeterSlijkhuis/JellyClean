@@ -59,8 +59,23 @@
             #JellyCleanLeavingPage .jc-status { margin: 0 0 1em; padding: 0.8em 1em; border-radius: 10px; border: 1px solid rgba(0, 164, 220, 0.5); background: rgba(0, 164, 220, 0.1); font-weight: 600; }
             #JellyCleanLeavingPage .jc-review { margin: 0.8em 0 1em; padding: 1em; border-radius: 12px; border: 1px solid rgba(240, 180, 41, 0.5); background: rgba(240, 180, 41, 0.06); }
             #JellyCleanLeavingPage .jc-review-foot { display: flex; gap: 0.6em; flex-wrap: wrap; justify-content: flex-end; margin-top: 0.8em; }
-            #JellyCleanLeavingPage .jc-rule { padding: 1em 0; border-top: 1px solid var(--jc-line); }
-            #JellyCleanLeavingPage .jc-rule-head { display: flex; gap: 0.6em; align-items: baseline; flex-wrap: wrap; margin-bottom: 0.6em; }
+            #JellyCleanLeavingPage .jc-fold > summary, #JellyCleanLeavingPage .jc-rule > summary { list-style: none; cursor: pointer; }
+            #JellyCleanLeavingPage .jc-fold > summary::-webkit-details-marker, #JellyCleanLeavingPage .jc-rule > summary::-webkit-details-marker { display: none; }
+            #JellyCleanLeavingPage .jc-fold > summary { display: flex; align-items: center; gap: 0.6em; min-height: 40px; }
+            #JellyCleanLeavingPage .jc-fold > summary h2 { margin: 0; }
+            #JellyCleanLeavingPage .jc-fold > summary small { opacity: 0.65; }
+            #JellyCleanLeavingPage .jc-fold > summary::after, #JellyCleanLeavingPage .jc-rule > summary::after { content: ""; margin-left: auto; flex: none; width: 0.5em; height: 0.5em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-25%) rotate(45deg); opacity: 0.7; transition: transform 0.15s; }
+            #JellyCleanLeavingPage .jc-fold[open] > summary::after, #JellyCleanLeavingPage .jc-rule[open] > summary::after { transform: translateY(25%) rotate(-135deg); }
+            #JellyCleanLeavingPage .jc-fold[open] > summary { margin-bottom: 0.4em; }
+            #JellyCleanLeavingPage summary:focus-visible { outline: 2px solid var(--jc-accent); outline-offset: 2px; border-radius: 6px; }
+            #JellyCleanLeavingPage .jc-rule { padding: 0.5em 0; border-top: 1px solid var(--jc-line); }
+            #JellyCleanLeavingPage .jc-rule[open] { padding-bottom: 0.9em; }
+            #JellyCleanLeavingPage .jc-rule-head { display: flex; gap: 0.6em; align-items: center; min-height: 40px; }
+            #JellyCleanLeavingPage .jc-rule-title { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3em 0.6em; flex: 1 1 auto; min-width: 0; }
+            #JellyCleanLeavingPage .jc-rule[open] > .jc-rule-head { margin-bottom: 0.4em; }
+            #JellyCleanLeavingPage .jc-when { font-size: 0.78em; padding: 0.1em 0.6em; border-radius: 999px; border: 1px solid var(--jc-line); }
+            #JellyCleanLeavingPage .jc-when.auto { border-color: rgba(224, 90, 90, 0.6); color: #ff8a80; }
+            @media (prefers-reduced-motion: reduce) { #JellyCleanLeavingPage summary::after { transition: none !important; } }
             #JellyCleanLeavingPage .jc-rule-head small { opacity: 0.7; }
             #JellyCleanLeavingPage .jc-rule-head .jc-saved { margin-left: auto; font-size: 0.85em; color: #66bb6a; }
             #JellyCleanLeavingPage .jc-rule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.7em; align-items: end; }
@@ -99,7 +114,8 @@
                 <div class="jc-status" id="jcStatus" role="status" aria-live="polite" hidden></div>
 
                 <section class="jc-card" aria-labelledby="jcRulesTitle">
-                    <h2 id="jcRulesTitle">Rules</h2>
+                    <details class="jc-fold" data-fold="rules" open>
+                    <summary><h2 id="jcRulesTitle">Rules</h2><small id="jcRulesCount"></small></summary>
                     <div class="jc-row">
                         <p class="jc-hint">A rule is a saved filter from the Library page with a schedule. At its time it puts what it finds on this list, with its own notice period. Changes save right away.</p>
                         <div class="jc-actions">
@@ -107,6 +123,7 @@
                         </div>
                     </div>
                     <div id="jcRules"></div>
+                    </details>
                 </section>
 
                 <section class="jc-card" aria-labelledby="jcListTitle">
@@ -343,6 +360,20 @@
                     return s;
                 }
 
+                // Which folds are open, per browser; everything starts open.
+                function folds() {
+                    try { return JSON.parse(localStorage.getItem('jellyclean-folds') || '{}'); } catch (err) { return {}; }
+                }
+                function isOpen(name) { return folds()[name] !== false; }
+                page.addEventListener('toggle', function (e) {
+                    if (!e.target.dataset || !e.target.dataset.fold) { return; }
+                    var state = folds();
+                    state[e.target.dataset.fold] = e.target.open;
+                    try { localStorage.setItem('jellyclean-folds', JSON.stringify(state)); } catch (err) { /* only a convenience */ }
+                }, true);
+
+                page.querySelector('[data-fold="rules"]').open = isOpen('rules');
+
                 function renderRules() {
                     var box = $('jcRules');
                     box.textContent = '';
@@ -414,11 +445,27 @@
                             call('DELETE', 'Views?name=' + encodeURIComponent(view.Name)).then(loadRules);
                         });
 
-                        box.append(el('div', { className: 'jc-rule' },
-                            el('div', { className: 'jc-rule-head' }, el('b', { textContent: view.Name }), info, saved),
+                        var timing = el('span', { className: 'jc-when' });
+                        function label() {
+                            timing.textContent = !view.Schedule ? 'Not scheduled'
+                                : (view.Schedule === 'weekly' ? 'Every ' + view.Day : 'Every day') + ' at ' + (view.Hour < 10 ? '0' : '') + view.Hour + ':00';
+                            timing.className = 'jc-when';
+                            if (view.AutoRemove) { timing.textContent += ', removes on its own'; timing.className = 'jc-when auto'; }
+                        }
+                        label();
+                        schedule.addEventListener('change', label);
+                        day.addEventListener('change', label);
+                        hour.addEventListener('change', label);
+                        auto.addEventListener('click', label);
+
+                        var rule = el('details', { className: 'jc-rule', open: isOpen('rule:' + view.Name) },
+                            el('summary', { className: 'jc-rule-head' }, el('span', { className: 'jc-rule-title' }, el('b', { textContent: view.Name }), timing, info, saved)),
                             el('div', { className: 'jc-rule-grid' }, field('Schedule', schedule), dayField, field('At', hour), field('Notice days', notice)),
-                            el('div', { className: 'jc-rule-foot' }, auto, run, remove)));
+                            el('div', { className: 'jc-rule-foot' }, auto, run, remove));
+                        rule.dataset.fold = 'rule:' + view.Name;
+                        box.append(rule);
                     });
+                    $('jcRulesCount').textContent = views.length ? plural(views.length, 'rule', 'rules') + ', ' + views.filter(function (v) { return v.Schedule; }).length + ' scheduled' : '';
                 }
 
                 page.addEventListener('click', function (e) {
