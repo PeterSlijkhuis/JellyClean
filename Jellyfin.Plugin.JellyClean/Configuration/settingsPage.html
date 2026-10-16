@@ -70,7 +70,7 @@
                 padding: 0.8em 1em; border-radius: var(--jc-radius); border: 1px solid var(--jc-line);
                 background: rgba(20, 20, 22, 0.92); color: #fff; backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
             }
-            #JellyCleanSettingsPage .jc-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.7em; margin-bottom: 1em; }
+            #JellyCleanSettingsPage .jc-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 0.7em; margin-bottom: 1em; }
             #JellyCleanSettingsPage .jc-chips { display: flex; gap: 0.45em; flex-wrap: wrap; }
             #JellyCleanSettingsPage .jc-chip { padding: 0.4em 0.9em; border-radius: 999px; border: 1px solid var(--jc-line); background: transparent; color: inherit; font: inherit; cursor: pointer; }
             #JellyCleanSettingsPage .jc-chip[aria-pressed="true"] { border-color: #e05a5a; background: rgba(224, 90, 90, 0.14); }
@@ -94,6 +94,14 @@
             #JellyCleanSettingsPage .jc-mail > summary::-webkit-details-marker { display: none; }
             #JellyCleanSettingsPage .jc-mail > summary::before { content: ""; width: 0.45em; height: 0.45em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); opacity: 0.7; transition: transform 0.15s; }
             #JellyCleanSettingsPage .jc-mail[open] > summary::before { transform: rotate(45deg); }
+            #JellyCleanSettingsPage .jc-mail { border: 1px solid var(--jc-line); border-radius: 12px; padding: 0 1em; margin-top: 0.8em; }
+            #JellyCleanSettingsPage .jc-mail[open] { padding-bottom: 1em; }
+            #JellyCleanSettingsPage .jc-mail > summary small { font-weight: 400; opacity: 0.65; margin-left: 0.3em; }
+            #JellyCleanSettingsPage .jc-server { border-style: dashed; }
+            #JellyCleanSettingsPage .jc-steps { margin: 0.2em 0 1em; padding-left: 1.3em; line-height: 1.5; font-size: 0.93em; }
+            #JellyCleanSettingsPage .jc-steps li { margin-bottom: 0.45em; }
+            #JellyCleanSettingsPage .jc-steps a, #JellyCleanSettingsPage .jc-hint a { color: var(--jc-accent); }
+            #JellyCleanSettingsPage .jc-preview { display: block; width: 100%; max-width: 640px; height: 600px; margin-top: 1em; border: 1px solid var(--jc-line); border-radius: 12px; background: #101014; }
             #JellyCleanSettingsPage .jc-dirty { margin-right: auto; opacity: 0.85; font-size: 0.92em; }
         </style>
 
@@ -164,40 +172,63 @@
 
                 <section class="jc-card">
                     <h2>Digest</h2>
-                    <p class="jc-hint">A short message with what is due on the Leaving soon list, what sits in the recycle bin and how much space you freed. Send it to a Discord or Slack webhook, an ntfy topic like https://ntfy.sh/my-jellyfin, by email, or to several. Leave them empty to send nothing.</p>
-                    <div class="jc-fields">
-                        <div class="jc-field" style="grid-column:1/-1;"><label>Webhook address<input type="url" data-text="DigestUrl" placeholder="https://discord.com/api/webhooks/..." autocomplete="off"></label></div>
-                    </div>
-                    <details class="jc-mail" id="jcMail">
-                        <summary>Email</summary>
-                        <p class="jc-hint">Any mail server works. For Gmail use smtp.gmail.com, port 587 and an app password, not your normal password. Port 465 is not supported; use 587.</p>
+                    <p class="jc-hint">A short update with what is due on Leaving soon, the recycle bin, free disk space and whatever else you pick below, by email, to an app on your phone, or both.</p>
+
+                    <details class="jc-mail" id="jcMail" data-fold="mail">
+                        <summary>By email <small id="jcMailState"></small></summary>
+                        <ol class="jc-steps">
+                            <li><b>Make an app password.</b> Gmail does not let other programs use your normal password. Switch on <a href="https://myaccount.google.com/signinoptions/twosv" target="_blank" rel="noopener">2-Step Verification</a> if it is off, then open <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">Google app passwords</a>, type JellyClean as the name and press Create. Copy the 16 letters it shows.</li>
+                            <li><b>Fill in your address and the app password.</b> The mail server fills itself in for Gmail, Outlook, iCloud and Yahoo.</li>
+                            <li><b>Press Send a test now</b> at the bottom of this card.</li>
+                        </ol>
                         <div class="jc-fields">
-                            <div class="jc-field"><label>Send to<input type="text" data-mail="To" placeholder="you@example.com" autocomplete="off"></label></div>
-                            <div class="jc-field"><label>From<input type="text" data-mail="From" placeholder="Same as user name" autocomplete="off"></label></div>
-                            <div class="jc-field"><label>Mail server<input type="text" data-mail="Host" placeholder="smtp.gmail.com" autocomplete="off"></label></div>
-                            <div class="jc-field"><label>Port<input type="number" min="1" max="65535" data-mail="Port" autocomplete="off"></label></div>
-                            <div class="jc-field"><label>User name<input type="text" data-mail="User" autocomplete="off"></label></div>
-                            <div class="jc-field"><label>Password<input type="password" data-mail="Password" autocomplete="new-password"></label></div>
+                            <div class="jc-field"><label>Your email address<input type="email" data-mail="User" placeholder="you@gmail.com" autocomplete="off"></label></div>
+                            <div class="jc-field"><label>App password<input type="password" data-mail="Password" placeholder="abcd efgh ijkl mnop" autocomplete="new-password"></label></div>
+                            <div class="jc-field"><label>Send it to<input type="text" data-mail="To" placeholder="Yourself" autocomplete="off"></label></div>
                         </div>
-                        <div class="jc-tiles" style="margin:0.9em 0 0;">
-                            <button type="button" class="jc-tile" role="switch" id="jcMailSsl">
-                                <span class="jc-tile-text"><b>Encrypt the connection (STARTTLS)</b><small>Leave on, unless your mail server is on your own network and has no encryption.</small></span>
-                                <span class="jc-switch" aria-hidden="true"></span>
-                            </button>
+                        <p class="jc-hint" style="margin-top:0.5em;">Leave Send it to empty to get it yourself. Several addresses are separated by commas.</p>
+                        <details class="jc-mail jc-server">
+                            <summary>Mail server <small id="jcMailServer"></small></summary>
+                            <p class="jc-hint">Only needed for another provider. Port 587 with encryption works for almost all of them; port 465 is not supported.</p>
+                            <div class="jc-fields">
+                                <div class="jc-field"><label>Mail server<input type="text" data-mail="Host" placeholder="smtp.example.com" autocomplete="off"></label></div>
+                                <div class="jc-field"><label>Port<input type="number" min="1" max="65535" data-mail="Port" autocomplete="off"></label></div>
+                            </div>
+                            <div class="jc-tiles" style="margin:0.9em 0 0;">
+                                <button type="button" class="jc-tile" role="switch" id="jcMailSsl">
+                                    <span class="jc-tile-text"><b>Encrypt the connection (STARTTLS)</b><small>Leave on, unless your mail server is on your own network and has no encryption.</small></span>
+                                    <span class="jc-switch" aria-hidden="true"></span>
+                                </button>
+                            </div>
+                        </details>
+                    </details>
+
+                    <details class="jc-mail" id="jcHook" data-fold="hook">
+                        <summary>To an app: Discord, Slack or ntfy <small id="jcHookState"></small></summary>
+                        <p class="jc-hint">Paste a Discord or Slack webhook address, or an ntfy topic like https://ntfy.sh/my-jellyfin for push messages on your phone with the free ntfy app.</p>
+                        <div class="jc-fields">
+                            <div class="jc-field" style="grid-column:1/-1;"><label>Webhook address<input type="url" data-text="DigestUrl" placeholder="https://discord.com/api/webhooks/..." autocomplete="off"></label></div>
                         </div>
                     </details>
-                    <div class="jc-view" style="border-top:0;padding-bottom:0;">
+
+                    <div class="jc-sub">When</div>
+                    <div class="jc-view" style="border-top:0;padding-top:0;padding-bottom:0;">
                         <label>How often<select id="jcDigestSchedule"><option value="daily">Every day</option><option value="weekly">Every week</option></select></label>
                         <label id="jcDigestDayLabel">On<select id="jcDigestDay"></select></label>
                         <label>At<select id="jcDigestHour"></select></label>
                     </div>
                     <div class="jc-sub">What it says</div>
                     <div class="jc-chips" id="jcDigestParts" role="group" aria-label="What the digest says"></div>
+                    <div class="jc-fields" style="margin-top:0.9em;">
+                        <div class="jc-field" style="grid-column:1/-1;"><label>Jellyfin address, for the Open JellyClean button<input type="url" data-text="JellyfinUrl" placeholder="https://jellyfin.example.com" autocomplete="off"></label></div>
+                    </div>
+                    <p class="jc-hint" style="margin-top:0.5em;">Filled in with the address you use now. Change it if you open Jellyfin at another address away from home.</p>
                     <div class="jc-row">
                         <button type="button" class="jc-btn" id="jcDigestPreview">Preview</button>
-                        <button type="button" class="jc-btn" id="jcDigestTest">Send a test now</button>
+                        <button type="button" class="jc-btn primary" id="jcDigestTest">Send a test now</button>
                         <span class="jc-test" id="jcDigestResult"></span>
                     </div>
+                    <iframe class="jc-preview" id="jcDigestFrame" title="Digest preview" sandbox="allow-same-origin allow-popups" hidden></iframe>
                     <pre class="jc-hint" id="jcDigestText" hidden style="white-space:pre-wrap;margin:0.8em 0 0;font:inherit;"></pre>
                 </section>
 
@@ -268,6 +299,18 @@
                         saving = null;
                         if (again) { again = false; save(); }
                     });
+                }
+
+                // The email as it will arrive, and the text the apps get under it.
+                function showPreview(r) {
+                    var frame = $('jcDigestFrame');
+                    frame.hidden = false;
+                    frame.onload = function () {
+                        try { frame.style.height = (frame.contentDocument.documentElement.scrollHeight + 4) + 'px'; } catch (err) { /* keeps its height */ }
+                    };
+                    frame.srcdoc = r.Html;
+                    $('jcDigestText').textContent = 'What Discord, Slack and ntfy get:\n' + r.Text;
+                    $('jcDigestText').hidden = false;
                 }
 
                 // Saves now, so a test uses what is on the screen.
@@ -369,6 +412,18 @@
                     ['added', 'What was added'], ['bin', 'Recycle bin'], ['freed', 'Space freed'], ['disk', 'Disk space and when it is full'],
                     ['never', 'Never played'], ['abandoned', 'Series left halfway'], ['shame', 'Biggest never played'], ['gem', 'A hidden gem to watch'], ['users', 'Hours per person']];
 
+                // The mail server for well known providers, from the address.
+                var SERVERS = { 'gmail.com': 'smtp.gmail.com', 'googlemail.com': 'smtp.gmail.com', 'outlook.com': 'smtp-mail.outlook.com', 'hotmail.com': 'smtp-mail.outlook.com',
+                    'live.com': 'smtp-mail.outlook.com', 'icloud.com': 'smtp.mail.me.com', 'me.com': 'smtp.mail.me.com', 'yahoo.com': 'smtp.mail.yahoo.com' };
+
+                function mailState() {
+                    var m = config.Mail;
+                    var to = (m.To || '').trim() || (m.User || '').trim();
+                    $('jcMailState').textContent = m.Host && to ? 'on, to ' + to : 'off';
+                    $('jcHookState').textContent = (config.DigestUrl || '').trim() ? 'on' : 'off';
+                    $('jcMailServer').textContent = m.Host ? m.Host + ', port ' + m.Port + (m.Ssl ? ', encrypted' : '') : 'not set';
+                }
+
                 function renderDigest() {
                     var parts = $('jcDigestParts');
                     parts.textContent = '';
@@ -389,7 +444,7 @@
                     hours.value = d.Hour;
                     page.querySelectorAll('[data-mail]').forEach(function (i) { i.value = config.Mail[i.dataset.mail] == null ? '' : config.Mail[i.dataset.mail]; });
                     $('jcMailSsl').setAttribute('aria-checked', String(!!config.Mail.Ssl));
-                    $('jcMail').open = !!config.Mail.To;
+                    mailState();
                     $('jcDigestDayLabel').style.display = d.Schedule === 'daily' ? 'none' : '';
                 }
 
@@ -423,9 +478,23 @@
                         dirty();
                     } else if (i.dataset.mail) {
                         config.Mail[i.dataset.mail] = i.dataset.mail === 'Port' ? (parseInt(i.value, 10) || 587) : i.value;
+                        if (i.dataset.mail === 'User') {
+                            var known = SERVERS[(i.value.split('@')[1] || '').trim().toLowerCase()];
+                            var auto = !config.Mail.Host || Object.keys(SERVERS).some(function (k) { return SERVERS[k] === config.Mail.Host; });
+                            if (known && auto) {
+                                config.Mail.Host = known;
+                                config.Mail.Port = 587;
+                                config.Mail.Ssl = true;
+                                page.querySelector('[data-mail="Host"]').value = known;
+                                page.querySelector('[data-mail="Port"]').value = 587;
+                                $('jcMailSsl').setAttribute('aria-checked', 'true');
+                            }
+                        }
+                        mailState();
                         dirty();
                     } else if (i.dataset.text) {
                         config[i.dataset.text] = i.value;
+                        mailState();
                         dirty();
                     }
                 });
@@ -465,8 +534,7 @@
                         flush().then(function () {
                             return fetch(ApiClient.getUrl('JellyClean/Digest/Preview'), { headers: { 'Authorization': 'MediaBrowser Token="' + ApiClient.accessToken() + '"' } });
                         }).then(function (r) { return r.json(); }).then(function (r) {
-                            $('jcDigestText').textContent = r.Text;
-                            $('jcDigestText').hidden = false;
+                            showPreview(r);
                         }).catch(function (err) { $('jcDigestResult').textContent = err.message; }).finally(function () { b.disabled = false; });
                     } else if (b.id === 'jcMailSsl') {
                         config.Mail.Ssl = !config.Mail.Ssl;
@@ -480,8 +548,7 @@
                         flush().then(function () { return post('JellyClean/Digest/Test'); }).then(function (r) { return r.json(); }).then(function (r) {
                             result.className = 'jc-test ' + (r.Ok ? 'ok' : 'bad');
                             result.textContent = r.Message;
-                            $('jcDigestText').textContent = r.Text;
-                            $('jcDigestText').hidden = !r.Text;
+                            if (r.Text) { $('jcDigestText').textContent = r.Text; $('jcDigestText').hidden = false; $('jcDigestFrame').hidden = true; }
                         }).catch(function (err) {
                             result.className = 'jc-test bad';
                             result.textContent = err.message;
@@ -506,8 +573,14 @@
                         config.ProtectedLibraries = config.ProtectedLibraries || [];
                         config.Digest = config.Digest || { Name: 'Digest', Schedule: 'weekly', Day: 1, Hour: 9 };
                         config.DigestParts = config.DigestParts || ['due', 'week', 'bin', 'freed', 'disk'];
+                        var fillUrl = !config.JellyfinUrl;
+                        if (fillUrl) { config.JellyfinUrl = ApiClient.serverAddress(); }
                         config.Mail = config.Mail || { To: '', From: '', Host: '', Port: 587, User: '', Password: '', Ssl: true };
                         render();
+                        var hook = !!(config.DigestUrl || '').trim();
+                        $('jcMail').open = !!config.Mail.Host || !hook;
+                        $('jcHook').open = hook;
+                        if (fillUrl) { dirty(); }
                         return ApiClient.getVirtualFolders();
                     }).then(function (folders) {
                         libraries = (folders || []).map(function (f) { return f.Name; });

@@ -21,16 +21,17 @@ public sealed class DigestTests
         var server = new TcpListener(IPAddress.Loopback, 0);
         server.Start();
         var received = Smtp(server);
-        var config = new PluginConfiguration { Mail = new MailSettings { To = "anna@example.com", From = "jellyfin@example.com", Host = "127.0.0.1", Port = ((IPEndPoint)server.LocalEndpoint).Port, Ssl = false } };
+        var config = new PluginConfiguration { Mail = new MailSettings { User = "anna@example.com", Host = "127.0.0.1", Port = ((IPEndPoint)server.LocalEndpoint).Port, Ssl = false } };
 
         using var http = new HttpClient();
-        var (sent, problems) = await Digest.SendAllAsync(config, http, "Freed so far: 1 TB.", TestContext.Current.CancellationToken);
+        var (sent, problems) = await Digest.SendAllAsync(config, http, new DigestMessage("Freed so far: 1 TB.", "<b>Freed so far: 1 TB.</b>", null), TestContext.Current.CancellationToken);
 
         Assert.Empty(problems);
         Assert.Equal(["anna@example.com"], sent);
         var mail = await received;
         Assert.Contains("RCPT TO:<anna@example.com>", mail, StringComparison.Ordinal);
         Assert.Contains("Freed so far: 1 TB.", mail, StringComparison.Ordinal);
+        Assert.Contains("text/html", mail, StringComparison.Ordinal);
         server.Stop();
     }
 
@@ -49,15 +50,18 @@ public sealed class DigestTests
                 new LeavingItem { Id = soon.Id, Title = "Dune (2021)", Due = now.AddDays(3) },
             ],
             DigestParts = ["week", "gem", "disk"],
+            JellyfinUrl = "http://jellyfin:8096/",
         };
         var stats = Stats.Build(items.Values.ToList(), [], [], now) with { Disks = [new DiskSpace("/media", 10_000_000_000_000, 1_000_000_000_000, ["Movies"])] };
 
-        var text = Digest.Text(config, items, stats, now);
+        var digest = Digest.Write(config, items, stats, now);
 
-        Assert.DoesNotContain("Due now", text, StringComparison.Ordinal);
-        Assert.Contains("Due in the next 7 days: 1, 3.0 GB: Dune (2021).", text, StringComparison.Ordinal);
-        Assert.Contains("Alien (1979), rated 8.5", text, StringComparison.Ordinal);
-        Assert.Contains("Disk /media: 1.0 TB free of 10 TB", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Due now", digest.Text, StringComparison.Ordinal);
+        Assert.Contains("Due in the next 7 days: 1 item, 3.0 GB. Dune (2021).", digest.Text, StringComparison.Ordinal);
+        Assert.Contains("Hidden gem to watch: Alien (1979). Rated 8.5", digest.Text, StringComparison.Ordinal);
+        Assert.Contains("Disk: Movies: 1.0 TB free of 10 TB.", digest.Text, StringComparison.Ordinal);
+        Assert.EndsWith("Open JellyClean: http://jellyfin:8096/web/#/configurationpage?name=JellyClean", digest.Text, StringComparison.Ordinal);
+        Assert.Contains("href=\"http://jellyfin:8096/web/#/configurationpage?name=JellyClean\"", digest.Html, StringComparison.Ordinal);
     }
 
     [Fact]

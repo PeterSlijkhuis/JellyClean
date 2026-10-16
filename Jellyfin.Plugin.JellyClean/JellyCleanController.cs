@@ -233,10 +233,10 @@ public class JellyCleanController : ControllerBase
     /// <summary>
     /// Writes the digest the way it is saved, without sending it.
     /// </summary>
-    /// <returns>The text.</returns>
+    /// <returns>The text and the email.</returns>
     [HttpGet("Digest/Preview")]
     public ActionResult PreviewDigest()
-        => Ok(new { Text = Digest.Text(Plugin.Instance!.Configuration, _catalog.Get(), Stats.For(_catalog, _userManager, _libraryManager), DateTime.UtcNow) });
+        => Ok(Digest.Write(Plugin.Instance!.Configuration, _catalog.Get(), Stats.For(_catalog, _userManager, _libraryManager), DateTime.UtcNow));
 
     /// <summary>
     /// Sends the digest now, the way it is saved.
@@ -247,15 +247,16 @@ public class JellyCleanController : ControllerBase
     public async Task<ActionResult> TestDigest(CancellationToken cancellationToken)
     {
         var config = Plugin.Instance!.Configuration;
-        var text = Digest.Text(config, _catalog.Get(), Stats.For(_catalog, _userManager, _libraryManager), DateTime.UtcNow);
-        if (string.IsNullOrWhiteSpace(config.DigestUrl) && string.IsNullOrWhiteSpace(config.Mail.To))
+        var message = Digest.Write(config, _catalog.Get(), Stats.For(_catalog, _userManager, _libraryManager), DateTime.UtcNow);
+        var text = message.Text;
+        if (string.IsNullOrWhiteSpace(config.DigestUrl) && !Digest.MailOn(config.Mail))
         {
-            return Ok(new { Ok = false, Message = "Fill in a webhook or an email address first.", Text = text });
+            return Ok(new { Ok = false, Message = "Fill in a webhook, or your email address and app password, first.", Text = text });
         }
 
-        var (sent, problems) = await Digest.SendAllAsync(config, _http.CreateClient(), text, cancellationToken).ConfigureAwait(false);
-        var message = string.Join(" ", (sent.Length > 0 ? new[] { "Sent to " + string.Join(" and ", sent) + "." } : []).Concat(problems));
-        return Ok(new { Ok = problems.Length == 0, Message = message, Text = text });
+        var (sent, problems) = await Digest.SendAllAsync(config, _http.CreateClient(), message, cancellationToken).ConfigureAwait(false);
+        var result = string.Join(" ", (sent.Length > 0 ? new[] { "Sent to " + string.Join(" and ", sent) + "." } : []).Concat(problems));
+        return Ok(new { Ok = problems.Length == 0, Message = result, Text = text });
     }
 
     /// <summary>
