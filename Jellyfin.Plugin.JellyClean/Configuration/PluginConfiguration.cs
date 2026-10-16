@@ -145,6 +145,11 @@ public class PluginConfiguration : BasePluginConfiguration
     public MailSettings Mail { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the address Jellyfin is opened at, for the Open JellyClean button in the digest. The settings page fills it in.
+    /// </summary>
+    public string JellyfinUrl { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets which parts the digest has; see <see cref="Library.Digest.Parts"/>.
     /// </summary>
     public string[] DigestParts { get; set; } = ["due", "week", "bin", "freed", "disk"];
@@ -156,7 +161,7 @@ public class PluginConfiguration : BasePluginConfiguration
 public class MailSettings
 {
     /// <summary>
-    /// Gets or sets who gets the digest; several addresses are separated by commas.
+    /// Gets or sets who gets the digest; several addresses are separated by commas. Empty sends it to <see cref="User"/>.
     /// </summary>
     public string To { get; set; } = string.Empty;
 

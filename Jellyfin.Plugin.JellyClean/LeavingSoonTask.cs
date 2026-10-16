@@ -69,7 +69,7 @@ public class LeavingSoonTask : IScheduledTask
     {
         var config = Plugin.Instance!.Configuration;
         var now = DateTime.Now;
-        if ((string.IsNullOrWhiteSpace(config.DigestUrl) && string.IsNullOrWhiteSpace(config.Mail.To)) || config.Digest.NextRun(now) is not { } next || next > now)
+        if ((string.IsNullOrWhiteSpace(config.DigestUrl) && !Digest.MailOn(config.Mail)) || config.Digest.NextRun(now) is not { } next || next > now)
         {
             return;
         }
@@ -82,7 +82,7 @@ public class LeavingSoonTask : IScheduledTask
             return;
         }
 
-        var (sent, problems) = await Digest.SendAllAsync(config, _http.CreateClient(), Digest.Text(config, _catalog.Get(), Stats.For(_catalog, _users, _libraries), DateTime.UtcNow), cancellationToken).ConfigureAwait(false);
+        var (sent, problems) = await Digest.SendAllAsync(config, _http.CreateClient(), Digest.Write(config, _catalog.Get(), Stats.For(_catalog, _users, _libraries), DateTime.UtcNow), cancellationToken).ConfigureAwait(false);
         if (sent.Length > 0)
         {
             Activity.Info(_logger, "Sent the digest to {To}", string.Join(" and ", sent));
