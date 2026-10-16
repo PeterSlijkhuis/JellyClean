@@ -52,7 +52,7 @@ public sealed class DigestTests
             DigestParts = ["week", "gem", "disk"],
             JellyfinUrl = "http://jellyfin:8096/",
         };
-        var stats = Stats.Build(items.Values.ToList(), [], [], now) with { Disks = [new DiskSpace("/media", 10_000_000_000_000, 1_000_000_000_000, ["Movies"])] };
+        var stats = Stats.Build(items.Values.ToList(), [], [], now) with { Disks = [new DiskSpace("/media", 10_000_000_000_000, 1_000_000_000_000, ["Movies"], 0)] };
 
         var digest = Digest.Write(config, items, stats, now);
 
@@ -84,13 +84,19 @@ public sealed class DigestTests
     }
 
     [Fact]
-    public void Disks_group_library_folders_by_the_disk_they_are_on()
+    public void Disks_come_from_where_the_files_are()
     {
+        var now = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc);
         var root = System.IO.Path.GetTempPath();
-        var disks = Stats.Disks([("Movies", System.IO.Path.Combine(root, "a")), ("Shows", System.IO.Path.Combine(root, "b"))]);
+        CatalogItem File(string library, string type, long size, int monthsAgo) => new() { Id = Guid.NewGuid(), Name = "x", Type = type, Library = library, Size = size, Added = now.AddMonths(-monthsAgo), Path = System.IO.Path.Combine(root, library, "x.mkv") };
+
+        var disks = Stats.Disks(
+            [File("Shows", "Episode", 600, 1), File("Movies", "Movie", 600, 2), File("Movies", "Movie", 999, 30), new CatalogItem { Type = "BoxSet", Library = "Collections", Path = "/config/data/collections/x" }],
+            now);
 
         var disk = Assert.Single(disks);
         Assert.Equal(["Movies", "Shows"], disk.Libraries);
+        Assert.Equal(100, disk.AddedPerMonth);
         Assert.True(disk.Total > 0);
     }
 

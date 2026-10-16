@@ -228,7 +228,7 @@ public class JellyCleanController : ControllerBase
     /// <returns>Space over time, the biggest unplayed items and a year per user.</returns>
     [HttpGet("Insights")]
     public ActionResult GetStats()
-        => Ok(Stats.For(_catalog, _userManager, _libraryManager));
+        => Ok(Stats.For(_catalog, _userManager));
 
     /// <summary>
     /// Writes the digest the way it is saved, without sending it.
@@ -236,7 +236,7 @@ public class JellyCleanController : ControllerBase
     /// <returns>The text and the email.</returns>
     [HttpGet("Digest/Preview")]
     public ActionResult PreviewDigest()
-        => Ok(Digest.Write(Plugin.Instance!.Configuration, _catalog.Get(), Stats.For(_catalog, _userManager, _libraryManager), DateTime.UtcNow));
+        => Ok(Digest.Write(Plugin.Instance!.Configuration, _catalog.Get(), Stats.For(_catalog, _userManager), DateTime.UtcNow));
 
     /// <summary>
     /// Sends the digest now, the way it is saved.
@@ -247,7 +247,7 @@ public class JellyCleanController : ControllerBase
     public async Task<ActionResult> TestDigest(CancellationToken cancellationToken)
     {
         var config = Plugin.Instance!.Configuration;
-        var message = Digest.Write(config, _catalog.Get(), Stats.For(_catalog, _userManager, _libraryManager), DateTime.UtcNow);
+        var message = Digest.Write(config, _catalog.Get(), Stats.For(_catalog, _userManager), DateTime.UtcNow);
         var text = message.Text;
         if (string.IsNullOrWhiteSpace(config.DigestUrl) && !Digest.MailOn(config.Mail))
         {
