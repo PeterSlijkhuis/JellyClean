@@ -133,6 +133,7 @@ public class Safeguards
     public string? CheckParent(CatalogItem item, string who)
         => Kept.Contains(item.Id) ? who + "is marked keep."
             : !string.IsNullOrWhiteSpace(Tag) && item.Tags.Contains(Tag.Trim(), StringComparer.OrdinalIgnoreCase) ? who + $"has the tag \"{Tag.Trim()}\"."
+            : Favorites && item.FavoriteBy.Length == 0 && item.FavoriteCollections.Length > 0 ? who + $"is in {string.Join(" and ", item.FavoriteCollections)}, a favorite collection."
             : Favorites && item.Favorite ? who + "is a favorite."
             : Libraries.Contains(item.Library) ? $"Nothing is removed from the {item.Library} library (Settings)."
             : null;

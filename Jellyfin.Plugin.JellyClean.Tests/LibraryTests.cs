@@ -268,4 +268,12 @@ public class LibraryTests
         view.CheckDaily = true;
         Assert.Equal("daily", view.Runs());
     }
+
+    [Fact]
+    public void A_favorite_collection_keeps_what_is_in_it()
+    {
+        var movie = new CatalogItem { Id = Guid.NewGuid(), Type = "Movie", Favorite = true, FavoriteCollections = ["Harry Potter"] };
+        Assert.Equal("It is in Harry Potter, a favorite collection.", new Safeguards().Check(movie, "It "));
+        Assert.Null(new Safeguards { Favorites = false }.Check(movie, "It "));
+    }
 }

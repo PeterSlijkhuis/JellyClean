@@ -104,6 +104,9 @@ public sealed class CatalogItem
     /// <summary>Gets or sets the users who made it a favorite.</summary>
     public Guid[] FavoriteBy { get; set; } = [];
 
+    /// <summary>Gets or sets the favorite collections it is in. Those count as a favorite too.</summary>
+    public string[] FavoriteCollections { get; set; } = [];
+
     /// <summary>Gets or sets a value indicating whether it is marked keep. Filled in per request.</summary>
     public bool Kept { get; set; }
 

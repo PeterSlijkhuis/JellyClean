@@ -772,7 +772,8 @@
                         item.Ended && item.Type === 'Series' ? el('span', { className: 'jc-tag', textContent: 'Ended' }) : null,
                         item.CopiesIn.length ? el('span', { className: 'jc-tag copy', textContent: 'Also in ' + item.CopiesIn.join(', ') }) : null,
                         item.Kept ? el('span', { className: 'jc-tag protected', textContent: 'Keep' }) : null,
-                        item.Favorite ? favoriteTag(item) : null);
+                        item.FavoriteBy.length ? favoriteTag(item) : null,
+                        (item.FavoriteCollections || []).length ? el('span', { className: 'jc-tag protected', textContent: 'In favorite ' + item.FavoriteCollections.join(', ') }) : null);
 
                     var img = poster(item);
 

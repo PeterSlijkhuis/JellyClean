@@ -235,7 +235,8 @@
                             item.Resolution ? el('span', { className: 'jc-tag quality', textContent: [item.Resolution, item.Codec, item.Hdr].filter(Boolean).join(' · ') }) : null,
                             item.Ended && item.Type === 'Series' ? el('span', { className: 'jc-tag', textContent: 'Ended' }) : null,
                             (item.CopiesIn || []).length ? el('span', { className: 'jc-tag copy', textContent: 'Also in ' + item.CopiesIn.join(', ') }) : null,
-                            fav.length ? el('span', { className: 'jc-tag protected', textContent: 'Favorite of ' + fav.join(', ') }) : null));
+                            fav.length ? el('span', { className: 'jc-tag protected', textContent: 'Favorite of ' + fav.join(', ') }) : null,
+                            (item.FavoriteCollections || []).length ? el('span', { className: 'jc-tag protected', textContent: 'In favorite ' + item.FavoriteCollections.join(', ') }) : null));
                 }
 
                 // The list

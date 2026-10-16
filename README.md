@@ -245,7 +245,7 @@ For a movie, its folder with extras, subtitles and artwork. For an episode, the 
 Only if you switch on **Remove when due, without asking** for a rule. Even then every safeguard is checked again at that moment and the files go to the recycle bin first.
 
 **Someone wants to keep something on the Leaving soon list.**
-They can mark it a favorite in Jellyfin; it leaves the list at once and the Leaving soon tab shows whose favorite it is. You can also press **Cancel** on the Leaving soon tab or **keep** on the Library tab.
+They can mark it a favorite in Jellyfin; it leaves the list at once and the Leaving soon tab shows whose favorite it is. Making a collection a favorite keeps every movie and series in it the same way (the Leaving soon collection itself does not count). You can also press **Cancel** on the Leaving soon tab or **keep** on the Library tab.
 
 **Can I take away someone's favorite?**
 Yes. Each favorite tag shows the names, and the × next to a name takes off only that person's favorite, without opening the item. Changes made in Jellyfin itself show up in JellyClean right away.
