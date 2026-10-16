@@ -101,5 +101,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<RecycleBin>();
         serviceCollection.AddSingleton<Remover>();
         serviceCollection.AddSingleton<LeavingSoon>();
+        serviceCollection.AddHostedService<HomeSectionRegistration>();
     }
 }

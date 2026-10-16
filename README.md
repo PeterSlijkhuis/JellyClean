@@ -186,6 +186,17 @@ The preview lists every item that stays, with the reason.
 4. The **Leaving soon** tab shows everything on the list with its poster and all details, grouped in *Due now* and *Coming up*, with why it is there and when it is due. **Cancel** takes one item off the list and marks it keep.
 5. When the notice period is over, press **Review due items**, check the preview and remove them.
 
+### On everyone's home screen
+
+With the [Home Screen Sections](https://github.com/IAmParadox27/jellyfin-plugin-home-sections) plugin installed (it needs File Transformation and Plugin Pages too), JellyClean adds a **Leaving soon** row to the home screen, the first to go first. Each user only sees what is in libraries they can open.
+
+1. Install Home Screen Sections and restart Jellyfin.
+2. Open its settings under **Dashboard > Plugins**, switch on **Enabled** so every user gets the new home screen, and press **Save** once so the Leaving soon row gets its settings.
+3. Drag **Leaving soon** below **Recently added** and save again.
+4. To stop users switching back to the old home screen, switch off **Allow user override**.
+
+Without Home Screen Sections nothing changes.
+
 ### Scheduled rules
 
 Set a filter on the Library page and press **Schedule for Leaving soon**. It is saved as a daily rule and the **Leaving soon** tab opens. Under **Rules** every saved view has, saved as you change it:

@@ -121,7 +121,7 @@
 
                 <section class="jc-card" id="jcDiskCard" hidden>
                     <h2>Disk space</h2>
-                    <p class="jc-hint">How full the disks with your libraries are, and when they fill up if you keep adding at the pace of the last 12 months.</p>
+                    <p class="jc-hint">How full the disks with your movies and episodes are, and when each fills up if you keep adding to it at the pace of the last 12 months.</p>
                     <div id="jcDisks"></div>
                 </section>
 
@@ -357,7 +357,6 @@
                     $('jcDiskCard').hidden = !disks.length;
                     var box = $('jcDisks');
                     box.textContent = '';
-                    var pace = stats.Library.AddedPerMonth;
                     disks.forEach(function (d) {
                         var used = d.Total - d.Free;
                         var bar = el('div', { className: 'jc-stack' });
@@ -369,8 +368,9 @@
                         f.style.width = (d.Free / d.Total * 100) + '%';
                         f.dataset.tip = 'Free\n' + bytes(d.Free);
                         bar.append(u, f);
+                        var pace = d.AddedPerMonth;
                         var months = pace > 0 ? d.Free / pace : Infinity;
-                        var when = !isFinite(months) ? 'Nothing was added in the last 12 months, so it is not filling up.'
+                        var when = !isFinite(months) ? 'Nothing still here was added to it in the last 12 months.'
                             : months < 1 ? 'At ' + bytes(pace) + ' added a month, it is full within a month.'
                             : 'At ' + bytes(pace) + ' added a month, it is full in about ' + (months >= 24 ? plural(Math.round(months / 12), 'year', 'years') : plural(Math.round(months), 'month', 'months')) + '.';
                         box.append(el('div', { className: 'jc-disk' },

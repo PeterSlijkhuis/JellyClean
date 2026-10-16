@@ -115,7 +115,7 @@ public static class Digest
                 case "disk":
                     foreach (var disk in stats.Disks)
                     {
-                        var months = lib.AddedPerMonth > 0 ? disk.Free / (double)lib.AddedPerMonth : double.PositiveInfinity;
+                        var months = disk.AddedPerMonth > 0 ? disk.Free / (double)disk.AddedPerMonth : double.PositiveInfinity;
                         cards.Add(new(
                             "Disk: " + string.Join(", ", disk.Libraries),
                             $"{Remover.Bytes(disk.Free)} free of {Remover.Bytes(disk.Total)}",

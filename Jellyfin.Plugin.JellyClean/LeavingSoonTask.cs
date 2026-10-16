@@ -21,7 +21,6 @@ public class LeavingSoonTask : IScheduledTask
     private readonly Catalog _catalog;
     private readonly IHttpClientFactory _http;
     private readonly IUserManager _users;
-    private readonly ILibraryManager _libraries;
     private readonly ILogger<LeavingSoonTask> _logger;
 
     /// <summary>
@@ -32,16 +31,14 @@ public class LeavingSoonTask : IScheduledTask
     /// <param name="catalog">Catalog, for the digest.</param>
     /// <param name="http">HTTP client factory, for the digest.</param>
     /// <param name="users">User manager, for the digest.</param>
-    /// <param name="libraries">Library manager, for the disks in the digest.</param>
     /// <param name="logger">Logger.</param>
-    public LeavingSoonTask(LeavingSoon leavingSoon, RecycleBin bin, Catalog catalog, IHttpClientFactory http, IUserManager users, ILibraryManager libraries, ILogger<LeavingSoonTask> logger)
+    public LeavingSoonTask(LeavingSoon leavingSoon, RecycleBin bin, Catalog catalog, IHttpClientFactory http, IUserManager users, ILogger<LeavingSoonTask> logger)
     {
         _leavingSoon = leavingSoon;
         _bin = bin;
         _catalog = catalog;
         _http = http;
         _users = users;
-        _libraries = libraries;
         _logger = logger;
     }
 
@@ -82,7 +79,7 @@ public class LeavingSoonTask : IScheduledTask
             return;
         }
 
-        var (sent, problems) = await Digest.SendAllAsync(config, _http.CreateClient(), Digest.Write(config, _catalog.Get(), Stats.For(_catalog, _users, _libraries), DateTime.UtcNow), cancellationToken).ConfigureAwait(false);
+        var (sent, problems) = await Digest.SendAllAsync(config, _http.CreateClient(), Digest.Write(config, _catalog.Get(), Stats.For(_catalog, _users), DateTime.UtcNow), cancellationToken).ConfigureAwait(false);
         if (sent.Length > 0)
         {
             Activity.Info(_logger, "Sent the digest to {To}", string.Join(" and ", sent));

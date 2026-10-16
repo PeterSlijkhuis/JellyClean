@@ -60,8 +60,9 @@ public sealed record StatsResult(MonthPoint[] Months, long FreedThisYear, int Re
 /// <param name="Name">Where it is mounted.</param>
 /// <param name="Total">Its size in bytes.</param>
 /// <param name="Free">Free bytes.</param>
-/// <param name="Libraries">The libraries on it.</param>
-public sealed record DiskSpace(string Name, long Total, long Free, string[] Libraries);
+/// <param name="Libraries">The libraries with files on it.</param>
+/// <param name="AddedPerMonth">Bytes added to it per month, on average over the last 12 months, by what is still there.</param>
+public sealed record DiskSpace(string Name, long Total, long Free, string[] Libraries, long AddedPerMonth);
 
 /// <summary>A genre and how much of it nobody played.</summary>
 /// <param name="Name">The genre.</param>
@@ -89,11 +90,10 @@ public sealed record GenreInsight(string Name, int Count, long Size, int NeverPl
 /// <param name="Longest">The longest movie.</param>
 /// <param name="Oldest">The oldest movie or series.</param>
 /// <param name="AverageRating">The average community rating.</param>
-/// <param name="AddedPerMonth">Bytes added per month, on average over the last 12 months.</param>
 public sealed record LibraryInsights(
     int Movies, int Series, int Episodes, double PlayedShare, Slice[] Decades, GenreInsight[] Genres, Slice[] Resolutions, Slice[] Codecs,
     CatalogItem[] Gems, CatalogItem[] Hogs, CatalogItem[] Abandoned, Slice AbandonedTotal, Slice Stale, Slice Untouched,
-    CatalogItem? Longest, CatalogItem? Oldest, double AverageRating, long AddedPerMonth);
+    CatalogItem? Longest, CatalogItem? Oldest, double AverageRating);
 
 /// <summary>
 /// Works out the numbers for the Stats tab.
@@ -169,7 +169,7 @@ public static class Stats
             Hours(files.Where(i => !i.AnyPlayed)),
             items.Where(i => i.Type is "Movie" or "Series" && !i.AnyPlayed && i.Size > 0).OrderByDescending(i => i.Size).Take(6).ToArray(),
             year,
-            Library(items, months, now));
+            Library(items, now));
     }
 
     /// <summary>
@@ -177,18 +177,22 @@ public static class Stats
     /// </summary>
     /// <param name="catalog">The catalog.</param>
     /// <param name="users">The user manager.</param>
-    /// <param name="libraries">The library manager, for the library folders.</param>
     /// <returns>The insights.</returns>
-    public static StatsResult For(Catalog catalog, IUserManager users, ILibraryManager libraries)
-        => Build(catalog.Get().Values.ToList(), users.GetUsers().Select(u => (u.Id, u.Username)), Plugin.Instance!.Configuration.FreedByMonth, DateTime.UtcNow)
-            with { Disks = Disks(libraries.GetVirtualFolders().SelectMany(f => f.Locations.Select(l => (f.Name, l)))) };
+    public static StatsResult For(Catalog catalog, IUserManager users)
+    {
+        var items = catalog.Get().Values.ToList();
+        var now = DateTime.UtcNow;
+        return Build(items, users.GetUsers().Select(u => (u.Id, u.Username)), Plugin.Instance!.Configuration.FreedByMonth, now) with { Disks = Disks(items, now) };
+    }
 
     /// <summary>
-    /// Finds the disk each library folder is on.
+    /// Finds the disks the movies and episodes are on, by where their files are, and how fast each fills up.
+    /// Library folders are not used: a library like Collections only keeps its metadata in Jellyfin's own folder.
     /// </summary>
-    /// <param name="folders">Library names and folders.</param>
-    /// <returns>One entry per disk.</returns>
-    public static DiskSpace[] Disks(IEnumerable<(string Library, string Path)> folders)
+    /// <param name="items">Every catalog item.</param>
+    /// <param name="now">Now (UTC).</param>
+    /// <returns>One entry per disk, biggest first.</returns>
+    public static DiskSpace[] Disks(IEnumerable<CatalogItem> items, DateTime now)
     {
         DriveInfo[] drives;
         try
@@ -200,15 +204,33 @@ public static class Stats
             return [];
         }
 
-        return folders
-            .Select(f => (f.Library, Drive: drives.Where(d => Under(f.Path, d.RootDirectory.FullName)).MaxBy(d => d.RootDirectory.FullName.Length)))
-            .Where(f => f.Drive is not null)
-            .GroupBy(f => f.Drive!.RootDirectory.FullName)
+        var byFolder = new Dictionary<string, DriveInfo?>(StringComparer.Ordinal);
+        DriveInfo? DriveOf(string path)
+        {
+            var folder = Path.GetDirectoryName(path) ?? path;
+            if (!byFolder.TryGetValue(folder, out var drive))
+            {
+                byFolder[folder] = drive = drives.Where(d => Under(path, d.RootDirectory.FullName)).MaxBy(d => d.RootDirectory.FullName.Length);
+            }
+
+            return drive;
+        }
+
+        return items.Where(i => i.Type is "Movie" or "Episode" && i.Path.Length > 0)
+            .Select(i => (Item: i, Drive: DriveOf(i.Path)))
+            .Where(x => x.Drive is not null)
+            .GroupBy(x => x.Drive!.RootDirectory.FullName)
             .Select(g =>
             {
                 var drive = g.First().Drive!;
-                return new DiskSpace(g.Key, drive.TotalSize, drive.AvailableFreeSpace, g.Select(f => f.Library).Distinct().ToArray());
+                return new DiskSpace(
+                    g.Key,
+                    drive.TotalSize,
+                    drive.AvailableFreeSpace,
+                    g.Select(x => x.Item.Library).Where(l => l.Length > 0).Distinct().Order(StringComparer.OrdinalIgnoreCase).ToArray(),
+                    g.Where(x => x.Item.Added > now.AddYears(-1)).Sum(x => x.Item.Size) / 12);
             })
+            .OrderByDescending(d => d.Total)
             .ToArray();
     }
 
@@ -218,7 +240,7 @@ public static class Stats
         return path.Equals(folder, StringComparison.Ordinal) || path.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.Ordinal) || folder.Length == 0;
     }
 
-    private static LibraryInsights Library(IReadOnlyCollection<CatalogItem> items, MonthPoint[] months, DateTime now)
+    private static LibraryInsights Library(IReadOnlyCollection<CatalogItem> items, DateTime now)
     {
         var titles = items.Where(i => i.Type is "Movie" or "Series").ToList();
         var movies = titles.Where(i => i.Type == "Movie").ToList();
@@ -246,8 +268,7 @@ public static class Stats
             Of("Never played, added over a year ago", titles.Where(i => !i.AnyPlayed && i.Added < now.AddYears(-1))),
             movies.Where(i => i.RunTimeTicks > 0).MaxBy(i => i.RunTimeTicks),
             titles.Where(i => i.Year > 1800).MinBy(i => i.Year),
-            rated.Count > 0 ? Math.Round(rated.Average(i => (double)i.Rating!.Value), 1) : 0,
-            (long)months.TakeLast(12).Average(m => m.Added));
+            rated.Count > 0 ? Math.Round(rated.Average(i => (double)i.Rating!.Value), 1) : 0);
     }
 
     private static GenreInsight[] Genres(List<CatalogItem> titles)
