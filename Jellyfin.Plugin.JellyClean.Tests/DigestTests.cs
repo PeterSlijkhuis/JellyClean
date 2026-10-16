@@ -143,3 +143,25 @@ public sealed class DigestTests
         return log.ToString();
     }
 }
+
+public class HomeSectionTests
+{
+    [Fact]
+    public void Home_row_resolves_the_way_home_screen_sections_looks_it_up()
+    {
+        using var json = System.Text.Json.JsonDocument.Parse(HomeSectionRegistration.Payload());
+        var root = json.RootElement;
+        Assert.Equal("Leaving soon", root.GetProperty("displayText").GetString());
+
+        // Same lookup Home Screen Sections does: assembly by full name, type by full name, GetMethod by name.
+        var assembly = AppDomain.CurrentDomain.GetAssemblies().Single(a => a.FullName == root.GetProperty("resultsAssembly").GetString());
+        var method = assembly.GetTypes().Single(t => t.FullName == root.GetProperty("resultsClass").GetString())
+            .GetMethod(root.GetProperty("resultsMethod").GetString()!)!;
+        Assert.Equal(typeof(MediaBrowser.Model.Querying.QueryResult<MediaBrowser.Model.Dto.BaseItemDto>), method.ReturnType);
+
+        var user = Guid.NewGuid();
+        var payload = System.Text.Json.JsonSerializer.Deserialize(
+            "{\"UserId\":\"" + user + "\",\"AdditionalData\":null}", method.GetParameters().Single().ParameterType);
+        Assert.Equal(user, ((HomeSectionPayload)payload!).UserId);
+    }
+}
