@@ -312,7 +312,7 @@
                     <details class="jc-group jc-quick" data-group="quick">
                         <summary>Quick filters and saved views</summary>
                     <div class="jc-presets">
-                        <button type="button" class="jc-preset" data-preset="empty">Start here: empty movies and series</button>
+                        <button type="button" class="jc-preset" data-preset="empty">Empty movies and series</button>
                         <button type="button" class="jc-preset" data-preset="stale">Never played, added over a year ago</button>
                         <button type="button" class="jc-preset" data-preset="biggest">Biggest movies</button>
                         <button type="button" class="jc-preset" data-preset="everyone">Watched by everyone</button>
@@ -329,11 +329,11 @@
                         <div class="jc-field">
                             <label for="jcType">Show</label>
                             <select id="jcType">
+                                <option value="Movie,Series">Movies and series</option>
                                 <option value="Movie">Movies</option>
                                 <option value="Series">Series</option>
                                 <option value="Season">Seasons</option>
                                 <option value="Episode">Episodes</option>
-                                <option value="Movie,Series">Movies and series</option>
                             </select>
                         </div>
                         <div class="jc-field">
@@ -645,7 +645,7 @@
                     var view = (config.Views || []).filter(function (v) { return v.Name === name; })[0];
                     if (!view) { return; }
                     var f = JSON.parse(view.Filter || '{}');
-                    $('jcType').value = (f.Types || ['Movie']).join(',');
+                    $('jcType').value = (f.Types || ['Movie', 'Series']).join(',');
                     $('jcLibrary').value = f.Library || '';
                     $('jcWatched').value = f.Watched || '';
                     $('jcStatus').value = f.Status || '';
@@ -1062,7 +1062,7 @@
                         copies: { jcType: 'Movie', jcSort: 'name|0', copies: true },
                         lowres: { jcType: 'Movie,Series', jcResolution: '720p,SD', jcCodec: 'H.264', jcSort: 'size|1' }
                     }[name];
-                    var defaults = { jcType: 'Movie', jcLibrary: '', jcWatched: '', jcStatus: '', jcAdded: '', jcIdle: '', jcSize: '', jcResolution: '', jcHdr: '', jcCodec: '', jcSort: 'added|0', jcSearch: '' };
+                    var defaults = { jcType: 'Movie,Series', jcLibrary: '', jcWatched: '', jcStatus: '', jcAdded: '', jcIdle: '', jcSize: '', jcResolution: '', jcHdr: '', jcCodec: '', jcSort: 'added|0', jcSearch: '' };
                     Object.keys(defaults).forEach(function (id) { $(id).value = values[id] !== undefined ? values[id] : defaults[id]; });
                     if ($('jcCodec').selectedIndex < 0) { $('jcCodec').value = ''; }
                     $('jcCopies').setAttribute('aria-checked', String(!!values.copies));
@@ -1526,10 +1526,10 @@
                     // A removal started earlier may still be running.
                     call('GET', 'Remove').then(function (p) { if (p.Running) { watchRemoval(); } }).catch(function () {});
                     loadOverview(false).then(function () {
-                        // Empty movies and series are the safest first clean-up, so the page opens on them.
+                        // The page opens with every filter on its widest setting.
                         if (opened) { return load(false); }
                         opened = true;
-                        applyPreset('empty');
+                        applyPreset('reset');
                     }).catch(function (err) {
                         $('jcCount').textContent = 'Could not load the library: ' + err.message;
                     });

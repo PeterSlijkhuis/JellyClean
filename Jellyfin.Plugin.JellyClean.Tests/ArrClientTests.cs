@@ -63,6 +63,18 @@ public class ArrClientTests
     }
 
     [Fact]
+    public async Task A_server_only_looks_after_its_own_libraries()
+    {
+        var hd = new PlannedItem(new CatalogItem { Id = Guid.NewGuid(), Type = "Movie", Library = "Movies" }, null);
+        var uhd = new PlannedItem(new CatalogItem { Id = Guid.NewGuid(), Type = "Movie", Library = "Movies 4K" }, null);
+        _radarr.Libraries = ["Movies 4K"];
+        await Client().ResolveAsync([hd, uhd], [_radarr], _ => new Dictionary<string, string> { ["Tmdb"] = "348" }, CancellationToken.None);
+
+        Assert.Empty(hd.Arr);
+        Assert.Equal(7, Assert.Single(uhd.Arr).ArrId);
+    }
+
+    [Fact]
     public async Task Movie_found_by_tmdb_id_is_removed_without_its_files_and_excluded()
     {
         var movie = Planned("Movie");

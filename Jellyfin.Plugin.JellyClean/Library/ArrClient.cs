@@ -54,7 +54,10 @@ public class ArrClient
     {
         foreach (var server in servers.Where(s => !string.IsNullOrWhiteSpace(s.Url)))
         {
-            var relevant = items.Where(p => server.IsSonarr ? p.Item.Type != "Movie" : p.Item.Type == "Movie").ToList();
+            var relevant = items
+                .Where(p => server.IsSonarr ? p.Item.Type != "Movie" : p.Item.Type == "Movie")
+                .Where(p => server.Libraries.Length == 0 || server.Libraries.Contains(p.Item.Library))
+                .ToList();
             if (relevant.Count == 0)
             {
                 continue;
