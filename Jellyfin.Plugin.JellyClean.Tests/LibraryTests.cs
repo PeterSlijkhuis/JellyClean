@@ -95,7 +95,7 @@ public class LibraryTests
     [Fact]
     public void Series_and_seasons_add_up_their_episodes()
     {
-        var series = new CatalogItem { Id = Guid.NewGuid(), Name = "Dark", Type = "Series", Genres = ["Drama"], Ended = true };
+        var series = new CatalogItem { Id = Guid.NewGuid(), Name = "Dark", Type = "Series", Genres = ["Drama"], Ended = true, Library = "Shows" };
         var season = new CatalogItem { Id = Guid.NewGuid(), Name = "Season 1", Type = "Season", SeriesId = series.Id, Season = 1 };
         CatalogItem Episode(int n, Guid[] watchedBy, int? lastDaysAgo) => new()
         {
@@ -114,6 +114,7 @@ public class LibraryTests
         Assert.True(series.AnyPlayed);
         Assert.Equal(_now.AddDays(-10), season.LastWatched);
         Assert.Equal(["Drama"], e1.Genres);
+        Assert.Equal("Shows", season.Library);
         Assert.Equal("Dark S01E02 E2", e2.Title);
         Assert.True(e2.Ended);
         Assert.Equal(2, new Filter { EndedOnly = true, Types = ["Series", "Season"] }.Apply([series, season, e1, new CatalogItem { Name = "Running", Type = "Series" }], 2).Count());
@@ -202,6 +203,12 @@ public class LibraryTests
 
         uhd.Favorite = true;
         Assert.Same(uhd, Assert.Single(Catalog_copies([hd, uhd], "smallest")).Keep);
+
+        // A copy on a drive that is offline looks empty: keeping it would offer the real one for removal.
+        uhd.Favorite = false;
+        var offline = Copy("4K", 0, "Movies 4K offline");
+        Assert.Same(hd, Assert.Single(Catalog_copies([hd, offline], "smallest")).Keep);
+        Assert.Same(hd, Assert.Single(Catalog_copies([hd, offline], "best")).Keep);
     }
 
     [Fact]

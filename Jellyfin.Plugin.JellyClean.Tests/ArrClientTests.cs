@@ -54,6 +54,15 @@ public class ArrClientTests
         => new(new CatalogItem { Id = Guid.NewGuid(), Type = type, SeriesId = seriesId, Season = season, Episode = episode, EpisodeEnd = episodeEnd }, null);
 
     [Fact]
+    public async Task An_address_without_http_skips_the_item_instead_of_failing_the_preview()
+    {
+        var movie = Planned("Movie");
+        await Client().ResolveAsync([movie], [new ArrServer { Kind = "Radarr", Url = "192.168.1.5:7878", ApiKey = "k" }], _ => new Dictionary<string, string> { ["Tmdb"] = "348" }, CancellationToken.None);
+
+        Assert.True(Assert.Single(movie.Arr).Failed);
+    }
+
+    [Fact]
     public async Task Movie_found_by_tmdb_id_is_removed_without_its_files_and_excluded()
     {
         var movie = Planned("Movie");

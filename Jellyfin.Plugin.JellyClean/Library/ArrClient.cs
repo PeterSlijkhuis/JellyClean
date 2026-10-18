@@ -113,7 +113,7 @@ public class ArrClient
                     }
                 }
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or NotSupportedException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or NotSupportedException or UriFormatException)
             {
                 foreach (var planned in relevant)
                 {

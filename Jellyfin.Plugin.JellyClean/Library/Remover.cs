@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.JellyClean.Configuration;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Activity;
@@ -82,7 +83,9 @@ public class Remover
         var plan = RemovalPlan.Build(ids, _catalog.Get(), Safeguards());
         foreach (var planned in plan.Remove)
         {
-            planned.Paths = _libraryManager.GetItemById(planned.Item.Id)?.GetDeletePaths().Select(p => p.FullName).ToArray() ?? [];
+            planned.Paths = _libraryManager.GetItemById(planned.Item.Id) is { } item
+                ? FileItems(item).SelectMany(i => i.GetDeletePaths()).Select(p => p.FullName).Where(p => !string.IsNullOrEmpty(p)).ToArray()
+                : [];
         }
 
         await _arr.ResolveAsync(plan.Remove, config.Servers, ProviderIds, cancellationToken).ConfigureAwait(false);
@@ -104,6 +107,12 @@ public class Remover
 
         return plan;
     }
+
+    // What holds the files: the item itself, or for a season without its own folder (episodes straight in the
+    // series folder, so the season has no path) its episodes.
+    private BaseItem[] FileItems(BaseItem item)
+        => !string.IsNullOrEmpty(item.Path) ? [item]
+            : _catalog.Get().Values.Where(e => e.SeasonId == item.Id).Select(e => _libraryManager.GetItemById(e.Id)).OfType<BaseItem>().ToArray();
 
     // Libraries none of whose folders exist or hold anything, like an unmounted network share.
     private HashSet<string> OfflineLibraries()
@@ -287,8 +296,9 @@ public class Remover
                     : await _arr.ApplyAsync(step, cancellationToken).ConfigureAwait(false));
                 Activity.Info(_logger, "{Title}: {Step}", title, step.Description);
             }
-            catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException)
+            catch (Exception ex)
             {
+                // Anything at all: the files may already be in the recycle bin and have to go back before this returns.
                 Activity.Log(_logger, LogLevel.Error, ex, "{Title}: files kept, because this failed: {Step}", title, step.Description);
 
                 // Put back what the other servers already did, so the item is whole again.
@@ -298,7 +308,7 @@ public class Remover
                     {
                         await _arr.UndoAsync(undo, Plugin.Instance!.Configuration.Servers, CancellationToken.None).ConfigureAwait(false);
                     }
-                    catch (Exception undoEx) when (undoEx is System.Net.Http.HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+                    catch (Exception undoEx)
                     {
                         Activity.Log(_logger, LogLevel.Error, undoEx, "{Title}: could not undo the change in {Kind}", title, undo.Kind);
                     }
@@ -324,6 +334,11 @@ public class Remover
                 _libraryManager.DeleteItem(item, new DeleteOptions { DeleteFileLocation = false });
                 Activity.Info(_logger, "Moved {Title} ({Size}) to the recycle bin: {Paths}", title, Bytes(planned.Item.Size), string.Join(", ", planned.Paths));
                 return null;
+            }
+
+            foreach (var episode in FileItems(item).Where(i => i != item))
+            {
+                _libraryManager.DeleteItem(episode, new DeleteOptions { DeleteFileLocation = true });
             }
 
             _libraryManager.DeleteItem(item, new DeleteOptions { DeleteFileLocation = true });

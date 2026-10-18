@@ -225,6 +225,13 @@ public class Catalog
         {
             series.TryGetValue(row.SeriesId!.Value, out var s);
             row.Ended = s?.Ended ?? false;
+
+            // A season without its own folder has no path, so it takes the library of its series.
+            if (row.Library.Length == 0)
+            {
+                row.Library = s?.Library ?? string.Empty;
+            }
+
             if (row.Genres.Length == 0)
             {
                 row.Genres = s?.Genres ?? [];
