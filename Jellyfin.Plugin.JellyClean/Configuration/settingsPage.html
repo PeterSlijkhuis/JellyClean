@@ -371,6 +371,21 @@
                             dirty();
                         });
 
+                        // Which libraries it looks after, so removing the 1080p copy never touches the 4K server.
+                        server.Libraries = server.Libraries || [];
+                        var served = el('div', { className: 'jc-chips', role: 'group', ariaLabel: 'Libraries ' + (server.Name || server.Kind) + ' looks after' });
+                        libraries.concat(server.Libraries.filter(function (n) { return libraries.indexOf(n) < 0; })).forEach(function (name) {
+                            var chip = el('button', { type: 'button', className: 'jc-chip on', textContent: name });
+                            chip.setAttribute('aria-pressed', String(server.Libraries.indexOf(name) >= 0));
+                            chip.addEventListener('click', function () {
+                                var at = server.Libraries.indexOf(name);
+                                if (at >= 0) { server.Libraries.splice(at, 1); } else { server.Libraries.push(name); }
+                                chip.setAttribute('aria-pressed', String(at < 0));
+                                dirty();
+                            });
+                            served.append(chip);
+                        });
+
                         box.append(el('div', { className: 'jc-server' },
                             el('div', { className: 'jc-server-head' },
                                 el('span', { className: 'jc-kind ' + server.Kind, textContent: server.Kind }),
@@ -380,6 +395,10 @@
                                 field('Address', server.Url, 'url', function (v) { server.Url = v; }, server.Kind === 'Sonarr' ? 'http://192.168.1.10:8989' : 'http://192.168.1.10:7878'),
                                 field('API key', server.ApiKey, 'password', function (v) { server.ApiKey = v; }, 'Settings, General in ' + server.Kind)),
                             el('div', { className: 'jc-row' }, exclusion),
+                            el('div', { style: 'margin-top:0.8em' },
+                                el('b', { textContent: 'Libraries it looks after' }),
+                                el('p', { className: 'jc-hint', textContent: 'None picked: all of them. With a second ' + server.Kind + ', like a 4K one, pick the libraries of each, so removing a copy from one library leaves the other server alone.' }),
+                                served),
                             el('div', { className: 'jc-row' }, test, remove, result)));
                     });
                 }
@@ -554,7 +573,7 @@
                             result.textContent = err.message;
                         }).finally(function () { b.disabled = false; });
                     } else if (b.dataset.add) {
-                        config.Servers.push({ Kind: b.dataset.add, Name: '', Url: '', ApiKey: '', AddExclusion: true });
+                        config.Servers.push({ Kind: b.dataset.add, Name: '', Url: '', ApiKey: '', AddExclusion: true, Libraries: [] });
                         renderServers();
                         dirty();
                     }
@@ -585,6 +604,7 @@
                     }).then(function (folders) {
                         libraries = (folders || []).map(function (f) { return f.Name; });
                         renderLibraries();
+                        renderServers();
                     });
                 });
             })();

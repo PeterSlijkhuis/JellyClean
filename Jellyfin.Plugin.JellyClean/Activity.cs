@@ -90,7 +90,7 @@ public static partial class Activity
                 }
             }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // The activity view is a convenience; never let it break a removal.
         }

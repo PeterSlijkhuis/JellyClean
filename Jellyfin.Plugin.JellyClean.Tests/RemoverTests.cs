@@ -198,6 +198,29 @@ public sealed class RemoverTests : IDisposable
         _library.Verify(l => l.DeleteItem(It.IsAny<BaseItem>(), It.IsAny<DeleteOptions>()), Times.Never);
     }
 
+    [Fact]
+    public async Task A_season_without_its_own_folder_deletes_its_episodes()
+    {
+        var season = new MediaBrowser.Controller.Entities.TV.Season { Id = Guid.NewGuid(), Name = "Season 1", IndexNumber = 1 };
+        MediaBrowser.Controller.Entities.TV.Episode Episode(int n) => new() { Id = Guid.NewGuid(), Name = "E" + n, SeasonId = season.Id, Path = $"/nowhere/Dark/Dark S01E0{n}.mkv" };
+        var episodes = new[] { Episode(1), Episode(2) };
+        _library.Setup(l => l.GetItemList(It.IsAny<InternalItemsQuery>())).Returns([season, .. episodes]);
+        _library.Setup(l => l.GetItemById(season.Id)).Returns(season);
+        foreach (var e in episodes)
+        {
+            _library.Setup(l => l.GetItemById(e.Id)).Returns(e);
+        }
+
+        var plan = await Remover().RemoveAsync([season.Id], Guid.Empty, CancellationToken.None);
+
+        Assert.Single(plan.Remove);
+        Assert.Equal(episodes.Select(e => e.Path), plan.Remove[0].Paths);
+        foreach (var e in episodes)
+        {
+            _library.Verify(l => l.DeleteItem(e, It.Is<DeleteOptions>(o => o.DeleteFileLocation)), Times.Once);
+        }
+    }
+
     // Lists one movie; records the delete call.
     private sealed class Radarr(RemoverTests test) : HttpMessageHandler
     {

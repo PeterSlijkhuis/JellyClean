@@ -30,7 +30,8 @@ public static class Copies
             .Where(g => g.Count() > 1)
             .Select(g =>
             {
-                var ranked = g.OrderByDescending(i => i.Favorite || i.Kept);
+                // An empty copy (a drive that is offline, a missing file) is never the one kept.
+                var ranked = g.OrderByDescending(i => i.Favorite || i.Kept).ThenByDescending(i => i.Size > 0);
                 ranked = prefer == "smallest"
                     ? ranked.ThenBy(i => i.Size)
                     : ranked.ThenByDescending(i => Array.IndexOf(_resolutions, i.Resolution)).ThenByDescending(i => i.Hdr.Length > 0).ThenByDescending(i => i.Size);

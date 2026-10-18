@@ -272,6 +272,11 @@ public class ArrServer
     public bool AddExclusion { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets the Jellyfin libraries this server looks after, like only "Movies 4K" for a 4K Radarr. Empty: all of them.
+    /// </summary>
+    public string[] Libraries { get; set; } = [];
+
+    /// <summary>
     /// Gets a value indicating whether this is a Sonarr server.
     /// </summary>
     public bool IsSonarr => string.Equals(Kind, "Sonarr", StringComparison.OrdinalIgnoreCase);
