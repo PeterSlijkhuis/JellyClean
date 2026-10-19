@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
+using Jellyfin.Database.Implementations.Entities;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
@@ -36,6 +38,9 @@ public class Catalog
     private DateTime _builtAt = DateTime.MinValue;
     private Task? _rebuilding;
     private volatile bool _changed;
+
+    // Goes up when items are taken out by hand, so a read that was already under way is done again rather than bring them back.
+    private int _generation;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Catalog"/> class.
@@ -81,24 +86,7 @@ public class Catalog
             if (_items is not null && !refresh && _builtAt != DateTime.MinValue && (age > _maxAge || (_changed && age > TimeSpan.FromSeconds(30))))
             {
                 // Old but usable: answer now and read the library again in the background.
-                _rebuilding ??= Task.Run(() =>
-                {
-                    try
-                    {
-                        Rebuild();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Could not read the library");
-                    }
-                    finally
-                    {
-                        lock (_gate)
-                        {
-                            _rebuilding = null;
-                        }
-                    }
-                });
+                RebuildInBackground();
                 return _items;
             }
         }
@@ -109,6 +97,29 @@ public class Catalog
         }
 
         return _items!;
+    }
+
+    // Call with _gate held.
+    private void RebuildInBackground()
+    {
+        _rebuilding ??= Task.Run(() =>
+        {
+            try
+            {
+                Rebuild();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not read the library");
+            }
+            finally
+            {
+                lock (_gate)
+                {
+                    _rebuilding = null;
+                }
+            }
+        });
     }
 
     private void Rebuild()
@@ -122,8 +133,16 @@ public class Catalog
                 return;
             }
 
-            _changed = false;
-            var items = Build();
+            Dictionary<Guid, CatalogItem> items;
+            int generation;
+            do
+            {
+                generation = Volatile.Read(ref _generation);
+                _changed = false;
+                items = Build();
+            }
+            while (generation != Volatile.Read(ref _generation));
+
             lock (_gate)
             {
                 if (_items is null || _items.Count != items.Count || !_items.Keys.All(items.ContainsKey))
@@ -137,6 +156,7 @@ public class Catalog
 
             _logger.LogInformation("Read {Count} items in {Seconds:0.0} s", items.Count, (DateTime.UtcNow - started).TotalSeconds);
             SaveSizes();
+            KeepMarksFollow(items.Values);
         }
     }
 
@@ -159,16 +179,58 @@ public class Catalog
     }
 
     /// <summary>
-    /// Makes the next <see cref="Get"/> read the library again.
+    /// Keeps keep marks on items whose id changed: a kept item's TMDb, TVDb or IMDb id and library are saved with the mark,
+    /// and an item found under a saved one is marked keep again.
     /// </summary>
-    public void Invalidate()
+    /// <param name="items">Every item.</param>
+    internal static void KeepMarksFollow(IEnumerable<CatalogItem> items)
     {
-        lock (_gate)
+        var plugin = Plugin.Instance!;
+        var config = plugin.Configuration;
+        var ids = config.KeptIds.ToHashSet();
+        var keys = config.KeptKeys.ToHashSet(StringComparer.Ordinal);
+        var withKey = items.Where(i => i.KeepKey is not null).ToList();
+        var newIds = withKey.Where(i => !ids.Contains(i.Id) && keys.Contains(i.KeepKey!)).Select(i => i.Id).ToList();
+        var newKeys = withKey.Where(i => ids.Contains(i.Id) && !keys.Contains(i.KeepKey!)).Select(i => i.KeepKey!).Distinct().ToList();
+        if (newIds.Count == 0 && newKeys.Count == 0)
         {
-            _builtAt = DateTime.MinValue;
+            return;
         }
 
-        // The next Get() rebuilds while the caller waits; fine after a removal, which already took a while.
+        config.KeptIds = config.KeptIds.Concat(newIds).ToArray();
+        config.KeptKeys = config.KeptKeys.Concat(newKeys).ToArray();
+        plugin.SaveConfiguration();
+    }
+
+    /// <summary>
+    /// The keep key of an item, to take it off with the keep mark.
+    /// </summary>
+    /// <param name="id">The item id.</param>
+    /// <returns>The key, or null.</returns>
+    public string? KeepKeyOf(Guid id) => Get().GetValueOrDefault(id)?.KeepKey;
+
+    /// <summary>
+    /// Takes removed items out right away, with the seasons and episodes in them, so every list shows the removal at once.
+    /// The library is then read again in the background, to bring the sizes of the series they were in up to date.
+    /// </summary>
+    /// <param name="ids">The removed items.</param>
+    public void Forget(IEnumerable<Guid> ids)
+    {
+        var gone = ids.ToHashSet();
+        lock (_gate)
+        {
+            Interlocked.Increment(ref _generation);
+            if (_items is null || gone.Count == 0)
+            {
+                return;
+            }
+
+            _items = _items.Values
+                .Where(i => !gone.Contains(i.Id) && !(i.SeriesId is { } series && gone.Contains(series)) && !(i.SeasonId is { } season && gone.Contains(season)))
+                .ToDictionary(i => i.Id);
+            Version++;
+            RebuildInBackground();
+        }
     }
 
     // Jellyfin drops a series from Next Up a year after it was last played (its default).
@@ -256,8 +318,10 @@ public class Catalog
     }
 
     private static string? CopyKey(BaseItem item)
-        => item is not (MediaBrowser.Controller.Entities.Movies.Movie or Series) ? null
-            : item.ProviderIds.TryGetValue("Tmdb", out var tmdb) && tmdb.Length > 0 ? "tmdb" + tmdb
+        => item is MediaBrowser.Controller.Entities.Movies.Movie or Series ? ProviderKey(item) : null;
+
+    private static string? ProviderKey(BaseItem item)
+        => item.ProviderIds.TryGetValue("Tmdb", out var tmdb) && tmdb.Length > 0 ? "tmdb" + tmdb
             : item.ProviderIds.TryGetValue("Tvdb", out var tvdb) && tvdb.Length > 0 ? "tvdb" + tvdb
             : item.ProviderIds.TryGetValue("Imdb", out var imdb) && imdb.Length > 0 ? "imdb" + imdb
             : null;
@@ -319,7 +383,10 @@ public class Catalog
             row.FavoriteCollections = collections.GetValueOrDefault(item.Id) ?? [];
             row.Favorite = row.FavoriteBy.Length > 0 || row.FavoriteCollections.Length > 0;
 
-            keys.Add((row, CopyKey(item)));
+            var copyKey = CopyKey(item);
+            keys.Add((row, copyKey));
+            var providerKey = copyKey ?? ProviderKey(item);
+            row.KeepKey = providerKey is null ? null : $"{row.Type} {providerKey} {row.Library}";
             if (item is not Folder)
             {
                 var m = measured[item.Id];
@@ -399,6 +466,12 @@ public class Catalog
         FavoritesChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Reads which titles are in a favorite collection again. Titles added to such a collection raise no event, so a
+    /// removal asks for this first rather than trust a list that may be minutes old.
+    /// </summary>
+    public void RefreshCollections() => OnCollectionFavorite();
+
     // A favorite collection keeps everything in it, so it changes what may be removed just like a favorite title.
     private void OnCollectionFavorite()
     {
@@ -433,18 +506,27 @@ public class Catalog
     /// </summary>
     private Dictionary<Guid, string[]> FavoriteCollections()
     {
-        var users = _userManager.GetUsers().ToList();
         var leaving = Plugin.Instance?.Configuration.CollectionId ?? Guid.Empty;
-        return _libraryManager.GetItemList(new InternalItemsQuery { IncludeItemTypes = [BaseItemKind.BoxSet], Recursive = true })
+        var boxSets = _libraryManager.GetItemList(new InternalItemsQuery { IncludeItemTypes = [BaseItemKind.BoxSet], Recursive = true })
             .OfType<BoxSet>()
-            .Where(b => b.Id != leaving && users.Any(u => _userDataManager.GetUserData(u, b)?.IsFavorite == true))
+            .Where(b => b.Id != leaving)
+            .ToList();
+        var favorite = _userManager.GetUsers()
+            .SelectMany(u => _userDataManager.GetUserDataBatch(boxSets, u).Where(d => d.Value.IsFavorite).Select(d => d.Key))
+            .ToHashSet();
+        return boxSets
+            .Where(b => favorite.Contains(b.Id))
             .SelectMany(b => b.GetLinkedChildren().Select(c => (c.Id, b.Name)))
             .GroupBy(c => c.Id)
             .ToDictionary(g => g.Key, g => g.Select(c => c.Name).Distinct().ToArray());
     }
 
+    // Read like the catalog reads them (cache, then the database), not only from what the item object happens to hold.
+    private UserItemData? UserData(User user, BaseItem item)
+        => _userDataManager.GetUserDataBatch([item], user).GetValueOrDefault(item.Id);
+
     private Guid[] FavoriteBy(BaseItem item)
-        => _userManager.GetUsers().Where(u => _userDataManager.GetUserData(u, item)?.IsFavorite == true).Select(u => u.Id).ToArray();
+        => _userManager.GetUsers().Where(u => UserData(u, item)?.IsFavorite == true).Select(u => u.Id).ToArray();
 
     /// <summary>
     /// Takes one user's favorite mark off an item.
@@ -462,7 +544,7 @@ public class Catalog
 
         foreach (var user in _userManager.GetUsers().Where(u => u.Id == userId))
         {
-            var data = _userDataManager.GetUserData(user, item);
+            var data = UserData(user, item);
             if (data?.IsFavorite == true)
             {
                 data.IsFavorite = false;

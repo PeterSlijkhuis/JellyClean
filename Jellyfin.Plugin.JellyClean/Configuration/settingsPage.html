@@ -268,6 +268,7 @@
                 var timer = null;
                 var saving = null;
                 var again = false;
+                var clearKept = false;
 
                 function dirty() {
                     $('jcDirty').textContent = 'Saving...';
@@ -280,7 +281,10 @@
                     if (saving) { again = true; return; }
                     // The Library page, the Leaving soon tab and the hourly task change keep marks, rules and the lists, so take theirs.
                     saving = ApiClient.getPluginConfiguration(pluginId).then(function (latest) {
-                        if (config.KeptIds.length) { config.KeptIds = latest.KeptIds || []; }
+                        // Keep marks come from the Library page; only "Remove all keep marks" here changes them.
+                        config.KeptIds = clearKept ? [] : latest.KeptIds || [];
+                        config.KeptKeys = clearKept ? [] : latest.KeptKeys || [];
+                        clearKept = false;
                         config.LeavingSoon = latest.LeavingSoon || [];
                         config.CollectionId = latest.CollectionId;
                         config.FreedBytes = latest.FreedBytes;
@@ -540,6 +544,7 @@
                     } else if (b.id === 'jcClearKept') {
                         if (window.confirm('Remove every keep mark? Those items can then be removed again.')) {
                             config.KeptIds = [];
+                            clearKept = true;
                             render();
                             dirty();
                         }

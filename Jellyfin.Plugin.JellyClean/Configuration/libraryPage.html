@@ -1372,7 +1372,7 @@
                         call('POST', 'Unfavorite/' + fid + '?userId=' + fuser).then(function () {
                             updateRow(b, fid, function (item) {
                                 item.FavoriteBy = item.FavoriteBy.filter(function (u) { return u !== fuser; });
-                                item.Favorite = item.FavoriteBy.length > 0;
+                                item.Favorite = item.FavoriteBy.length > 0 || (item.FavoriteCollections || []).length > 0;
                             });
                         });
                     } else if (b.dataset.keep) {

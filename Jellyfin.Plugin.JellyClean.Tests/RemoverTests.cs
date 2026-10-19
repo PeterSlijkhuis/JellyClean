@@ -30,6 +30,7 @@ public sealed class RemoverTests : IDisposable
     private readonly PluginConfiguration _config = new();
     private string _radarrUrl = "http://radarr:7878";
     private bool _radarrCalled;
+    private Catalog? _catalog;
 
     public RemoverTests()
     {
@@ -52,11 +53,11 @@ public sealed class RemoverTests : IDisposable
         }
     }
 
-    private Remover Remover()
+    private Remover Remover(Jellyfin.Database.Implementations.Entities.User? user = null, IUserDataManager? data = null)
     {
         var users = new Mock<IUserManager>();
-        users.Setup(u => u.GetUsers()).Returns([]);
-        var catalog = new Catalog(_library.Object, users.Object, Mock.Of<IUserDataManager>(), NullLogger<Catalog>.Instance);
+        users.Setup(u => u.GetUsers()).Returns(user is null ? [] : [user]);
+        var catalog = _catalog = new Catalog(_library.Object, users.Object, data ?? Mock.Of<IUserDataManager>(), NullLogger<Catalog>.Instance);
 
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(() => new HttpClient(new Radarr(this)));
@@ -219,6 +220,97 @@ public sealed class RemoverTests : IDisposable
         {
             _library.Verify(l => l.DeleteItem(e, It.Is<DeleteOptions>(o => o.DeleteFileLocation)), Times.Once);
         }
+    }
+
+    [Fact]
+    public async Task An_empty_item_skips_the_recycle_bin_and_leaves_the_list_at_once()
+    {
+        _config.RecycleDays = 30;
+        var library = new List<BaseItem> { _movie };
+        _library.Setup(l => l.GetItemList(It.IsAny<InternalItemsQuery>())).Returns(() => library.ToList());
+        _library.Setup(l => l.DeleteItem(_movie, It.IsAny<DeleteOptions>())).Callback(() => library.Clear());
+        var remover = Remover();
+        var version = _catalog!.Get().Count == 1 ? _catalog.Version : -1;
+
+        var plan = await remover.RemoveAsync([_movie.Id], Guid.Empty, CancellationToken.None);
+
+        Assert.Single(plan.Remove);
+        Assert.True(_radarrCalled);
+        _library.Verify(l => l.DeleteItem(_movie, It.Is<DeleteOptions>(o => o.DeleteFileLocation)), Times.Once);
+        Assert.Empty(_config.Recycled);
+        Assert.Empty(_catalog.Get());
+        Assert.True(_catalog.Version > version);
+    }
+
+    [Fact]
+    public void Forget_takes_a_series_out_with_its_episodes()
+    {
+        var series = new MediaBrowser.Controller.Entities.TV.Series { Id = Guid.NewGuid(), Name = "Dark", Path = "/nowhere/Dark" };
+        var episode = new MediaBrowser.Controller.Entities.TV.Episode { Id = Guid.NewGuid(), Name = "E1", SeriesId = series.Id, Path = "/nowhere/Dark/E1.mkv" };
+        var library = new List<BaseItem> { series, episode, _movie };
+        _library.Setup(l => l.GetItemList(It.IsAny<InternalItemsQuery>())).Returns(() => library.ToList());
+        Remover();
+        Assert.Equal(3, _catalog!.Get().Count);
+
+        library.Remove(episode);
+        library.Remove(series);
+        _catalog.Forget([series.Id]);
+
+        Assert.Equal([_movie.Id], _catalog.Get().Keys);
+    }
+
+    [Fact]
+    public void A_keep_mark_follows_the_movie_to_its_new_id()
+    {
+        var before = new CatalogItem { Id = Guid.NewGuid(), Type = "Movie", KeepKey = "Movie tmdb348 Movies" };
+        _config.KeptIds = [before.Id];
+        Catalog.KeepMarksFollow([before]);
+        Assert.Equal(["Movie tmdb348 Movies"], _config.KeptKeys);
+
+        // Radarr upgraded the file: Jellyfin sees a new item with a new id.
+        var after = new CatalogItem { Id = Guid.NewGuid(), Type = "Movie", KeepKey = "Movie tmdb348 Movies" };
+        Catalog.KeepMarksFollow([after]);
+        Assert.Contains(after.Id, _config.KeptIds);
+    }
+
+    [Fact]
+    public void Unfavorite_saves_even_when_the_item_holds_no_user_data()
+    {
+        var anna = new Jellyfin.Database.Implementations.Entities.User("anna", "provider", "reset");
+        var users = new Mock<IUserManager>();
+        users.Setup(u => u.GetUsers()).Returns([anna]);
+        var data = new Mock<IUserDataManager>();
+        data.Setup(d => d.GetUserDataBatch(It.IsAny<IReadOnlyList<BaseItem>>(), anna))
+            .Returns(new Dictionary<Guid, UserItemData> { [_movie.Id] = new() { Key = "k", IsFavorite = true } });
+        data.Setup(d => d.GetUserData(anna, _movie)).Returns(new UserItemData { Key = "k" });
+        var catalog = new Catalog(_library.Object, users.Object, data.Object, NullLogger<Catalog>.Instance);
+
+        Assert.True(catalog.Unfavorite(_movie.Id, anna.Id));
+
+        data.Verify(d => d.SaveUserData(anna, _movie, It.Is<UserItemData>(x => !x.IsFavorite), It.IsAny<MediaBrowser.Model.Entities.UserDataSaveReason>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task A_title_added_to_a_favorite_collection_is_kept_at_once()
+    {
+        var anna = new Jellyfin.Database.Implementations.Entities.User("anna", "provider", "reset");
+        var box = new MediaBrowser.Controller.Entities.Movies.BoxSet { Id = Guid.NewGuid(), Name = "Alien saga" };
+        var data = new Mock<IUserDataManager>();
+        data.Setup(d => d.GetUserDataBatch(It.IsAny<IReadOnlyList<BaseItem>>(), anna)).Returns(new Dictionary<Guid, UserItemData>());
+        var remover = Remover(anna, data.Object);
+        Assert.Single(_catalog!.Get());
+
+        // Added to a collection someone already made a favorite: no event comes for that.
+        BaseItem.LibraryManager = _library.Object;
+        box.LinkedChildren = [new LinkedChild { ItemId = _movie.Id }];
+        _library.Setup(l => l.GetItemList(It.Is<InternalItemsQuery>(q => q.IncludeItemTypes.Contains(Jellyfin.Data.Enums.BaseItemKind.BoxSet)))).Returns([box]);
+        data.Setup(d => d.GetUserDataBatch(It.Is<IReadOnlyList<BaseItem>>(l => l.Contains(box)), anna))
+            .Returns(new Dictionary<Guid, UserItemData> { [box.Id] = new() { Key = "k", IsFavorite = true } });
+
+        var plan = await remover.PlanAsync([_movie.Id], CancellationToken.None);
+
+        Assert.Empty(plan.Remove);
+        Assert.Contains("Alien saga", plan.Skip.Single().Reason, StringComparison.Ordinal);
     }
 
     // Lists one movie; records the delete call.

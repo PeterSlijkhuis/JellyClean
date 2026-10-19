@@ -375,6 +375,13 @@ public class JellyCleanController : ControllerBase
         var plugin = Plugin.Instance!;
         var kept = plugin.Configuration.KeptIds.Where(i => i != itemId);
         plugin.Configuration.KeptIds = (keep ? kept.Append(itemId) : kept).ToArray();
+        if (_catalog.KeepKeyOf(itemId) is { } key)
+        {
+            // Saved under its TMDb, TVDb or IMDb id too, so the mark stays when the file is upgraded and the id changes.
+            var keys = plugin.Configuration.KeptKeys.Where(k => k != key);
+            plugin.Configuration.KeptKeys = (keep ? keys.Append(key) : keys).ToArray();
+        }
+
         plugin.SaveConfiguration();
         if (keep)
         {

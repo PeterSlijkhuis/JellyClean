@@ -54,6 +54,12 @@ public class PluginConfiguration : BasePluginConfiguration
     public Guid[] KeptIds { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets the keep marks by TMDb, TVDb or IMDb id and library, so a mark stays when Jellyfin gives an item a new id,
+    /// like after Radarr or Sonarr upgrades or renames the file.
+    /// </summary>
+    public string[] KeptKeys { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets the Radarr and Sonarr servers to remove items from as well.
     /// </summary>
     public ArrServer[] Servers { get; set; } = [];
