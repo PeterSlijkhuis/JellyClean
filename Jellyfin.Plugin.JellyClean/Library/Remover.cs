@@ -229,18 +229,20 @@ public class Remover
                 Activity.Log(_logger, LogLevel.Warning, null, "Kept {Title}: {Reason}", skipped.Item.Title, skipped.Reason);
             }
 
-            _catalog.Invalidate();
+            _catalog.Forget(plan.Remove.Select(p => p.Item.Id));
             if (plan.Remove.Count > 0)
             {
                 // Whatever was removed is no longer leaving soon.
                 var config = Plugin.Instance!.Configuration;
                 var gone = plan.Remove.Select(p => p.Item.Id).ToHashSet();
                 config.LeavingSoon = config.LeavingSoon.Where(l => !gone.Contains(l.Id)).ToArray();
-                if (days == 0)
+                // With the recycle bin, the space counts as freed when the bin is emptied; empty items are gone already.
+                var deleted = plan.Remove.Where(p => days == 0 || p.Item.Size == 0).ToList();
+                if (deleted.Count > 0)
                 {
-                    // With the recycle bin, the space counts as freed when the bin is emptied.
-                    RecycleBin.CountFreed(plan.TotalSize, plan.Remove.Count);
+                    RecycleBin.CountFreed(deleted.Sum(p => p.Item.Size), deleted.Count);
                 }
+
                 Plugin.Instance.SaveConfiguration();
 
                 var what = $"{plan.Remove.Count} {(plan.Remove.Count == 1 ? "item" : "items")}, {Bytes(plan.TotalSize)}";
@@ -270,8 +272,9 @@ public class Remover
         }
 
         // With the recycle bin on, the files move first: that can be undone if Radarr or Sonarr then fails.
+        // An empty item has nothing to get back, and held in Sonarr its folder would be made again and scanned back in, so it goes for good.
         RecycledItem? recycled = null;
-        if (days > 0)
+        if (days > 0 && planned.Item.Size > 0)
         {
             try
             {

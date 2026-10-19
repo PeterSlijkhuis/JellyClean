@@ -30,6 +30,7 @@ public sealed class RemoverTests : IDisposable
     private readonly PluginConfiguration _config = new();
     private string _radarrUrl = "http://radarr:7878";
     private bool _radarrCalled;
+    private Catalog? _catalog;
 
     public RemoverTests()
     {
@@ -56,7 +57,7 @@ public sealed class RemoverTests : IDisposable
     {
         var users = new Mock<IUserManager>();
         users.Setup(u => u.GetUsers()).Returns([]);
-        var catalog = new Catalog(_library.Object, users.Object, Mock.Of<IUserDataManager>(), NullLogger<Catalog>.Instance);
+        var catalog = _catalog = new Catalog(_library.Object, users.Object, Mock.Of<IUserDataManager>(), NullLogger<Catalog>.Instance);
 
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(() => new HttpClient(new Radarr(this)));
@@ -219,6 +220,43 @@ public sealed class RemoverTests : IDisposable
         {
             _library.Verify(l => l.DeleteItem(e, It.Is<DeleteOptions>(o => o.DeleteFileLocation)), Times.Once);
         }
+    }
+
+    [Fact]
+    public async Task An_empty_item_skips_the_recycle_bin_and_leaves_the_list_at_once()
+    {
+        _config.RecycleDays = 30;
+        var library = new List<BaseItem> { _movie };
+        _library.Setup(l => l.GetItemList(It.IsAny<InternalItemsQuery>())).Returns(() => library.ToList());
+        _library.Setup(l => l.DeleteItem(_movie, It.IsAny<DeleteOptions>())).Callback(() => library.Clear());
+        var remover = Remover();
+        var version = _catalog!.Get().Count == 1 ? _catalog.Version : -1;
+
+        var plan = await remover.RemoveAsync([_movie.Id], Guid.Empty, CancellationToken.None);
+
+        Assert.Single(plan.Remove);
+        Assert.True(_radarrCalled);
+        _library.Verify(l => l.DeleteItem(_movie, It.Is<DeleteOptions>(o => o.DeleteFileLocation)), Times.Once);
+        Assert.Empty(_config.Recycled);
+        Assert.Empty(_catalog.Get());
+        Assert.True(_catalog.Version > version);
+    }
+
+    [Fact]
+    public void Forget_takes_a_series_out_with_its_episodes()
+    {
+        var series = new MediaBrowser.Controller.Entities.TV.Series { Id = Guid.NewGuid(), Name = "Dark", Path = "/nowhere/Dark" };
+        var episode = new MediaBrowser.Controller.Entities.TV.Episode { Id = Guid.NewGuid(), Name = "E1", SeriesId = series.Id, Path = "/nowhere/Dark/E1.mkv" };
+        var library = new List<BaseItem> { series, episode, _movie };
+        _library.Setup(l => l.GetItemList(It.IsAny<InternalItemsQuery>())).Returns(() => library.ToList());
+        Remover();
+        Assert.Equal(3, _catalog!.Get().Count);
+
+        library.Remove(episode);
+        library.Remove(series);
+        _catalog.Forget([series.Id]);
+
+        Assert.Equal([_movie.Id], _catalog.Get().Keys);
     }
 
     // Lists one movie; records the delete call.

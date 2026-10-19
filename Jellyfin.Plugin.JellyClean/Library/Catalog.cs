@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
@@ -36,6 +37,9 @@ public class Catalog
     private DateTime _builtAt = DateTime.MinValue;
     private Task? _rebuilding;
     private volatile bool _changed;
+
+    // Goes up when items are taken out by hand, so a read that was already under way is done again rather than bring them back.
+    private int _generation;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Catalog"/> class.
@@ -81,24 +85,7 @@ public class Catalog
             if (_items is not null && !refresh && _builtAt != DateTime.MinValue && (age > _maxAge || (_changed && age > TimeSpan.FromSeconds(30))))
             {
                 // Old but usable: answer now and read the library again in the background.
-                _rebuilding ??= Task.Run(() =>
-                {
-                    try
-                    {
-                        Rebuild();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Could not read the library");
-                    }
-                    finally
-                    {
-                        lock (_gate)
-                        {
-                            _rebuilding = null;
-                        }
-                    }
-                });
+                RebuildInBackground();
                 return _items;
             }
         }
@@ -109,6 +96,29 @@ public class Catalog
         }
 
         return _items!;
+    }
+
+    // Call with _gate held.
+    private void RebuildInBackground()
+    {
+        _rebuilding ??= Task.Run(() =>
+        {
+            try
+            {
+                Rebuild();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not read the library");
+            }
+            finally
+            {
+                lock (_gate)
+                {
+                    _rebuilding = null;
+                }
+            }
+        });
     }
 
     private void Rebuild()
@@ -122,8 +132,16 @@ public class Catalog
                 return;
             }
 
-            _changed = false;
-            var items = Build();
+            Dictionary<Guid, CatalogItem> items;
+            int generation;
+            do
+            {
+                generation = Volatile.Read(ref _generation);
+                _changed = false;
+                items = Build();
+            }
+            while (generation != Volatile.Read(ref _generation));
+
             lock (_gate)
             {
                 if (_items is null || _items.Count != items.Count || !_items.Keys.All(items.ContainsKey))
@@ -159,16 +177,27 @@ public class Catalog
     }
 
     /// <summary>
-    /// Makes the next <see cref="Get"/> read the library again.
+    /// Takes removed items out right away, with the seasons and episodes in them, so every list shows the removal at once.
+    /// The library is then read again in the background, to bring the sizes of the series they were in up to date.
     /// </summary>
-    public void Invalidate()
+    /// <param name="ids">The removed items.</param>
+    public void Forget(IEnumerable<Guid> ids)
     {
+        var gone = ids.ToHashSet();
         lock (_gate)
         {
-            _builtAt = DateTime.MinValue;
-        }
+            Interlocked.Increment(ref _generation);
+            if (_items is null || gone.Count == 0)
+            {
+                return;
+            }
 
-        // The next Get() rebuilds while the caller waits; fine after a removal, which already took a while.
+            _items = _items.Values
+                .Where(i => !gone.Contains(i.Id) && !(i.SeriesId is { } series && gone.Contains(series)) && !(i.SeasonId is { } season && gone.Contains(season)))
+                .ToDictionary(i => i.Id);
+            Version++;
+            RebuildInBackground();
+        }
     }
 
     // Jellyfin drops a series from Next Up a year after it was last played (its default).
