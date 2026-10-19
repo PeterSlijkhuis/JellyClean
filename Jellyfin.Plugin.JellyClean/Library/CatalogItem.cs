@@ -107,6 +107,9 @@ public sealed class CatalogItem
     /// <summary>Gets or sets the favorite collections it is in. Those count as a favorite too.</summary>
     public string[] FavoriteCollections { get; set; } = [];
 
+    /// <summary>Gets or sets what a keep mark is also saved under, like "Movie tmdb603 Movies", so it outlasts a new item id after a file is upgraded or renamed.</summary>
+    internal string? KeepKey { get; set; }
+
     /// <summary>Gets or sets a value indicating whether it is marked keep. Filled in per request.</summary>
     public bool Kept { get; set; }
 

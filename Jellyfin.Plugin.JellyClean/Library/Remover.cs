@@ -80,6 +80,7 @@ public class Remover
     public async Task<RemovalPlan> PlanAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken)
     {
         var config = Plugin.Instance!.Configuration;
+        _catalog.RefreshCollections();
         var plan = RemovalPlan.Build(ids, _catalog.Get(), Safeguards());
         foreach (var planned in plan.Remove)
         {
@@ -131,7 +132,8 @@ public class Remover
         var now = DateTime.UtcNow;
         return new Safeguards
         {
-            Kept = config.KeptIds.ToHashSet(),
+            // A mark saved under a TMDb, TVDb or IMDb id holds before the next read has given it the new item id.
+            Kept = config.KeptIds.Concat(_catalog.Get().Values.Where(i => i.KeepKey is { } k && config.KeptKeys.Contains(k)).Select(i => i.Id)).ToHashSet(),
             Playing = _sessionManager.Sessions
                 .Select(s => s.NowPlayingItem)
                 .Where(i => i is not null)
