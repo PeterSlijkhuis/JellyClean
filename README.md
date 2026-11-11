@@ -43,7 +43,7 @@ JellyClean sits in between. It shows you the facts, lets you decide, and makes e
 - **It lives inside Jellyfin.** No extra container, no database, no web app on another port, no separate login. Install it from the plugin catalog and it uses Jellyfin's own users, watch history and permissions.
 - **You see before anything happens.** Every removal starts with a preview that lists each file and folder, what happens in Radarr and Sonarr, and which items stay and why.
 - **Safe by default.** Favorites of any user, Continue Watching, recently added, recently played, a `keep` tag, protected libraries and anything playing right now are never touched. Each favorite shows whose it is.
-- **Nothing comes back by accident.** Removed movies and series leave Radarr and Sonarr (optionally on their exclusion list), so they are not downloaded again a day later.
+- **Nothing comes back by accident.** Removed movies and series leave Radarr and Sonarr and go on their exclusion list, so they are not downloaded again a day later. Keep **Add to the exclusion list** on: without it, a monitored Radarr collection or an import list adds the movie back.
 - **Mistakes are cheap.** With the recycle bin on, files wait in a hidden folder for the days you choose. One click on **Recover** puts everything back, in Jellyfin, Radarr and Sonarr.
 - **Automation that warns first.** Rules put items on a **Leaving soon** list with a notice period, optionally shown to your users as a collection, so people can save what they still want. Anything removed on its own always goes through the recycle bin.
 - **Built for the whole household.** Watched status, last played and favorites are per user, so *watched by everyone* really means everyone.
