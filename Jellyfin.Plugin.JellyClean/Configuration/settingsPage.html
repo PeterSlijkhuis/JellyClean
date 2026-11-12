@@ -365,7 +365,7 @@
                         var exclusion = el('button', { type: 'button', className: 'jc-tile' },
                             el('span', { className: 'jc-tile-text' },
                                 el('b', { textContent: 'Add to the exclusion list' }),
-                                el('small', { textContent: 'So an import list never adds a removed ' + (server.Kind === 'Sonarr' ? 'series' : 'movie') + ' again.' })),
+                                el('small', { textContent: server.Kind === 'Sonarr' ? 'Without it, an import list adds a removed series again and it is downloaded again.' : 'Without it, a monitored collection or an import list adds a removed movie again and it is downloaded again.' })),
                             el('span', { className: 'jc-switch', ariaHidden: 'true' }));
                         exclusion.setAttribute('role', 'switch');
                         exclusion.setAttribute('aria-checked', String(server.AddExclusion));
